@@ -1,6 +1,6 @@
 ;|==============================|
 ;|                              |
-;|  Cobalt Engine Test Program  |
+;|   SNES Space Invaders Clone  |
 ;|                              |
 ;|          08/06/2024          |
 ;|                              |
