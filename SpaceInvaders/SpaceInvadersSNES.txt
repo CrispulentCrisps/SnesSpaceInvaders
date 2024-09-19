@@ -1,0 +1,54 @@
+Space invaders SNES
+
+Scenes:
+	Title
+	Options/Sound test
+	Highscore
+	Game
+	Continue
+
+Title:
+	Ideas:
+	https://youtu.be/X2lgOKPS9qY?feature=shared&t=54 for bg
+	Scroller for dev message
+	
+	SceneFlow [which scenes the game can go to]
+		Game
+		Options/Sound test
+
+	BGMode[s]:
+		Mode 2
+
+Options/Sound test:
+	Ideas:
+		Multi-layer starfield
+
+	SceneFlow:
+		Title:
+
+	BGMode[s]:
+		Mode 0
+Highscore:
+	SceneFlow:
+		Title:
+
+	BGMode[s]:
+		Mode 0
+
+Game:
+	Ideas:
+		Multiple backgrounds to choose
+
+	SceneFlow:
+		Continue
+
+	BGMode[s]:
+		Mode 1
+Continue:
+
+	SceneFlow:
+		Game
+		Highscore
+
+	BGMode[s]:
+		Mode 1
