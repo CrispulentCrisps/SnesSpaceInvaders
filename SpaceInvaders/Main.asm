@@ -378,9 +378,8 @@ GameScene:
     lda.b #$70
     sta.w Player.X    
     ;Reset Bullets
-    lda.b #$00
-    sta.w Bullet[0].X
-    sta.w Bullet[0].Y
+    stz.w Bullet[0].X
+    stz.w Bullet[0].Y
     stz.w Bullet[0].Frame
     lda.b #$00
     sta.w Bullet[0].Enabled
@@ -399,17 +398,17 @@ GameScene:
     
     lda.b ZP.EnemyWaveCount
     rep #$20
-    lda.w EnemyWaveLookup, Y  ;Grab current enemy wave definition
-    sta.w ZP.MemPointer       ;Set indirect pointer to the enemy waves
+    lda.w EnemyWaveLookup, Y    ;Grab current enemy wave definition
+    sta.w ZP.MemPointer         ;Set indirect pointer to the enemy waves
     sep #$20
     tdc
     lda.b #79
     tay
     -
-    lda.b #$01
+    lda.b (ZP.MemPointer), Y
     sta.w Enemy, Y
     dey
-    lda.b (ZP.MemPointer), Y
+    lda.b #$01
     sta.w Enemy, Y
     dey
     bpl -
@@ -515,7 +514,7 @@ GameScene:
     ;-------------------;
     ;Check if the bullet is on screen    
     lda.w Bullet.Enabled
-    beq .SkipBulletJmp
+    bne .SkipBulletJmp
     jmp .SkipBullet0Logic
     .SkipBulletJmp:
     ;Grab the bullet Y
@@ -562,7 +561,7 @@ GameScene:
     lsr                     ;Y position floored by 8
     pha
     
-    lda.w HW_RDDIVL          ;Grab division
+    lda.w HW_RDDIVL         ;Grab division
     sta.b ZP.R4
     lda.w HW_RDMPYL         ;Grab remainder of division
     sta.b ZP.R5
@@ -572,12 +571,12 @@ GameScene:
     stz.w HW_WRDIVH
     lda.b #$03
     sta.w HW_WRDIVB          ;Divide by 3
-    jml +                 ;Waste 16 cycles while division is processing
+    jml +                 ;Waste 12 cycles while division is processing
     +
     jml +
     +
 
-    lda.w HW_RDDIVL          ;Grab division
+    lda.w HW_RDDIVL         ;Grab division
     sta.b ZP.R6
     lda.w HW_RDMPYL         ;Grab remainder of division
     sta.b ZP.R7
@@ -589,21 +588,36 @@ GameScene:
     and #$02
     beq .SkipBullet0Logic
 
-    lda.b ZP.R6             ;Y Divisor value
-    asl
-    asl
-    asl
-    asl
-    asl
+    lda.b ZP.R3             ;Y Divisor value
     clc
     adc.b ZP.R4
     sta.b ZP.BulletColTile  ;Store collided tiles
+
+    ;Bullet collision code
+    ldy.w #$0000
+    ldy.b ZP.BulletColTile
+
+    ;Bullet collision code
+    ldy.w #$0000
+    lda.b ZP.BulletColTile  ;Grab enemy index
+    asl                     ;Mult by enemy struct size
+    tay                     ;Shove into Y index
+    lda.w Enemy, Y          ;Grab current enemie's alive state
+    beq .SkipEnemyHurt      ;If it's 0 then we don't do anything
+    dec
+    sta.w Enemy, Y
+    stz.w Bullet[0].Enabled
+    lda.b #$FF
+    sta.w Bullet[0].X
+    .SkipEnemyHurt:
 
     .SkipBullet0Logic:
     
     ;---------------------;
     ;   Bullet Drawing    ;
     ;---------------------;
+    lda.w Bullet.X
+    sta.w LaserOAM
     lda.w Bullet.Y
     sta.w LaserOAM+1
     lda.b #!BulletF1
@@ -680,6 +694,8 @@ GameScene:
     stz.w !BG2VOffMirror+1
     ;Update enemy graphics
     jsr GameLoop_DrawEnemies
+    lda.b #$08
+    sta.b ZP.EnemyTimer
     .SkipMove:
     dec.b ZP.EnemyTimer
     rep #%00100000              ;Set A to 16 bit mode
@@ -697,6 +713,7 @@ GameLoop_SendWave:
     ;       Draws enemies from VRAM tile by tile to the screen tilemap
     ;
     ;   Clobber list:
+    ;       R1
     ;       R3
     ;       R4
     ;       R5
@@ -708,6 +725,8 @@ GameLoop_SendWave:
 GameLoop_DrawEnemies:
     ;Enemy Load loop
     ;This code is a messy pile of shit and should never be replicated no matter how desperate, but fuckin hell it works!
+    lda.b #$00
+    sta.b ZP.R2                 ;Reset Enemy Alive index
     stz.b ZP.R3                 ;Reset Row index
     stz.b ZP.R7                 ;Reset Hi index
     stz.b ZP.R6                 ;Reset Lo index
@@ -727,6 +746,19 @@ GameLoop_DrawEnemies:
     .EnCols:                    ;Enemy rows loop
     stz.b ZP.R5                 ;Reset Memory makeups
     stz.b ZP.R4                 ;Reset Memory makeups
+
+    sep #$10
+    ldy.b ZP.R2
+    lda.w Enemy, Y
+    bne .DoEnemyDrawingTop
+    rep #$10
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    jmp .SkipEnemyTopDraw
+    .DoEnemyDrawingTop:
+    rep #$10
     tdc
     lda.b (ZP.MemPointer)
     tay
@@ -764,6 +796,7 @@ GameLoop_DrawEnemies:
     sta.w ZP.MemPointer
     sep #$20
     
+    .SkipEnemyTopDraw:
     ;Blank tile write to pad enemies out
     stz.w HW_WMDATA
     stz.w HW_WMDATA
@@ -790,6 +823,19 @@ GameLoop_DrawEnemies:
     sta.w ZP.R0
     sep #$20
     .EnRows:
+    
+    sep #$10
+    ldy.b ZP.R2
+    lda.w Enemy, Y
+    bne .DoEnemyDrawingBottom
+    rep #$10
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    jmp .SkipEnemyBottomDraw
+    .DoEnemyDrawingBottom:
+    rep #$10
     ;Write underside of enemy characters
     tdc
     lda.b (ZP.R0)
@@ -831,6 +877,9 @@ GameLoop_DrawEnemies:
     sta.w ZP.R0
     sep #$20
 
+    .SkipEnemyBottomDraw:
+    inc.b ZP.R2
+    inc.b ZP.R2
     ;Blank tile write to pad enemies out
     stz.w HW_WMDATA
     stz.w HW_WMDATA
@@ -858,6 +907,17 @@ GameLoop_DrawEnemies:
     jmp .EnCols
     ;Get the fuck out of the loop
     .ExitLoop:
+
+    ;rep #$20
+    ;lda.w #(EnemyTileBuffer)&$FFFF
+    ;adc.b ZP.BulletColTile
+    ;sta.b ZP.MemPointer
+    ;sep #$20
+    ;lda.b #(EnemyTileBuffer>>16)&$FF
+    ;sta.b ZP.MemPointer+2
+    ;lda.b #61
+    ;sta.b [ZP.MemPointer]
+
     ldy.w #$0000
     lda.b #(EnemyTileBuffer)&$FF
     sta.b (ZP.VrDmaListPtr), Y
@@ -882,13 +942,12 @@ GameLoop_DrawEnemies:
     sta.b (ZP.VrDmaListPtr), Y
     lda.b ZP.VrDmaListPtr
     clc
-    adc #$08
-    sta.b ZP.VrDmaListPtr    
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
     sep #$20
     ldy #$0003
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
-    
     rts
     
     ;-----------------------------------;
@@ -1002,7 +1061,12 @@ EnemyWave6:
     db $03,$08,$05,$02,$07,$04,$01,$06
     db $04,$01,$06,$03,$08,$05,$02,$07
     db $05,$02,$07,$04,$01,$06,$03,$08
-
+EnemyWave7:
+    db $01,$00,$01,$00,$01,$00,$01,$00
+    db $01,$00,$01,$00,$01,$00,$01,$00
+    db $01,$00,$01,$00,$01,$00,$01,$00
+    db $01,$00,$01,$00,$01,$00,$01,$00
+    db $01,$00,$01,$00,$01,$00,$01,$00
 SineTable:
     dw $0000
     dw $0003

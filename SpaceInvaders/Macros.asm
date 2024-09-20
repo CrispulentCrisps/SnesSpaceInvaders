@@ -26,7 +26,7 @@ struct ZP $00
 .EnemyWaveCount skip 2  ;Current wave the player is on
 .EnemyDownCount skip 1  ;Counter for the downward movement of the enemies
 .EnemyFrame     skip 1  ;Current enemy frame
-.BulletColTile  skip 2  ;Current X and Y position of the bullet collision
+.BulletColTile  skip 2  ;Index into enemy array
 .Score          skip 2  ;Current score of the player
 endstruct
 
@@ -57,8 +57,8 @@ endstruct
 
 ;(12 columns * 5 rows) * 4 bytes per entry = 240 bytes of data up to 0x740
 struct Enemy $0500
-.Alive  skip 1      ;Checks if the invader is alive
 .Type   skip 1      ;Determines which enemy tiles to display
+.Alive  skip 1      ;Checks if the invader is alive
 endstruct
 
 EnemyTilemap =      $0740
