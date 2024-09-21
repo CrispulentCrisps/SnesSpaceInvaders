@@ -384,7 +384,7 @@ GameScene:
     lda.b #$00
     sta.w Bullet[0].Enabled
 
-    lda.b #$05
+    lda.b #$02
     sta.b ZP.EnemyWaveCount
     lda.b !EnemyMoveR
     sta.b ZP.EnemyDir
@@ -393,25 +393,12 @@ GameScene:
     rep #$20
     lda.w #!EnemySpeed
     sta.w ZP.EnemyPlanePosX
-    lda.b #$08
+    sep #$20
+    lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
     
-    lda.b ZP.EnemyWaveCount
-    rep #$20
-    lda.w EnemyWaveLookup, Y    ;Grab current enemy wave definition
-    sta.w ZP.MemPointer         ;Set indirect pointer to the enemy waves
-    sep #$20
-    tdc
-    lda.b #79
-    tay
-    -
-    lda.b (ZP.MemPointer), Y
-    sta.w Enemy, Y
-    dey
-    lda.b #$01
-    sta.w Enemy, Y
-    dey
-    bpl -
+    ;Write enemy entries into Enemy struct array
+    jsr GameLoop_UpdateEnemyArray
 
     jsr GameLoop_DrawEnemies
     sep #$20
@@ -521,16 +508,21 @@ GameScene:
     lda.w Bullet.Y
     ;Decrement position by speed
     sbc.b #!BulletSpeed
-    cmp #$F8
-    bne .SkipDisable0
+    bcs .SkipDisable0
     stz.w Bullet.Enabled
+    lda.b #$FF
+    sta.w Bullet[0].X
     .SkipDisable0:
     sta.w Bullet.Y
     ;Collision code
+    lda.b #$FF
+    sta.b ZP.BulletColTile      ;Reset collided tile index
     lda.w Bullet[0].X
+    clc
     adc.b #!BulletColOff
     sta.b ZP.R0
     lda.w Bullet[0].Y
+    clc
     adc.b #!BulletColOff
     sta.b ZP.R1
     ;Xpos
@@ -549,70 +541,99 @@ GameScene:
     lda.b #$03
     sta.w HW_WRDIVB         ;Divide by 3
     ;Ypos
-    lda.b ZP.R1             ;Center Y
+    lda.b #$00
     sec
-    sbc.b ZP.EnemyPlanePosY
+    sbc.b ZP.EnemyPlanePosY ;(256 - Y)
     sta.b ZP.R3
     lda.b ZP.R1             ;Center Y
     sec
-    sbc.b ZP.R2
+    sbc.b ZP.R3
     lsr
     lsr
     lsr                     ;Y position floored by 8
-    pha
+    sta.b ZP.R2
     
     lda.w HW_RDDIVL         ;Grab division
+    cmp #$08
+    bmi +
+    jmp .SkipBullet0Logic   ;Exit if we're out of bounds of the tile X index
+    +
     sta.b ZP.R4
     lda.w HW_RDMPYL         ;Grab remainder of division
     sta.b ZP.R5
     
-    pla
+    lda.b ZP.R2
     sta.w HW_WRDIVL
     stz.w HW_WRDIVH
     lda.b #$03
-    sta.w HW_WRDIVB          ;Divide by 3
+    sta.w HW_WRDIVB       ;Divide by 3
     jml +                 ;Waste 12 cycles while division is processing
+    +
+    jml +
+    +
+    jml +
     +
     jml +
     +
 
     lda.w HW_RDDIVL         ;Grab division
+    cmp #$05
+    bpl .SkipBullet0Logic   ;Exit if we're out of bounds of the tile Y index
     sta.b ZP.R6
     lda.w HW_RDMPYL         ;Grab remainder of division
     sta.b ZP.R7
 
     lda.b ZP.R5             ;X remainder
-    and #$02
-    beq .SkipBullet0Logic
+    cmp #2
+    beq .SkipBullet0Logic   ;Skip if we've hit the empty tile next to the enemy
     lda.b ZP.R7             ;Y remainder
-    and #$02
-    beq .SkipBullet0Logic
+    cmp #2
+    beq .SkipBullet0Logic   ;Skip if we've hit the empty tile next to the enemy
 
-    lda.b ZP.R3             ;Y Divisor value
+    lda.b ZP.R6             ;Y Division output
+    asl
+    asl
+    asl
     clc
     adc.b ZP.R4
     sta.b ZP.BulletColTile  ;Store collided tiles
 
-    ;Bullet collision code
-    ldy.w #$0000
-    ldy.b ZP.BulletColTile
-
-    ;Bullet collision code
+    ;Bullet collision logic
     ldy.w #$0000
     lda.b ZP.BulletColTile  ;Grab enemy index
-    asl                     ;Mult by enemy struct size
     tay                     ;Shove into Y index
-    lda.w Enemy, Y          ;Grab current enemie's alive state
-    beq .SkipEnemyHurt      ;If it's 0 then we don't do anything
+    lda.w EnemyHealth, Y    ;Grab current enemie's alive state
+    bne .SkipEHJmp
+    jmp .SkipEnemyHurt      ;If it's 0 then we don't do anything
+    .SkipEHJmp:
     dec
-    sta.w Enemy, Y
+    bne +
+    pha
+    ;Add score
+    phy
+    lda.w EnemyType, Y      ;Save enemy type for scoring
+    tay
+    lda.b ZP.Score
+    adc.w EnemyScoreTable, Y
+    bcc ++
+    inc.b ZP.Score+1
+    ++
+    sta.b ZP.Score
+    ply
+    lda.b #$00
+    sta.w EnemyType, Y      ;Set enemy type to 0 to prevent null enemy collisions
+    pla
+    +
+    sta.w EnemyHealth, Y
     stz.w Bullet[0].Enabled
     lda.b #$FF
     sta.w Bullet[0].X
+    sta.b ZP.BulletColTile
+    lda.b #!EnemyHurtTimer
+    sta.w EnemyHurtTable, Y
     .SkipEnemyHurt:
 
     .SkipBullet0Logic:
-    
     ;---------------------;
     ;   Bullet Drawing    ;
     ;---------------------;
@@ -628,6 +649,34 @@ GameScene:
     ;-----------------;
     ;   Enemy Logic   ;
     ;-----------------;
+    ;Update enemy graphics
+    jsr GameLoop_DrawEnemies
+    
+    ;Check enemy count and set enemy speed to amount of enemies on screen
+    sep #$20
+    stz.b ZP.EnemyWait
+    ldy.w #$0000
+    -
+    lda.w EnemyHealth, Y
+    beq +
+    inc.b ZP.EnemyWait
+    +
+    lda.w EnemyHurtTable, Y
+    beq +
+    dec
+    sta.w EnemyHurtTable, Y
+    +
+    iny
+    cpy.w #$0028
+    bne -
+    ;Adjust speed and then apply
+    lda.b ZP.EnemyWait
+    lsr
+    bne +
+    lda.b #$01
+    +
+    sta.b ZP.EnemyWait
+
     tdc
     lda.b ZP.EnemyTimer
     beq .SkipMoveJmp
@@ -692,13 +741,66 @@ GameScene:
     lda.b ZP.EnemyPlanePosY
     sta.w !BG2VOffMirror
     stz.w !BG2VOffMirror+1
-    ;Update enemy graphics
-    jsr GameLoop_DrawEnemies
-    lda.b #$08
+    lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
+    jsr GameLoop_DrawEnemies_FrameDecider
     .SkipMove:
     dec.b ZP.EnemyTimer
     rep #%00100000              ;Set A to 16 bit mode
+    rts
+
+    ;---------------------------;
+    ;   Draw Score to Screen    ;
+    ;---------------------------;
+    ;
+    ;   Usage:
+    ;
+    ;   Clobberlist
+    ;
+GameLoop_DrawScore:
+    
+    rts
+    
+    
+    ;---------------------------------;
+    ;   Updating enemy array table    ;
+    ;---------------------------------;
+    ;
+    ;   Usage:
+    ;       Call function and the table will automatically be updated [SET A INTO 8 BIT MODE BEFOREHAND]
+    ;
+    ;   Clobber list
+    ;       ZP.MemPointer
+    ;
+    ;
+GameLoop_UpdateEnemyArray:
+    pha
+    phy
+    tdc
+    ldx.w #$0000
+    lda.b ZP.EnemyWaveCount
+    asl
+    tax
+    rep #$20
+    lda.w EnemyWaveLookup, X
+    tax
+    tdc
+    sep #$20
+    ldy.w #$0000
+    -
+    lda.b 0, X
+    sta.w EnemyType, Y
+    phx
+    tax
+    lda.w EnemyHealthTable, X
+    sta.w EnemyHealth, Y
+    plx
+    inx
+    iny
+    cpy.w #!EnemyStructWr
+    bne -
+    pla
+    ply
     rts
 
 GameLoop_SendWave:
@@ -713,200 +815,140 @@ GameLoop_SendWave:
     ;       Draws enemies from VRAM tile by tile to the screen tilemap
     ;
     ;   Clobber list:
-    ;       R1
-    ;       R3
-    ;       R4
-    ;       R5
-    ;       R6
-    ;       R7
-    ;       MemPointer
     ;       
     ;
 GameLoop_DrawEnemies:
     ;Enemy Load loop
-    ;This code is a messy pile of shit and should never be replicated no matter how desperate, but fuckin hell it works!
-    lda.b #$00
-    sta.b ZP.R2                 ;Reset Enemy Alive index
-    stz.b ZP.R3                 ;Reset Row index
-    stz.b ZP.R7                 ;Reset Hi index
-    stz.b ZP.R6                 ;Reset Lo index
-    ldx.w #EnemyTileBuffer    
-    stx.w HW_WMADDL             ;Setup VRAM pointer
-    lda.b #$7E
-    sta.w HW_WMADDH
+    sep #$20
+    stz.w HW_WMADDH
+    lda.b #(EnemyTileBuffer>>8)&$FF
+    sta.w HW_WMADDM                     ;Set up Work ram pointer
+    lda.b #(EnemyTileBuffer)&$FF
+    sta.w HW_WMADDL                     ;Set up Work ram pointer
+    rep #$20
+    ldy.w #$0005
+    lda.w #EnemyType
+    sta.b ZP.MemPointer                 ;Set up EnemyType pointer
+    lda.w #EnemyHurtTable
+    sta.b ZP.MemPointer2                ;Set up EnemyHurtTimer table
     ldx.w #$0000
-    lda.b ZP.EnemyWaveCount
-    asl
-    tay
-    rep #$20
-    lda.w EnemyWaveLookup, Y  ;Grab current enemy wave definition
-    sta.w ZP.MemPointer       ;Set indirect pointer to the enemy waves for construction
-    sep #$20
-    tdc                         ;Clear upper A
-    .EnCols:                    ;Enemy rows loop
-    stz.b ZP.R5                 ;Reset Memory makeups
-    stz.b ZP.R4                 ;Reset Memory makeups
-
-    sep #$10
-    ldy.b ZP.R2
-    lda.w Enemy, Y
-    bne .DoEnemyDrawingTop
-    rep #$10
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    jmp .SkipEnemyTopDraw
-    .DoEnemyDrawingTop:
-    rep #$10
+    .RowLoop:
+    ;Top row
     tdc
-    lda.b (ZP.MemPointer)
-    tay
-    
-    ;Top left
-    lda.w EnemyTypesPal, Y
-    sta.b ZP.R5
-    lda.w EnemyTypesTile, Y
-    jsr GameLoop_DrawEnemies_FrameDecider
-    sta.b ZP.R4
-    lda.w ZP.R4
-    sta.w HW_WMDATA
-    lda.w ZP.R5
-    sta.w HW_WMDATA
-    
-    tdc
-    lda.b (ZP.MemPointer)
-    tay
-
-    ;Top Right
-    lda.w EnemyTypesPal, Y
-    clc
-    adc.b #$40
-    sta.b ZP.R5
-    lda.w EnemyTypesTile, Y
-    jsr GameLoop_DrawEnemies_FrameDecider
-    sta.b ZP.R4
-    lda.w ZP.R4
-    sta.w HW_WMDATA
-    lda.w ZP.R5
-    sta.w HW_WMDATA
-    rep #$20
-    lda.w ZP.MemPointer
-    inc
-    sta.w ZP.MemPointer
     sep #$20
-    
-    .SkipEnemyTopDraw:
-    ;Blank tile write to pad enemies out
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-
-    inc.b ZP.R7
-    tdc                       ;Clear upper A
-    lda.b ZP.R7
-    cmp #!EnemyCols
-    beq .NextCol               ;Goto rows
-    jmp .EnCols
-    ;Move onto next column
-    .NextCol:
-    lda.b #!EnemyCols
-    sta.b ZP.R0
-    -
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    dec.b ZP.R0
-    bne -
-
+    for t = 0..8
+        lda.b (ZP.MemPointer)           ;Grab type table data
+        beq +
+        asl
+        asl
+        tax
+        lda.w EnemyDrawTop+0, X
+        adc.b ZP.EnemyFrame
+        sta.w HW_WMDATA
+        lda.b (ZP.MemPointer2)          ;Grab hurt timer
+        bne +++
+        lda.w EnemyDrawTop+1, X
+        bra ++++
+        +++
+        lda.b #!EnemyHurtPal
+        ++++
+        sta.w HW_WMDATA
+        lda.w EnemyDrawTop+2, X
+        adc.b ZP.EnemyFrame
+        sta.w HW_WMDATA
+        lda.b (ZP.MemPointer2)          ;Grab hurt timer
+        bne +++
+        lda.w EnemyDrawTop+3, X
+        bra ++++
+        +++
+        lda.b #!EnemyHurtPalFlip
+        ++++
+        sta.w HW_WMDATA
+        bra ++
+        +
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        ++
+        ;Write empty tile
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        ;Increment pointer
+        rep #$20
+        inc.b ZP.MemPointer
+        inc.b ZP.MemPointer2
+        sep #$20
+    endfor
+    sep #$20
+    for t = 0..8
+        stz.w HW_WMDATA                 ;Write empty tile
+        stz.w HW_WMDATA                 ;Write empty tile
+    endfor
     rep #$20
-    lda.w ZP.MemPointer
+    lda.b ZP.MemPointer
+    sec
     sbc.w #$0008
-    sta.w ZP.R0
-    sep #$20
-    .EnRows:
-    
-    sep #$10
-    ldy.b ZP.R2
-    lda.w Enemy, Y
-    bne .DoEnemyDrawingBottom
-    rep #$10
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    jmp .SkipEnemyBottomDraw
-    .DoEnemyDrawingBottom:
-    rep #$10
-    ;Write underside of enemy characters
+    sta.b ZP.MemPointer
+    lda.b ZP.MemPointer2
+    sec
+    sbc.w #$0008
+    sta.b ZP.MemPointer2
     tdc
-    lda.b (ZP.R0)
-    tay
-    ;Bottom left
-    lda.w EnemyTypesPal, Y
-    sta.b ZP.R5
-    lda.w EnemyTypesTile, Y
-    jsr GameLoop_DrawEnemies_FrameDecider
-    beq .SkipZeroVal1
-    clc
-    adc #$08
-    .SkipZeroVal1:
-    sta.b ZP.R4
-    lda.w ZP.R4
-    sta.w HW_WMDATA
-    lda.w ZP.R5
-    sta.w HW_WMDATA
-    
-    ;Bottom Right
-    lda.w EnemyTypesPal, Y
-    clc
-    adc.b #$40
-    sta.b ZP.R5
-    lda.w EnemyTypesTile, Y
-    jsr GameLoop_DrawEnemies_FrameDecider
-    beq .SkipZeroVal2
-    clc
-    adc #$08
-    .SkipZeroVal2:
-    sta.b ZP.R4
-    lda.w ZP.R4
-    sta.w HW_WMDATA
-    lda.w ZP.R5
-    sta.w HW_WMDATA
-    rep #$20
-    lda.w ZP.R0
-    inc
-    sta.w ZP.R0
     sep #$20
-
-    .SkipEnemyBottomDraw:
-    inc.b ZP.R2
-    inc.b ZP.R2
-    ;Blank tile write to pad enemies out
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-
-    inc.b ZP.R6
-    tdc                       ;Clear upper A
-    lda.b ZP.R6
-    cmp #!EnemyCols
-    beq .NewRow               ;Goto rows
-    jmp .EnRows
-    ;Create empty row as padding
-    .NewRow:
-    lda.b #$28
-    -
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    dec
-    bne -
-    stz.b ZP.R7
-    stz.b ZP.R6
-    inc.b ZP.R3
-    lda.b ZP.R3
-    cmp #!EnemyRows
-    beq .ExitLoop
-    jmp .EnCols
-    ;Get the fuck out of the loop
-    .ExitLoop:
+    for t = 0..8
+        lda.b (ZP.MemPointer)           ;Grab type table data
+        beq +
+        asl
+        asl
+        tax
+        lda.w EnemyDrawBot+0, X
+        adc.b ZP.EnemyFrame
+        sta.w HW_WMDATA
+        lda.b (ZP.MemPointer2)          ;Grab hurt timer
+        bne +++
+        lda.w EnemyDrawBot+1, X
+        bra ++++
+        +++
+        lda.b #!EnemyHurtPal
+        ++++
+        sta.w HW_WMDATA
+        lda.w EnemyDrawBot+2, X
+        adc.b ZP.EnemyFrame
+        sta.w HW_WMDATA
+        lda.b (ZP.MemPointer2)          ;Grab hurt timer
+        bne +++
+        lda.w EnemyDrawBot+3, X
+        bra ++++
+        +++
+        lda.b #!EnemyHurtPalFlip
+        ++++
+        sta.w HW_WMDATA
+        bra ++
+        +
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        ++
+        ;Write empty tile
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        ;Increment pointer
+        rep #$20
+        inc.b ZP.MemPointer
+        inc.b ZP.MemPointer2
+        sep #$20
+    endfor
+    for t = 0..40
+        stz.w HW_WMDATA                 ;Write empty tile
+        stz.w HW_WMDATA                 ;Write empty tile
+    endfor
+    
+    dey
+    beq +
+    jmp .RowLoop
+    +
 
     ;rep #$20
     ;lda.w #(EnemyTileBuffer)&$FFFF
@@ -917,6 +959,25 @@ GameLoop_DrawEnemies:
     ;sta.b ZP.MemPointer+2
     ;lda.b #61
     ;sta.b [ZP.MemPointer]
+
+    ;sep #$20
+    ;lda.b #(EnemyTileBuffer>>16)&$FF
+    ;sta.b ZP.MemPointer+2
+    ;ldy.w #$0000
+    ;lda.b ZP.BulletColTile
+    ;bmi +    
+    ;asl
+    ;tay
+    ;rep #$20
+    ;lda.w EnemyTilemapPos, Y
+    ;asl
+    ;clc
+    ;adc.w #EnemyTileBuffer&$FFFF
+    ;sta.w ZP.MemPointer
+    ;sep #$20
+    ;lda.b #$61
+    ;sta.b [ZP.MemPointer]
+    ;+
 
     ldy.w #$0000
     lda.b #(EnemyTileBuffer)&$FF
@@ -981,17 +1042,18 @@ ContinueScene:
     rts
 
 HighscoreScene:
-
+    
     rts
 
-Text:                   ;All text must have a space before to avoid a missing starting character
+Text:
     dw "HELLO GUYS"
+ScoreText:
+    dw "SCORE: "
+HighScoreText:
     dw "HIGH SCORE"
+OptionsText:
     dw "OPTIONS"
 EndText:
-
-CheckerMap:
-    dw $5A
 
 EnemyTypesPal:
     db $00<<2           ;Empty
@@ -1015,6 +1077,140 @@ EnemyTypesTile:
     db $41              ;MultiArm
     db $43              ;Tough Guy
 
+EnemyDrawTop:
+    ;Empty/Dead
+    db $00              
+    db $00<<2
+    db $00              
+    db $00<<2
+
+    ;Basic Squelcher
+    db $2D
+    db $03<<2
+    db $2D
+    db ($03<<2)+$40
+
+    ;Slow Shooter
+    db $2F
+    db $04<<2
+    db $2F
+    db ($04<<2)+$40
+
+    ;Boxy Greenback
+    db $31
+    db $03<<2
+    db $31
+    db ($03<<2)+$40
+
+    ;Fast Shooter
+    db $33
+    db $05<<2
+    db $33
+    db ($05<<2)+$40
+
+    ;Sophisticated mimic
+    db $3D
+    db $00<<2
+    db $3D
+    db ($00<<2)+$40
+
+    ;Purple shooter
+    db $3F
+    db $05<<2
+    db $3F
+    db ($05<<2)+$40
+
+    ;MultiArm
+    db $41
+    db $04<<2
+    db $41
+    db ($04<<2)+$40
+
+    ;Tough Guy
+    db $43
+    db $03<<2
+    db $43
+    db ($03<<2)+$40
+
+EnemyDrawBot:
+
+    ;Empty/Dead
+    db $00
+    db $00<<2
+    db $00
+    db $00<<2
+
+    ;Basic Squelcher
+    db $2D+$08
+    db $03<<2
+    db $2D+$08
+    db ($03<<2)+$40
+
+    ;Slow Shooter
+    db $2F+$08
+    db $04<<2
+    db $2F+$08
+    db ($04<<2)+$40
+
+    ;Boxy Greenback
+    db $31+$08
+    db $03<<2
+    db $31+$08
+    db ($03<<2)+$40
+
+    ;Fast Shooter
+    db $33+$08
+    db $05<<2
+    db $33+$08
+    db ($05<<2)+$40
+
+    ;Sophisticated mimic
+    db $3D+$08
+    db $00<<2
+    db $3D+$08
+    db ($00<<2)+$40
+
+    ;Purple shooter
+    db $3F+$08
+    db $05<<2
+    db $3F+$08
+    db ($05<<2)+$40
+
+    ;MultiArm
+    db $41+$08
+    db $04<<2
+    db $41+$08
+    db ($04<<2)+$40
+
+    ;Tough Guy
+    db $43+$08
+    db $03<<2
+    db $43+$08
+    db ($03<<2)+$40
+    
+
+EnemyHealthTable:
+    db $00              ;Empty
+    db $01              ;Basic Squelcher
+    db $01              ;Slow Shooter
+    db $01              ;Boxy Greenback
+    db $02              ;Fast Shooter
+    db $02              ;Sophisticated mimic
+    db $02              ;Purple Shooter
+    db $03              ;MultiArm
+    db $04              ;Tough Guy
+    
+EnemyScoreTable:
+    db $00              ;Empty
+    db $01              ;Basic Squelcher
+    db $01              ;Slow Shooter
+    db $02              ;Boxy Greenback
+    db $02              ;Fast Shooter
+    db $04              ;Sophisticated mimic
+    db $04              ;Purple Shooter
+    db $08              ;MultiArm
+    db $0C              ;Tough Guy
+    
 ;List of enemy waves
 EnemyWaveLookup:
     dw EnemyWave1
@@ -1067,6 +1263,15 @@ EnemyWave7:
     db $01,$00,$01,$00,$01,$00,$01,$00
     db $01,$00,$01,$00,$01,$00,$01,$00
     db $01,$00,$01,$00,$01,$00,$01,$00
+
+;List of positions that an enemy tile is in on the tilemap
+EnemyTilemapPos:
+    for y = 0..!EnemyRows
+        for x = 0..!EnemyCols
+            dw (!x*3)+(!y*96)
+        endfor
+    endfor
+
 SineTable:
     dw $0000
     dw $0003

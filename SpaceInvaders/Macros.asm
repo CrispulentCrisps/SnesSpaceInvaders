@@ -4,6 +4,8 @@
 
 struct ZP $00
 .MemPointer     skip 3  ;General purpose pointer memory
+.MemPointer2    skip 3  ;General purpose pointer memory
+.MemPointer3    skip 3  ;General purpose pointer memory
 .R0             skip 1  ;General purpose scratch memory
 .R1             skip 1  ;General purpose scratch memory
 .R2             skip 1  ;General purpose scratch memory
@@ -26,6 +28,7 @@ struct ZP $00
 .EnemyWaveCount skip 2  ;Current wave the player is on
 .EnemyDownCount skip 1  ;Counter for the downward movement of the enemies
 .EnemyFrame     skip 1  ;Current enemy frame
+.EnemyWait      skip 1  ;Amount of frames between enemy movement
 .BulletColTile  skip 2  ;Index into enemy array
 .Score          skip 2  ;Current score of the player
 endstruct
@@ -56,14 +59,14 @@ struct Bullet $0403
 endstruct
 
 ;(12 columns * 5 rows) * 4 bytes per entry = 240 bytes of data up to 0x740
-struct Enemy $0500
-.Type   skip 1      ;Determines which enemy tiles to display
-.Alive  skip 1      ;Checks if the invader is alive
-endstruct
+EnemyHealth =       $0500
+EnemyType =         $0528
+EnemyHurtTable =    $0550   ;Array of hurt timers
 
 EnemyTilemap =      $0740
 
 EnemyTileBuffer =   $7E8000
+PaletteCopy =       $7E8100
 
 !BG1HOffMirror =    $0C00
 !BG1VOffMirror =    $0C02
@@ -77,11 +80,15 @@ EnemyTileBuffer =   $7E8000
 !EnemyOffset =      $0084
 !EnemyRows =        $05
 !EnemyCols =        $08
+!EnemyStructWr =    $28
+!EnemyHurtTimer =   $06
+!EnemyHurtPal =     $02<<2
+!EnemyHurtPalFlip = ($02<<2)+$40
 
-!BulletSpeed =      $08
+!BulletSpeed =      $07
 !BulletColOff =     $04
 
-!PlayerSpeed =      $02
+!PlayerSpeed =      $04
 !EnemySpeed =       $02
 
 EmptyChar =         $00
@@ -106,6 +113,7 @@ LaserOAM =          $0810
 !EnemyMoveR =       $01
 !EnemyMoveD =       $02
 
+!ScoreDisp =        $1B48
 ;Character data
 ' ' = $00
 '0' = $00+1

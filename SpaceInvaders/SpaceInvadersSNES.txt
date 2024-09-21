@@ -52,3 +52,25 @@ Continue:
 
 	BGMode[s]:
 		Mode 1
+
+
+Misc
+
+- - Bullet collisions maths - -
+Aim value = 19
+
+L2-X = $CE	;Layer 2 X
+L2-Y = $00	;Layer 2 Y
+T-X =  $60	;Hit Tile X
+T-Y =  $08	;Hit Tile Y
+B-X =  $90	;Bullet X
+B-Y =  $08	;Bullet Y
+
+HitPointX = $04
+HitPointY = $04
+
+CX = B-X + HitPointX
+CY = B-Y + HitPointY
+
+CX - (256 - L2-X)
+CY - L2-Y
