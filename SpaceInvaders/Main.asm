@@ -384,7 +384,7 @@ GameScene:
     lda.b #$00
     sta.w Bullet[0].Enabled
 
-    lda.b #$02
+    lda.b #$05
     sta.b ZP.EnemyWaveCount
     lda.b !EnemyMoveR
     sta.b ZP.EnemyDir
@@ -758,7 +758,7 @@ GameScene:
     ;   Clobberlist
     ;
 GameLoop_DrawScore:
-    
+
     rts
     
     

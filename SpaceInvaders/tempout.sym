@@ -435,10 +435,10 @@
 00:8000 ZVal
 
 [source files]
-0000 069d63de main.asm
+0000 42652378 main.asm
 
 [rom checksum]
-451cbe54
+56eadf5f
 
 [addr-to-line mapping]
 00:8000 0000:00000013
