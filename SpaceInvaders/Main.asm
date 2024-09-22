@@ -113,8 +113,16 @@ Reset:
     lda.b #$02
     sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
 
-    ;Window Layer 0 Reset
-    ldx.w #L0Ram               ;Shove tile map addr in
+    ldy.w #$0000
+    -
+    lda.w GamePal, Y
+    sta.w PalMirror, Y
+    iny
+    cpy #GameGfxEnd-GameGfx
+    bne -
+
+    ;Window Layer 1 Reset
+    ldx.w #L1Ram               ;Shove tile map addr in
     stx.w HW_VMADDL
     ldy.w #$0800
     rep #%00100000              ;Exit Memory mode
@@ -124,13 +132,13 @@ Reset:
     bne -
 
     sep #%00100000              ;Enter Memory mode
-    lda.b #%00010000
+    lda.b #$F0
     sta.w HW_BG1SC              ;Set Layer 1 values
-    lda.b #%00010100
+    lda.b #$F4
     sta.w HW_BG2SC              ;Set Layer 2 values
-    lda.b #%00011000
+    lda.b #$F8
     sta.w HW_BG3SC              ;Set Layer 3 values
-    lda.b #%00011100
+    lda.b #$FC
     sta.w HW_BG4SC              ;Set Layer 4 values
     stz.w HW_MOSAIC             ;Reset BG mosaic
     lda.b #$02                  ;Load BG Mode
@@ -281,11 +289,22 @@ NMIHandler:
     lda.w !BG4VOffMirror+1
     sta.w HW_BG4VOFS
     
-    ;Make sure BG3 is not affected
-    stz.w HW_BG3HOFS
-    stz.w HW_BG3HOFS
-    stz.w HW_BG3VOFS
-    stz.w HW_BG3VOFS
+    ;Update palette entries
+    lda.b #$02
+    sta.w HW_DMAP0
+    ldx.w #PalMirror            ;Grab source addr
+    stx.w HW_A1T0L
+    lda.b #$80                  ;Load into bank 80
+    sta.w HW_A1B0
+    lda.b #HW_CGDATA&$FF        ;Destination addr
+    sta.w HW_BBAD0
+    rep #%00100000
+    ldx.w #$100                 ;Bytes to write
+    stx.w HW_DAS0L
+    sep #%00100000
+    lda.b #$01                  ;Enable DMA 0
+    sta.w HW_MDMAEN
+
     rep #$20
     
     ;---------------;
@@ -384,7 +403,7 @@ GameScene:
     lda.b #$00
     sta.w Bullet[0].Enabled
 
-    lda.b #$05
+    lda.b #$02
     sta.b ZP.EnemyWaveCount
     lda.b !EnemyMoveR
     sta.b ZP.EnemyDir
@@ -399,8 +418,9 @@ GameScene:
     
     ;Write enemy entries into Enemy struct array
     jsr GameLoop_UpdateEnemyArray
-
     jsr GameLoop_DrawEnemies
+    jsr GameLoop_DrawScore
+
     sep #$20
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
@@ -614,9 +634,13 @@ GameScene:
     lda.w EnemyType, Y      ;Save enemy type for scoring
     tay
     lda.b ZP.Score
+    clc
     adc.w EnemyScoreTable, Y
     bcc ++
     inc.b ZP.Score+1
+        bcc +++
+        inc.b ZP.Score+2
+        +++
     ++
     sta.b ZP.Score
     ply
@@ -624,6 +648,7 @@ GameScene:
     sta.w EnemyType, Y      ;Set enemy type to 0 to prevent null enemy collisions
     pla
     +
+    jsr GameLoop_DrawScore
     sta.w EnemyHealth, Y
     stz.w Bullet[0].Enabled
     lda.b #$FF
@@ -746,6 +771,19 @@ GameScene:
     jsr GameLoop_DrawEnemies_FrameDecider
     .SkipMove:
     dec.b ZP.EnemyTimer
+
+    ;------------------------;
+    ;    Handle Explosions   ;
+    ;------------------------;
+    ldy.w #$0040
+    tdc
+    jsr PalCycle
+
+    ;-------------------;
+    ;    Handle Score   ;
+    ;-------------------;
+    ;jsr GameLoop_DrawScore
+
     rep #%00100000              ;Set A to 16 bit mode
     rts
 
@@ -756,9 +794,70 @@ GameScene:
     ;   Usage:
     ;
     ;   Clobberlist
-    ;
+    ;       R0
+    ;       R1
+    ;       R2
+    ;       R3
+    ;       R4
+    ;       R5
 GameLoop_DrawScore:
+    pha
+    phy
+    ;Set up WRAM addr
+    tdc
+    sep #$20
+    lda.b #(ScoreDispBuffer>>16)&$FF
+    sta.w HW_WMADDH
+    lda.b #(ScoreDispBuffer>>8)&$FF
+    sta.w HW_WMADDM
+    lda.b #(ScoreDispBuffer)&$FF
+    sta.w HW_WMADDL
+    ldy #$0000
+    ;Draw initial text characters
+    -
+    lda.w ScoreText, Y
+    sta.w HW_WMDATA
+    iny
+    cpy #(EndScoreText-ScoreText)
+    bne -
 
+    ;Next, Convert score into decimal and store into temporary memory
+
+    ;After, we then store this information into WRam
+
+    ;Finally, set up DMA pointer to render to screen
+    ldy.w #$0000
+    lda.b #(ScoreDispBuffer)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(ScoreDispBuffer>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(ScoreDispBuffer>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #!ScoreDisp
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #(EndScoreText-ScoreText)+16
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc.w #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+    ply
+    pla
     rts
     
     
@@ -993,7 +1092,7 @@ GameLoop_DrawEnemies:
     sta.b (ZP.VrDmaListPtr), Y
     iny
     rep #$20
-    lda.w #L1Ram
+    lda.w #L2Ram
     sta.b (ZP.VrDmaListPtr), Y
     sep #$20
     iny
@@ -1045,15 +1144,61 @@ HighscoreScene:
     
     rts
 
+    ;-------------------;
+    ;   Palette cycler  ;
+    ;-------------------;
+    ;
+    ;   Usage:
+    ;       Takes a given palette address and cycles the first 15 colours of it
+    ;   Input:
+    ;       Y [Palette index]
+    ;   Output:
+    ;       Cycle'd palette by 1 entry
+    ;
+PalCycle:
+    pha
+    phy
+    rep #$20
+    ;First, grab the last palette of the selected zone
+    lda.w PalMirror+2, Y
+    sta.b ZP.R0
+    stz.b ZP.R2
+    ;Next we loop over the palette entries
+    -
+    rep #$20
+    lda.w PalMirror+2, Y
+    sta.w PalMirror, Y
+    iny
+    iny
+    inc.b ZP.R2
+    sep #$20
+    lda.b ZP.R2
+    cmp.b #$10
+    bne -
+    ;Then we apply the last colour back to the start of the palette [past the transparent first colour]
+    rep #$20
+    lda.b ZP.R0
+    sta.w PalMirror-2, Y
+    sep #$20
+    ply
+    pla
+    rts
+
 Text:
     dw "HELLO GUYS"
+EndText:
+
 ScoreText:
     dw "SCORE: "
+EndScoreText:
+
 HighScoreText:
     dw "HIGH SCORE"
+EndHighScoreText:
+
 OptionsText:
     dw "OPTIONS"
-EndText:
+EndOptionsText:
 
 EnemyTypesPal:
     db $00<<2           ;Empty
@@ -1209,7 +1354,7 @@ EnemyScoreTable:
     db $04              ;Sophisticated mimic
     db $04              ;Purple Shooter
     db $08              ;MultiArm
-    db $0C              ;Tough Guy
+    db $08              ;Tough Guy
     
 ;List of enemy waves
 EnemyWaveLookup:
@@ -1271,6 +1416,14 @@ EnemyTilemapPos:
             dw (!x*3)+(!y*96)
         endfor
     endfor
+
+DecimalMaskTable:
+    dw $00FF
+    dw $FF00
+    dw $00FF
+    dw $FF00
+    dw $00FF
+    dw $FF00
 
 SineTable:
     dw $0000

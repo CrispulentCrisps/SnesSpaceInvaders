@@ -29,8 +29,8 @@ struct ZP $00
 .EnemyDownCount skip 1  ;Counter for the downward movement of the enemies
 .EnemyFrame     skip 1  ;Current enemy frame
 .EnemyWait      skip 1  ;Amount of frames between enemy movement
-.BulletColTile  skip 2  ;Index into enemy array
-.Score          skip 2  ;Current score of the player
+.BulletColTile  skip 1  ;Index into enemy array
+.Score          skip 3  ;Current score of the player
 endstruct
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
@@ -50,7 +50,7 @@ struct Player $0400
 .State  skip 1          ;Player animation states
 endstruct
 
-;At most there will be 2 lasers on screen at once
+;At most there will be 5 lasers on screen at once, one for the player rest for enemies
 struct Bullet $0403
 .X          skip 1
 .Y          skip 1
@@ -58,15 +58,31 @@ struct Bullet $0403
 .Enabled    skip 1  ;Test if the current laser is travelling upwards
 endstruct
 
-;(12 columns * 5 rows) * 4 bytes per entry = 240 bytes of data up to 0x740
+;(8 columns * 5 rows)
 EnemyHealth =       $0500
 EnemyType =         $0528
 EnemyHurtTable =    $0550   ;Array of hurt timers
 
+;Explosions each carry a
+;   Timer   [Byte]  How many frames left the explosion has
+;   Frame   [Byte]  What tile it is currently to display
+;   X       [Byte]  X position
+;   Y       [Byte]  Y position
+;
+;   At most 8 explosions can be on screen at once
+;   so overall it take 32 bytes to represent every explosion
+
+ExplosionTimer =    $0580
+ExplosionFrame =    $0588
+ExplosionX =        $0590
+ExplosionY =        $0598
+
+!ExplosionStart =   $10     ;Explosion timer to set to
+
 EnemyTilemap =      $0740
 
 EnemyTileBuffer =   $7E8000
-PaletteCopy =       $7E8100
+ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
 
 !BG1HOffMirror =    $0C00
 !BG1VOffMirror =    $0C02
@@ -76,26 +92,27 @@ PaletteCopy =       $7E8100
 !BG3VOffMirror =    $0C0A
 !BG4HOffMirror =    $0C0C
 !BG4VOffMirror =    $0C0E
+PalMirror =         $0C10
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
 !EnemyCols =        $08
 !EnemyStructWr =    $28
-!EnemyHurtTimer =   $06
+!EnemyHurtTimer =   $08
 !EnemyHurtPal =     $02<<2
 !EnemyHurtPalFlip = ($02<<2)+$40
 
 !BulletSpeed =      $07
 !BulletColOff =     $04
 
-!PlayerSpeed =      $04
+!PlayerSpeed =      $03
 !EnemySpeed =       $02
 
 EmptyChar =         $00
-L0Ram =             $1000
-L1Ram =             $1400
-L2Ram =             $1800
-L3Ram =             $1C00
+L1Ram =             $7000
+L2Ram =             $7400
+L3Ram =             $7800
+L4Ram =             $7C00
 OAMCopy =           $0800
 LaserOAM =          $0810
 !PlayerY =          $C0
@@ -113,7 +130,9 @@ LaserOAM =          $0810
 !EnemyMoveR =       $01
 !EnemyMoveD =       $02
 
-!ScoreDisp =        $1B48
+!ExplosionPal =     $02<<2
+!ScoreDisp =        $7344
+
 ;Character data
 ' ' = $00
 '0' = $00+1
