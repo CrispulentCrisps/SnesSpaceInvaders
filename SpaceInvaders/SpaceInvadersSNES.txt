@@ -33,11 +33,16 @@ Highscore:
 		Title:
 
 	BGMode[s]:
-		Mode 0
+		Mode 3
 
 Game:
 	Ideas:
-		Multiple backgrounds to choose
+		Multiple backgrounds as you progress through the waves
+			Backdrop ideas
+				Snowy planet with a BG3 transparent snowfall
+				Foggy dense forest
+				Firey desert with slight background waves
+				Tech landscape with neon towers, palette cycling for power light movement				
 
 	SceneFlow:
 		Continue
@@ -55,22 +60,3 @@ Continue:
 
 
 Misc
-
-- - Bullet collisions maths - -
-Aim value = 19
-
-L2-X = $CE	;Layer 2 X
-L2-Y = $00	;Layer 2 Y
-T-X =  $60	;Hit Tile X
-T-Y =  $08	;Hit Tile Y
-B-X =  $90	;Bullet X
-B-Y =  $08	;Bullet Y
-
-HitPointX = $04
-HitPointY = $04
-
-CX = B-X + HitPointX
-CY = B-Y + HitPointY
-
-CX - (256 - L2-X)
-CY - L2-Y

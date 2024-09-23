@@ -26,6 +26,14 @@ GamePal:
     incbin "bin/gfx/pal/GamePal.bin"
 GamePalEnd:
 
+GameSpr:
+    incbin "bin/gfx/GameSprites.bin"
+GameSprEnd:
+
+GameSprPal:
+    incbin "bin/gfx/pal/GameSpritesPal.bin"
+GameSprPalEnd:
+
 Reset:
     ;Now we initialise the SNES itself, since we've written the ROM header
     sei                             ;Disable interrupt registers
@@ -84,6 +92,7 @@ Reset:
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
     
+    ;Load Game BG tiles
     lda.b #$02
     sta.w HW_DMAP1              ;Setup DMAP1
     ldx.w #GamePal&$FFFF        ;Grab palette addr
@@ -95,6 +104,7 @@ Reset:
     lda.b #HW_CGDATA&$FF        ;Grab Video mem data lo addr
     sta.w HW_BBAD1              ;Set bus addr
 
+    ;Load Game BG Palette
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
     ldx.w #GameGfx&$FFFF        ;Grab graphics addr
@@ -105,20 +115,39 @@ Reset:
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
     lda.b #$03
     sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
-    
-    ldx.w #GamePal&$FFFF        ;Grab palette addr
-    stx.w HW_A1T1L              ;Shove lo+mid addr byte
-    ldx.w #GamePalEnd-GamePal
-    stx.w HW_DAS1L              ;Return amount of bytes to be written in VRAM
+
+    ;Load Game Sprite Palette
     lda.b #$02
+    sta.w HW_DMAP1              ;Setup DMAP1
+    ldx.w #GameSprPal&$FFFF        ;Grab palette addr
+    stx.w HW_A1T1L              ;Shove lo+mid addr byte
+    lda.b #GameSprPal>>16&$FF
+    sta.w HW_A1B1               ;Store bank
+    ldx.w #GameSprPalEnd-GameSprPal
+    stx.w HW_DAS1L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_CGDATA&$FF        ;Grab Video mem data lo addr
+    sta.w HW_BBAD1              ;Set bus addr
+
+    ;Load Game Sprites
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #GameSpr&$FFFF        ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #GameSpr>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #GameSprEnd-GameSpr
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #$03
     sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
 
     ldy.w #$0000
     -
     lda.w GamePal, Y
     sta.w PalMirror, Y
+    lda.w GameSprPal, Y
+    sta.w PalMirror+256, Y
     iny
-    cpy #GameGfxEnd-GameGfx
+    cpy #$100
     bne -
 
     ;Window Layer 1 Reset
@@ -196,6 +225,8 @@ MainLoop:
     rep #%00110000              ;Set CPU to 16 bit mode
     lda.w #VrDmaPtr
     sta.w ZP.VrDmaListPtr
+    lda.w #OAMCopy
+    sta.w ZP.OAMPtr
     lda.w #$0000
     sta.w VrDmaPtr+3
     jsr (SelectScene, X)        ;Go to correct subroutine logic in jumptable
@@ -209,7 +240,7 @@ MainLoop:
 
 NMIHandler:
     rep #%00110000      ;Reset X + M flags to set X to 16 bit mode
-    
+    cld
     inc.b ZP.NMIDone
     beq .SkipNMIJump
     jmp .SkipNMI
@@ -224,6 +255,7 @@ NMIHandler:
     lda.b #$8F
     sta.w HW_INIDISP
     rep #$20
+
     ;------------------;
     ;   OAM Transfer   ;
     ;------------------;
@@ -299,7 +331,7 @@ NMIHandler:
     lda.b #HW_CGDATA&$FF        ;Destination addr
     sta.w HW_BBAD0
     rep #%00100000
-    ldx.w #$100                 ;Bytes to write
+    ldx.w #$200                 ;Bytes to write
     stx.w HW_DAS0L
     sep #%00100000
     lda.b #$01                  ;Enable DMA 0
@@ -403,23 +435,38 @@ GameScene:
     lda.b #$00
     sta.w Bullet[0].Enabled
 
-    lda.b #$02
+    lda.b #$00
     sta.b ZP.EnemyWaveCount
     lda.b !EnemyMoveR
     sta.b ZP.EnemyDir
     lda.b #!EnemyDownLoop
     sta.b ZP.EnemyDownCount
-    rep #$20
-    lda.w #!EnemySpeed
-    sta.w ZP.EnemyPlanePosX
-    sep #$20
+    lda.b #!EnemyPlaneStartX
+    sta.b ZP.EnemyPlanePosX
+    lda.b #!EnemyPlaneStartY
+    sta.b ZP.EnemyPlanePosY
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
-    
+
+    ;Reset explosion sprites
+    ldy #!MaxEplW
+    -
+    lda.b #$00
+    sta.w ExplosionTimer, Y
+    sta.w ExplosionFrame, Y
+    lda.b #$F0
+    sta.w ExplosionX, Y
+    sta.w ExplosionY, Y
+    dey
+    bne -
+
     ;Write enemy entries into Enemy struct array
     jsr GameLoop_UpdateEnemyArray
     jsr GameLoop_DrawEnemies
     jsr GameLoop_DrawScore
+
+    lda.b !GameState_Play
+    sta.w GameState
 
     sep #$20
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
@@ -472,48 +519,67 @@ GameScene:
     ;Player will take the first 4 spots of OAM
     ;BL tile
     lda.w Player.X
-    sta.w OAMCopy
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #!PlayerY
-    sta.w OAMCopy+1
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #!PlayerTileB
-    sta.w OAMCopy+2
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #$02
-    sta.w OAMCopy+3
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    
     ;BR tile
     lda.w Player.X
     clc
     adc.b #$08
-    sta.w OAMCopy+4
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #!PlayerY
-    sta.w OAMCopy+5
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #!PlayerTileB
-    sta.w OAMCopy+6
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #$42
-    sta.w OAMCopy+7
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+
     ;TL tile
     lda.w Player.X
-    sta.w OAMCopy+8
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #!PlayerY
     sec
     sbc.b #$08
-    sta.w OAMCopy+9
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #!PlayerTileT
-    sta.w OAMCopy+10
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #$02
-    sta.w OAMCopy+11
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    
     ;TR tile
     lda.w Player.X
     clc
     adc.b #$08
-    sta.w OAMCopy+12
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #!PlayerY
     sec
     sbc.b #$08
-    sta.w OAMCopy+13
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #!PlayerTileT
-    sta.w OAMCopy+14
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #$42
-    sta.w OAMCopy+15
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     
 
     ;-------------------;
@@ -598,7 +664,9 @@ GameScene:
 
     lda.w HW_RDDIVL         ;Grab division
     cmp #$05
-    bpl .SkipBullet0Logic   ;Exit if we're out of bounds of the tile Y index
+    bmi .SkipExitBullet
+    jmp .SkipBullet0Logic   ;Exit if we're out of bounds of the tile Y index
+    .SkipExitBullet:
     sta.b ZP.R6
     lda.w HW_RDMPYL         ;Grab remainder of division
     sta.b ZP.R7
@@ -634,18 +702,38 @@ GameScene:
     lda.w EnemyType, Y      ;Save enemy type for scoring
     tay
     lda.b ZP.Score
+    sed
     clc
     adc.w EnemyScoreTable, Y
     bcc ++
+    clc
     inc.b ZP.Score+1
         bcc +++
+        clc
         inc.b ZP.Score+2
         +++
     ++
     sta.b ZP.Score
+    cld
     ply
     lda.b #$00
     sta.w EnemyType, Y      ;Set enemy type to 0 to prevent null enemy collisions
+    phy
+    tdc
+    lda.b ZP.BulletColTile  ;Grab enemy index
+    asl                     ;Mult by 2 since each entry into the pixel pos table is word sized
+    tay
+    lda.w EnemyPixelPos, Y
+    sec
+    sbc.b ZP.EnemyPlanePosX
+    sta.b ZP.R0
+    iny
+    lda.w EnemyPixelPos, Y
+    clc
+    sbc.b ZP.EnemyPlanePosY
+    sta.b ZP.R1
+    jsr SpawnExplosive
+    ply
     pla
     +
     jsr GameLoop_DrawScore
@@ -663,20 +751,29 @@ GameScene:
     ;   Bullet Drawing    ;
     ;---------------------;
     lda.w Bullet.X
-    sta.w LaserOAM
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.w Bullet.Y
-    sta.w LaserOAM+1
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #!BulletF1
-    sta.w LaserOAM+2
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     lda.b #$0C
-    sta.w LaserOAM+3
-    
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+
     ;-----------------;
     ;   Enemy Logic   ;
     ;-----------------;
+
     ;Update enemy graphics
+    lda.w GameState
+    cmp.b !GameState_Play
+    beq .DoEnemy
+    jmp .SkipEnemy
+    .DoEnemy:
     jsr GameLoop_DrawEnemies
-    
     ;Check enemy count and set enemy speed to amount of enemies on screen
     sep #$20
     stz.b ZP.EnemyWait
@@ -696,12 +793,22 @@ GameScene:
     bne -
     ;Adjust speed and then apply
     lda.b ZP.EnemyWait
+    beq .SetStateWait               ;No enemies means the wave has been beaten
     lsr
     bne +
     lda.b #$01
     +
     sta.b ZP.EnemyWait
-
+    bra .SkipState
+    ;Set the game state to Stop and initialise game timer
+    .SetStateWait
+    lda.b #!GameState_Stop
+    sta.w GameState
+    rep #$20
+    lda.w #!GameWaitTime
+    sta.w GameStateWait
+    sep #$20
+    .SkipState:
     tdc
     lda.b ZP.EnemyTimer
     beq .SkipMoveJmp
@@ -771,19 +878,35 @@ GameScene:
     jsr GameLoop_DrawEnemies_FrameDecider
     .SkipMove:
     dec.b ZP.EnemyTimer
-
+    .SkipEnemy
     ;------------------------;
     ;    Handle Explosions   ;
     ;------------------------;
-    ldy.w #$0040
+    ldy.w #$0020
     tdc
     jsr PalCycle
+    jsr UpdateExplosives
 
-    ;-------------------;
-    ;    Handle Score   ;
-    ;-------------------;
-    ;jsr GameLoop_DrawScore
+    ;------------------------;
+    ;    Handle Game State   ;
+    ;------------------------;
 
+    rep #$20
+    lda.w GameStateWait
+    beq +
+    dec
+    sta.w GameStateWait
+    bne .SkipSend
+    lda.b !GameState_Play
+    sta.w GameState
+    jsr GameLoop_SendWave
+    .SkipSend:
+    +
+    sep #$20
+
+    ;-----------------------;
+    ;   END OF GAME SCENE   ;
+    ;-----------------------;
     rep #%00100000              ;Set A to 16 bit mode
     rts
 
@@ -794,12 +917,11 @@ GameScene:
     ;   Usage:
     ;
     ;   Clobberlist
-    ;       R0
-    ;       R1
-    ;       R2
-    ;       R3
-    ;       R4
-    ;       R5
+    ;
+    ;   WMADDL
+    ;   WMADDM
+    ;   WMADDH
+    ;
 GameLoop_DrawScore:
     pha
     phy
@@ -821,9 +943,25 @@ GameLoop_DrawScore:
     cpy #(EndScoreText-ScoreText)
     bne -
 
-    ;Next, Convert score into decimal and store into temporary memory
-
-    ;After, we then store this information into WRam
+    ;Next, we then split each nibble of the score stored in BCD and then put them into the buffer
+    ldy #$0002
+    -
+    lda.w ZP.Score, Y
+    and #$F0
+    lsr
+    lsr
+    lsr
+    lsr
+    inc
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    lda.w ZP.Score, Y
+    and #$0F
+    inc
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    dey
+    bpl -
 
     ;Finally, set up DMA pointer to render to screen
     ldy.w #$0000
@@ -903,6 +1041,21 @@ GameLoop_UpdateEnemyArray:
     rts
 
 GameLoop_SendWave:
+    sep #$20
+    inc.b ZP.EnemyWaveCount
+    lda.b !EnemyMoveR
+    sta.b ZP.EnemyDir
+    lda.b #!EnemyDownLoop
+    sta.b ZP.EnemyDownCount
+    lda.b #!EnemyPlaneStartX
+    sta.b ZP.EnemyPlanePosX
+    sta.b !BG2HOffMirror
+    lda.b #!EnemyPlaneStartY
+    sta.b ZP.EnemyPlanePosY
+    sta.b !BG2VOffMirror
+    lda.b ZP.EnemyWait
+    sta.b ZP.EnemyTimer
+    jsr GameLoop_UpdateEnemyArray
 
     rts
 
@@ -1184,6 +1337,116 @@ PalCycle:
     pla
     rts
 
+    ;-------------------;
+    ;   SpawnExplosive  ;
+    ;-------------------;
+    ;
+    ;   Usage:
+    ;       Finds the first available empty spot in OAM and creates an explosion sprite in said spot
+    ;
+    ;   Input:
+    ;       ZP.R0   X position
+    ;       ZP.R1   Y position
+    ;   
+    ;   Clobberlist
+    ;       Y
+    ;       OAMPtr
+    ;
+SpawnExplosive:
+    pha
+    tdc
+    sep #$20
+    ldy.w #!MaxEplW
+    -
+    lda.w ExplosionTimer, Y
+    beq .BreakLoop
+    dey
+    bpl -
+    jmp .ReturnNull
+    ;Assuming we've found an empty spot
+    .BreakLoop:
+    lda.b #!ExplosionStart
+    sta.w ExplosionTimer, Y
+    lda.b ZP.R0
+    sta.w ExplosionX, Y
+    lda.b ZP.R1
+    sta.w ExplosionY, Y
+    ;Assuming we've not found an empty spot
+    .ReturnNull:
+    pla
+    rts
+
+UpdateExplosives:
+    ;Update Timers
+    ldy.w #!MaxEplW
+    tdc
+    sep #$20
+    -
+    ;Write explosion entry into OAM
+    stz.b ZP.R2
+    .OAMLoop:
+    ;Write XPos
+    lda.b ZP.R2
+    and.b #$40
+    lsr
+    lsr
+    lsr
+    clc
+    adc.w ExplosionX, Y
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Write YPos
+    lda.b ZP.R2
+    and.b #$80
+    lsr
+    lsr
+    lsr
+    lsr
+    clc
+    adc.w ExplosionY, Y
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Calculate tile frame
+    lda.b #!ExplosionStart   ;Grab the max timer since we want to _increment_ through the frame list
+    sec
+    sbc.w ExplosionTimer, Y
+    lsr
+    lsr
+    sta.w ExplosionFrame, Y
+    ;Write Tile
+    lda.b #!ExplosionTile
+    clc
+    adc.w ExplosionFrame, Y
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Write Attr
+    lda.b #%00110100            ;Palette 2, hi priority
+    clc
+    adc.b ZP.R2                 ;Add on tile offsets
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Loop check
+    lda.b ZP.R2
+    clc
+    adc.b #$40
+    sta.b ZP.R2
+    bcc .OAMLoop                ;Should overflow when it reaches loop 4
+
+    lda.w ExplosionTimer, Y
+    beq .SkipExploDisable
+    dec
+    sta.w ExplosionTimer, Y
+    bne .SkipExploDisable
+    .SkipTimerDec:
+    tdc
+    lda.b #$F0
+    sta.w ExplosionX, Y
+    sta.w ExplosionY, Y
+    .SkipExploDisable:
+    dey
+    bne -
+    rts
+
 Text:
     dw "HELLO GUYS"
 EndText:
@@ -1231,27 +1494,27 @@ EnemyDrawTop:
 
     ;Basic Squelcher
     db $2D
-    db $03<<2
+    db $02<<2
     db $2D
-    db ($03<<2)+$40
+    db ($02<<2)+$40
 
     ;Slow Shooter
     db $2F
-    db $04<<2
+    db $03<<2
     db $2F
-    db ($04<<2)+$40
+    db ($03<<2)+$40
 
     ;Boxy Greenback
     db $31
-    db $03<<2
+    db $02<<2
     db $31
-    db ($03<<2)+$40
+    db ($02<<2)+$40
 
     ;Fast Shooter
     db $33
-    db $05<<2
+    db $04<<2
     db $33
-    db ($05<<2)+$40
+    db ($04<<2)+$40
 
     ;Sophisticated mimic
     db $3D
@@ -1261,21 +1524,21 @@ EnemyDrawTop:
 
     ;Purple shooter
     db $3F
-    db $05<<2
+    db $04<<2
     db $3F
-    db ($05<<2)+$40
+    db ($04<<2)+$40
 
     ;MultiArm
     db $41
-    db $04<<2
+    db $03<<2
     db $41
-    db ($04<<2)+$40
+    db ($03<<2)+$40
 
     ;Tough Guy
     db $43
-    db $03<<2
+    db $02<<2
     db $43
-    db ($03<<2)+$40
+    db ($02<<2)+$40
 
 EnemyDrawBot:
 
@@ -1287,27 +1550,27 @@ EnemyDrawBot:
 
     ;Basic Squelcher
     db $2D+$08
-    db $03<<2
+    db $02<<2
     db $2D+$08
-    db ($03<<2)+$40
+    db ($02<<2)+$40
 
     ;Slow Shooter
     db $2F+$08
-    db $04<<2
+    db $03<<2
     db $2F+$08
-    db ($04<<2)+$40
+    db ($03<<2)+$40
 
     ;Boxy Greenback
     db $31+$08
-    db $03<<2
+    db $02<<2
     db $31+$08
-    db ($03<<2)+$40
+    db ($02<<2)+$40
 
     ;Fast Shooter
     db $33+$08
-    db $05<<2
+    db $04<<2
     db $33+$08
-    db ($05<<2)+$40
+    db ($04<<2)+$40
 
     ;Sophisticated mimic
     db $3D+$08
@@ -1317,29 +1580,29 @@ EnemyDrawBot:
 
     ;Purple shooter
     db $3F+$08
-    db $05<<2
+    db $04<<2
     db $3F+$08
-    db ($05<<2)+$40
+    db ($04<<2)+$40
 
     ;MultiArm
     db $41+$08
-    db $04<<2
+    db $03<<2
     db $41+$08
-    db ($04<<2)+$40
+    db ($03<<2)+$40
 
     ;Tough Guy
     db $43+$08
-    db $03<<2
+    db $02<<2
     db $43+$08
-    db ($03<<2)+$40
+    db ($02<<2)+$40
     
 
 EnemyHealthTable:
     db $00              ;Empty
     db $01              ;Basic Squelcher
-    db $01              ;Slow Shooter
+    db $03              ;Slow Shooter
     db $01              ;Boxy Greenback
-    db $02              ;Fast Shooter
+    db $01              ;Fast Shooter
     db $02              ;Sophisticated mimic
     db $02              ;Purple Shooter
     db $03              ;MultiArm
@@ -1348,12 +1611,12 @@ EnemyHealthTable:
 EnemyScoreTable:
     db $00              ;Empty
     db $01              ;Basic Squelcher
-    db $01              ;Slow Shooter
-    db $02              ;Boxy Greenback
-    db $02              ;Fast Shooter
-    db $04              ;Sophisticated mimic
-    db $04              ;Purple Shooter
-    db $08              ;MultiArm
+    db $02              ;Slow Shooter
+    db $01              ;Boxy Greenback
+    db $01              ;Fast Shooter
+    db $02              ;Sophisticated mimic
+    db $02              ;Purple Shooter
+    db $04              ;MultiArm
     db $08              ;Tough Guy
     
 ;List of enemy waves
@@ -1416,6 +1679,16 @@ EnemyTilemapPos:
             dw (!x*3)+(!y*96)
         endfor
     endfor
+
+;List of PIXEL positions that an enemy tile is in on the tilemap
+EnemyPixelPos:
+    for y = 0..!EnemyRows
+        for x = 0..!EnemyCols
+            db $8*(!x*3)
+            db $8*(!y*3)
+        endfor
+    endfor
+
 
 DecimalMaskTable:
     dw $00FF

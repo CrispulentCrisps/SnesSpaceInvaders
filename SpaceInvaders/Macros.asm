@@ -19,6 +19,7 @@ struct ZP $00
 .SceneIndex     skip 1  ;Current scene we are in
 .ChangeScene    skip 1  ;Tell the scene's to load/deload data
 .Controller     skip 2  ;Controller input
+.OAMPtr         skip 2  ;Pointer to the last object in OAM
 .EnemyTimer     skip 1  ;Enemy Movement Timer
 .EnemyCount     skip 1  ;Amount of enemies on screen
 .EnemyDir       skip 1  ;Which way the enemies are moving [0 for left, 1 for right]
@@ -71,13 +72,19 @@ EnemyHurtTable =    $0550   ;Array of hurt timers
 ;
 ;   At most 8 explosions can be on screen at once
 ;   so overall it take 32 bytes to represent every explosion
+;
+;   If an explosion has 0 frames then it is "Dead" and can be skipped over
+
+!MaxEpl = $04
+!MaxEplW = $0004
 
 ExplosionTimer =    $0580
-ExplosionFrame =    $0588
-ExplosionX =        $0590
-ExplosionY =        $0598
+ExplosionFrame =    $0580+!MaxEpl
+ExplosionX =        $0580+(!MaxEpl*2)
+ExplosionY =        $0580+(!MaxEpl*3)
 
-!ExplosionStart =   $10     ;Explosion timer to set to
+!ExplosionStart =   $20     ;Explosion timer to set to
+!ExplosionTile =    $5D
 
 EnemyTilemap =      $0740
 
@@ -94,19 +101,28 @@ ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
 !BG4VOffMirror =    $0C0E
 PalMirror =         $0C10
 
+GameState =         $0E10   ;Current state of the GameScene
+!GameState_Pre =    $00     ;Before the game starts
+!GameState_Play =   $01     ;Invaders on screen and moving
+!GameState_Stop =   $02     ;Invaders dead, waiting for next wave
+
+GameStateWait =     $0E11   ;Frames to wait before game scene changes
+!GameWaitTime =     $060;$012C   ;Frames to wait 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
 !EnemyCols =        $08
 !EnemyStructWr =    $28
 !EnemyHurtTimer =   $08
-!EnemyHurtPal =     $02<<2
-!EnemyHurtPalFlip = ($02<<2)+$40
+!EnemyHurtPal =     $01<<2
+!EnemyHurtPalFlip = ($01<<2)+$40
 
 !BulletSpeed =      $07
 !BulletColOff =     $04
 
-!PlayerSpeed =      $03
+!PlayerSpeed =      $02
 !EnemySpeed =       $02
+!EnemyPlaneStartX = $F0
+!EnemyPlaneStartY = $F0
 
 EmptyChar =         $00
 L1Ram =             $7000
@@ -116,10 +132,10 @@ L4Ram =             $7C00
 OAMCopy =           $0800
 LaserOAM =          $0810
 !PlayerY =          $C0
-!PlayerTileB =      $60
-!PlayerTileT =      $5B
-!BulletF1 =         $5D
-!BulletF2 =         $5E
+!PlayerTileB =      $57
+!PlayerTileT =      $4F
+!BulletF1 =         $51
+!BulletF2 =         $52
 !EnemyGfx =         $2D
 
 !EnemyRBounds =     $80
