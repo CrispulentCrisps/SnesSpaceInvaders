@@ -786,10 +786,12 @@ GameScene:
     ;   Enemy Logic   ;
     ;-----------------;
 
-    ;Update enemy graphics
+    ;Check game state
     lda.w GameState
-    cmp.b #!GameState_Play
-    beq .DoEnemy
+    cmp.b #!GameState_Dead
+    bne .SkipWaveReset
+    ;TODO
+    .SkipWaveReset:
     lda.w GameState
     cmp.b #!GameState_Play
     beq .DoEnemy
@@ -1131,11 +1133,14 @@ GameLoop_FindMaxRowBounds:
     lda.b #$0F
     sta.b ZP.R0     ;Min alive enemy
     stz.b ZP.R1     ;Max alive enemy
+    lda.b #$00
+    sta.b ZP.R2     ;Lowest alive enemy
     sep #$10
     .RowLoop:
     ;Min/Max find
     lda.w EnemyType, Y
     beq .SkipBoundary
+    lda.b #$01
     cpx.b ZP.R0
     bpl .MinX
     stx.b ZP.R0
@@ -1149,6 +1154,9 @@ GameLoop_FindMaxRowBounds:
     inx
     txa
     and.b #$07
+    bne .SkipInc
+    inc.b ZP.R2
+    .SkipInc:
     tax
     ;Loop Increment and check
     iny
@@ -1164,6 +1172,11 @@ GameLoop_FindMaxRowBounds:
     lda.w EnemyRowPos, Y
     ;lda.b #!EnemyLBounds
     sta.w EnemyMax
+    ldy.b ZP.R2
+    ;dey
+    lda.w EnemyRowPos, Y
+    sbc.b #!FloorOff        ;Consider floor offset
+    sta.w EnemyFloor
     rep #$10
     plp
     rts
@@ -1797,6 +1810,7 @@ EnemyScoreTable:
     
 ;List of enemy waves
 EnemyWaveLookup:
+    dw EnemyWave0
     dw EnemyWave1
     dw EnemyWave2
     dw EnemyWave3
@@ -1806,8 +1820,15 @@ EnemyWaveLookup:
     dw EnemyWave7
     dw EnemyWave8
     dw EnemyWave9
+    dw EnemyWaveA
 
 ;Enemy wave definitions
+EnemyWave0:
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave1:
     db $03,$03,$03,$03,$03,$03,$03,$03
     db $01,$01,$01,$01,$01,$01,$01,$01
@@ -1862,6 +1883,12 @@ EnemyWave9:
     db $01,$02,$03,$04,$05,$06,$07,$08
     db $01,$02,$03,$04,$05,$06,$07,$08
     db $01,$02,$03,$04,$05,$06,$07,$08
+EnemyWaveA:
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $04,$04,$04,$04,$04,$04,$04,$04
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:

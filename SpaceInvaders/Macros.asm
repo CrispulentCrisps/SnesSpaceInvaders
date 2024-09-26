@@ -76,13 +76,14 @@ EnemyHurtTable =    $0550   ;Array of hurt timers
 ;
 ;   If an explosion has 0 frames then it is "Dead" and can be skipped over
 
-!MaxEpl = $04
-!MaxEplW = $0004
+!MaxEpl = $05
+!MaxEplW = $0005
 
 ExplosionTimer =    $0580
 ExplosionFrame =    $0580+!MaxEpl
 ExplosionX =        $0580+(!MaxEpl*2)
 ExplosionY =        $0580+(!MaxEpl*3)
+ExplosionSpeed =    $0590   ;Speed values for player death explosion
 
 !ExplosionStart =   $20     ;Explosion timer to set to
 !ExplosionTile =    $5D
@@ -108,7 +109,7 @@ GameState =         $0E10   ;Current state of the GameScene
 
 GameStateWait =     $0E11   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
-!WaveInit =         $00
+!WaveInit =         $03
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
@@ -140,13 +141,16 @@ LaserOAM =          $0810
 !BulletF2 =         $52
 !EnemyGfx =         $2D
 
-EnemyMax =          $0407
-EnemyMin =          $0408
+EnemyMax =          $0407   ;R boundaries
+EnemyMin =          $0408   ;L boundaries
+EnemyFloor =        $0409   ;Floor boundaries
+
+!FloorOff =         $10
 
 !EnemyRBounds =     $80
 !EnemyLBounds =     $40
 !EnemyFloor =       $9F
-!EnemyDownLoop =    $08
+!EnemyDownLoop =    $09
 
 !EnemyMoveL =       $00
 !EnemyMoveR =       $01
