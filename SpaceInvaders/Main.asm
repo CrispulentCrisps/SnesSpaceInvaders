@@ -482,8 +482,8 @@ GameScene:
     jsr GameLoop_UpdateEnemyArray
     jsr GameLoop_DrawEnemies
     jsr GameLoop_DrawScore
-
-    lda.b !GameState_Play
+    jsr GameLoop_FindMaxRowBounds
+    lda.b #!GameState_Play
     sta.w GameState
 
     sep #$20
@@ -751,6 +751,7 @@ GameScene:
     sbc.b ZP.EnemyPlanePosY
     sta.b ZP.R1
     jsr SpawnExplosive
+    jsr GameLoop_FindMaxRowBounds
     ply
     pla
     +
@@ -787,10 +788,10 @@ GameScene:
 
     ;Update enemy graphics
     lda.w GameState
-    cmp.b !GameState_Play
+    cmp.b #!GameState_Play
     beq .DoEnemy
     lda.w GameState
-    cmp.b !GameState_Play
+    cmp.b #!GameState_Play
     beq .DoEnemy
     jmp .SkipEnemy
     .DoEnemy:
@@ -856,14 +857,10 @@ GameScene:
     lda.b ZP.EnemyDir
     cmp #!EnemyMoveR
     bne .Neg
-    ;Move enemy right
-    lda.b ZP.EnemyPlanePosX
-    clc
-    adc #!EnemySpeed
-    sta.b ZP.EnemyPlanePosX
     ;Check enemy right boundary
-    cmp #!EnemyRBounds
-    bpl .ApplyMove
+    lda.w EnemyMin
+    cmp.w ZP.EnemyPlanePosX
+    bne .ApplyMove
     lda.b #!EnemyMoveD
     sta.b ZP.EnemyDir
     lda.b #!EnemyMoveL
@@ -872,14 +869,10 @@ GameScene:
     sta.b ZP.EnemyDownCount
     jmp .ApplyMove
     .Neg:
-    ;Move enemy left
-    lda.b ZP.EnemyPlanePosX
-    sec
-    sbc #!EnemySpeed
-    sta.b ZP.EnemyPlanePosX
     ;Check enemy left boundary
-    cmp #!EnemyLBounds
-    bmi .ApplyMove
+    lda.w EnemyMax
+    cmp.w ZP.EnemyPlanePosX
+    bne .ApplyMove
     lda.b #!EnemyMoveD
     sta.b ZP.EnemyDir
     lda.b #!EnemyMoveR
@@ -887,10 +880,30 @@ GameScene:
     lda.b #!EnemyDownLoop
     sta.b ZP.EnemyDownCount
     .ApplyMove:
-    lda.b ZP.EnemyPlanePosX    
+    
+    ;Offset enemy positions [must be after boundary comparisons to avoid jamming]
+    lda.b ZP.EnemyDir
+    cmp #!EnemyMoveD
+    beq .SkipLR
+    lda.b ZP.EnemyDir
+    cmp #!EnemyMoveR
+    beq .SkipRight
+    lda.b ZP.EnemyPlanePosX
+    sec
+    sbc #!EnemySpeed
+    sta.b ZP.EnemyPlanePosX
+    bra .SkipLR
+    .SkipRight
+    ;Move enemy right
+    lda.b ZP.EnemyPlanePosX
+    clc
+    adc #!EnemySpeed
+    sta.b ZP.EnemyPlanePosX
+    .SkipLR:
+
+    lda.b ZP.EnemyPlanePosX
     sta.w !BG1HOffMirror
-    lda.b #$01
-    sta.w !BG1HOffMirror+1
+    stz.w !BG1HOffMirror+1
     lda.b ZP.EnemyPlanePosY
     sta.w !BG1VOffMirror
     stz.w !BG1VOffMirror+1
@@ -918,7 +931,7 @@ GameScene:
     dec
     sta.w GameStateWait
     bne .SkipSend
-    lda.b !GameState_Play
+    lda.b #!GameState_Play
     sta.w GameState
     jsr GameLoop_SendWave
     .SkipSend:
@@ -1052,7 +1065,6 @@ GameLoop_DrawScore:
     pla
     rts
     
-    
     ;---------------------------------;
     ;   Updating enemy array table    ;
     ;---------------------------------;
@@ -1094,6 +1106,68 @@ GameLoop_UpdateEnemyArray:
     ply
     rts
 
+    ;---------------------------;
+    ;   Find max row boundaries ;
+    ;---------------------------;
+    ;   Input:
+    ;       N/A
+    ;
+    ;   Output:
+    ;       ZP.R0
+    ;       ZP.R1
+    ;
+    ;   Clobberlist
+    ;       ZP.R0
+    ;       ZP.R1
+    ;       ZP.R2
+    ;       X
+    ;       Y
+    ;
+GameLoop_FindMaxRowBounds:
+    php
+    tdc
+    ldy.w #$0000    ;Column index
+    ldx.w #$0000    ;Row index
+    lda.b #$0F
+    sta.b ZP.R0     ;Min alive enemy
+    stz.b ZP.R1     ;Max alive enemy
+    sep #$10
+    .RowLoop:
+    ;Min/Max find
+    lda.w EnemyType, Y
+    beq .SkipBoundary
+    cpx.b ZP.R0
+    bpl .MinX
+    stx.b ZP.R0
+    .MinX:
+    cpx.b ZP.R1
+    bmi .MaxX
+    stx.b ZP.R1
+    .MaxX:
+    .SkipBoundary:
+    ;Column counter
+    inx
+    txa
+    and.b #$07
+    tax
+    ;Loop Increment and check
+    iny
+    cpy #!EnemyCols*!EnemyRows
+    bne .RowLoop
+    ;Set boundaries
+    ldy.b ZP.R0
+    lda.w EnemyRowPos, Y
+    ;lda.b #!EnemyRBounds
+    sta.w EnemyMin
+    ldy.b ZP.R1
+    iny
+    lda.w EnemyRowPos, Y
+    ;lda.b #!EnemyLBounds
+    sta.w EnemyMax
+    rep #$10
+    plp
+    rts
+
 GameLoop_SendWave:
     sep #$20
     inc.b ZP.EnemyWaveCount
@@ -1103,16 +1177,18 @@ GameLoop_SendWave:
     sta.b ZP.EnemyDownCount
     lda.b #!EnemyPlaneStartX
     sta.b ZP.EnemyPlanePosX
-    sta.b !BG2HOffMirror
-    stz.b !BG2HOffMirror+1
+    sta.b !BG1HOffMirror
+    stz.b !BG1HOffMirror+1
     lda.b #!EnemyPlaneStartY
     sta.b ZP.EnemyPlanePosY
-    sta.b !BG2VOffMirror
-    stz.b !BG2VOffMirror+1
+    sta.b !BG1VOffMirror
+    stz.b !BG1VOffMirror+1
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
     jsr GameLoop_UpdateEnemyArray
-
+    jsr GameLoop_FindMaxRowBounds
+    lda.b #!GameState_Play
+    sta.w GameState
     rts
 
     ;-------------------------------;
@@ -1700,13 +1776,13 @@ EnemyDrawBot:
 EnemyHealthTable:
     db $00              ;Empty
     db $01              ;Basic Squelcher
-    db $03              ;Slow Shooter
+    db $02              ;Slow Shooter
     db $01              ;Boxy Greenback
     db $01              ;Fast Shooter
     db $02              ;Sophisticated mimic
     db $02              ;Purple Shooter
-    db $03              ;MultiArm
-    db $04              ;Tough Guy
+    db $02              ;MultiArm
+    db $03              ;Tough Guy
     
 EnemyScoreTable:
     db $00              ;Empty
@@ -1729,6 +1805,7 @@ EnemyWaveLookup:
     dw EnemyWave6
     dw EnemyWave7
     dw EnemyWave8
+    dw EnemyWave9
 
 ;Enemy wave definitions
 EnemyWave1:
@@ -1779,6 +1856,12 @@ EnemyWave8:
     db $02,$08,$02,$08,$02,$08,$02,$08
     db $02,$08,$02,$08,$02,$08,$02,$08
     db $02,$08,$02,$08,$02,$08,$02,$08
+EnemyWave9:
+    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $01,$02,$03,$04,$05,$06,$07,$08
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:
@@ -1797,6 +1880,10 @@ EnemyPixelPos:
         endfor
     endfor
 
+EnemyRowPos:
+    for x = 0..!EnemyCols+1
+        db (!x*24)-!EnemySpeed
+    endfor
 
 DecimalMaskTable:
     dw $00FF

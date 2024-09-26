@@ -87,8 +87,6 @@ ExplosionY =        $0580+(!MaxEpl*3)
 !ExplosionStart =   $20     ;Explosion timer to set to
 !ExplosionTile =    $5D
 
-EnemyTilemap =      $0740
-
 EnemyTileBuffer =   $7E8000
 ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
 
@@ -106,6 +104,7 @@ GameState =         $0E10   ;Current state of the GameScene
 !GameState_Pre =    $00     ;Before the game starts
 !GameState_Play =   $01     ;Invaders on screen and moving
 !GameState_Stop =   $02     ;Invaders dead, waiting for next wave
+!GameState_Dead =   $03     ;Player dead, resetting wave position
 
 GameStateWait =     $0E11   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
@@ -123,7 +122,7 @@ GameStateWait =     $0E11   ;Frames to wait before game scene changes
 !BulletColOff =     $04
 
 !EnemySpeed =       $02
-!EnemyPlaneStartX = $F0
+!EnemyPlaneStartX = $00
 !EnemyPlaneStartY = $F0
 
 EmptyChar =         $00
@@ -140,6 +139,9 @@ LaserOAM =          $0810
 !BulletF1 =         $51
 !BulletF2 =         $52
 !EnemyGfx =         $2D
+
+EnemyMax =          $0407
+EnemyMin =          $0408
 
 !EnemyRBounds =     $80
 !EnemyLBounds =     $40
