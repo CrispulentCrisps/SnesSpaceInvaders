@@ -490,7 +490,7 @@ GameScene:
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipLoad:
-    
+
     ;-------------------;
     ;   Player Logic    ;
     ;-------------------;
@@ -511,6 +511,9 @@ GameScene:
     sta.w Player.X
     .SkipLeftInput:
 
+    lda.w GameState
+    cmp.b #!GameState_Dead
+    beq .SkipShoot
     lda.b ZP.Controller+1
     and #$80                    ;Check A button
     beq .SkipShoot
@@ -790,12 +793,23 @@ GameScene:
     lda.w GameState
     cmp.b #!GameState_Dead
     bne .SkipWaveReset
-    ;TODO
+    ;If the player has died then we execute the enemy resetting
+    jsr GameLoop_DrawEnemies
+    dec.w PlayerDeathTimer
+    bne +
+    ;TRIGGER PLAYER DEATH
+    jsr GameLoop_KillPlayer
+    +
     .SkipWaveReset:
     lda.w GameState
     cmp.b #!GameState_Play
-    beq .DoEnemy
+    beq .DoPlay
     jmp .SkipEnemy
+    .DoPlay:
+    lda.w GameState
+    cmp.b #!GameState_Dead
+    bne .DoEnemy
+    jmp .SkipFloor
     .DoEnemy:
     jsr GameLoop_DrawEnemies
     ;Check enemy count and set enemy speed to amount of enemies on screen
@@ -843,6 +857,7 @@ GameScene:
     eor #$FF
     and #$01
     sta.b ZP.EnemyFrame
+    lda.w GameState
     ;Downward movement code
     lda.b ZP.EnemyDir
     cmp #!EnemyMoveD
@@ -903,6 +918,15 @@ GameScene:
     sta.b ZP.EnemyPlanePosX
     .SkipLR:
 
+    ;Check if enemies are at the floor
+    lda.b ZP.EnemyPlanePosY
+    cmp.w EnemyFloor
+    bcs .SkipFloor
+    lda.b #!GameState_Dead
+    sta.w GameState
+    lda.b #!PlayerDieReset
+    sta.w PlayerDeathTimer
+    .SkipFloor:
     lda.b ZP.EnemyPlanePosX
     sta.w !BG1HOffMirror
     stz.w !BG1HOffMirror+1
@@ -915,6 +939,7 @@ GameScene:
     .SkipMove:
     dec.b ZP.EnemyTimer
     .SkipEnemy
+
     ;------------------------;
     ;    Handle Explosions   ;
     ;------------------------;
@@ -926,7 +951,6 @@ GameScene:
     ;------------------------;
     ;    Handle Game State   ;
     ;------------------------;
-
     rep #$20
     lda.w GameStateWait
     beq +
@@ -1122,6 +1146,7 @@ GameLoop_UpdateEnemyArray:
     ;       ZP.R0
     ;       ZP.R1
     ;       ZP.R2
+    ;       ZP.R3
     ;       X
     ;       Y
     ;
@@ -1135,12 +1160,14 @@ GameLoop_FindMaxRowBounds:
     stz.b ZP.R1     ;Max alive enemy
     lda.b #$00
     sta.b ZP.R2     ;Lowest alive enemy
-    sep #$10
+    stz.b ZP.R3     ;Inc lowest flag
+    sep #$30
     .RowLoop:
     ;Min/Max find
     lda.w EnemyType, Y
     beq .SkipBoundary
     lda.b #$01
+    sta.b ZP.R3
     cpx.b ZP.R0
     bpl .MinX
     stx.b ZP.R0
@@ -1154,9 +1181,14 @@ GameLoop_FindMaxRowBounds:
     inx
     txa
     and.b #$07
+    pha
     bne .SkipInc
+    lda.b ZP.R3
+    beq .SkipInc
     inc.b ZP.R2
+    stz.b ZP.R3
     .SkipInc:
+    pla
     tax
     ;Loop Increment and check
     iny
@@ -1173,11 +1205,12 @@ GameLoop_FindMaxRowBounds:
     ;lda.b #!EnemyLBounds
     sta.w EnemyMax
     ldy.b ZP.R2
-    ;dey
+    iny
     lda.w EnemyRowPos, Y
-    sbc.b #!FloorOff        ;Consider floor offset
+    clc
+    adc.b #!FloorOff        ;Consider floor offset
     sta.w EnemyFloor
-    rep #$10
+    rep #$30
     plp
     rts
 
@@ -1428,6 +1461,30 @@ GameLoop_DrawEnemies_FrameDecider:
     pla
     clc
     adc.b ZP.R2
+    rts
+
+    ;
+GameLoop_KillPlayer:
+    php
+    pha
+    phx
+    phy    
+    sep #$20
+    ldy.w #!MaxEplW*2
+    .WriteExplData:
+    ;Fine X
+    lda.w PlayerExplosionSpeedX, Y
+    dey
+    ;Coarse X
+    lda.w PlayerExplosionSpeedX, Y
+    sta.w ExplosionX
+    dey
+    bne .WriteExplData
+
+    ply
+    plx
+    pla
+    plp
     rts
 
 OptionsScene:
@@ -1824,8 +1881,8 @@ EnemyWaveLookup:
 
 ;Enemy wave definitions
 EnemyWave0:
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $01,$00,$00,$00,$00,$00,$00,$01
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $00,$00,$00,$00,$00,$00,$00,$00
@@ -1912,13 +1969,20 @@ EnemyRowPos:
         db (!x*24)-!EnemySpeed
     endfor
 
-DecimalMaskTable:
-    dw $00FF
-    dw $FF00
-    dw $00FF
-    dw $FF00
-    dw $00FF
-    dw $FF00
+    ;Use for Fine X
+PlayerExplosionSpeedX:
+    dw $0160
+    dw $01C0
+    dw $0000
+    dw $FFC0
+    dw $FF60
+
+    ;Use for Fine Y
+PlayerExplosionSpeedY:
+    dw $0100
+    dw $0100
+    dw $0100
+    dw $0100
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C

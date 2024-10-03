@@ -83,7 +83,12 @@ ExplosionTimer =    $0580
 ExplosionFrame =    $0580+!MaxEpl
 ExplosionX =        $0580+(!MaxEpl*2)
 ExplosionY =        $0580+(!MaxEpl*3)
-ExplosionSpeed =    $0590   ;Speed values for player death explosion
+ExplosionFineX =    $0580+(!MaxEpl*4)
+ExplosionFineY =    $0580+(!MaxEpl*5)
+ExplosionXVal =     $0580+(!MaxEpl*6)
+ExplosionYVal =     $0580+(!MaxEpl*7)
+ExplosionFineXVal = $0580+(!MaxEpl*8)
+ExplosionFineYVal = $0580+(!MaxEpl*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
 !ExplosionTile =    $5D
@@ -109,7 +114,9 @@ GameState =         $0E10   ;Current state of the GameScene
 
 GameStateWait =     $0E11   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
-!WaveInit =         $03
+PlayerDeathTimer =  $0E12   ;Frames to wait when player dies
+!PlayerDieReset =   50
+!WaveInit =         $09
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
