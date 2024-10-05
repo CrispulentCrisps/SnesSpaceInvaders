@@ -799,6 +799,8 @@ GameScene:
     bne +
     ;TRIGGER PLAYER DEATH
     jsr GameLoop_KillPlayer
+    lda.b #$FF
+    sta.w PlayerDeathTimer
     +
     .SkipWaveReset:
     lda.w GameState
@@ -947,6 +949,44 @@ GameScene:
     tdc
     jsr PalCycle
     jsr UpdateExplosives
+
+    ;Update explosion positions by speed
+    ldy.w #!MaxEplW
+    -
+    ;Add coarse speed
+    lda.w ExplosionX, Y
+    clc
+    adc.w ExplosionXVal, Y
+    sta.w ExplosionX, Y
+    lda.w ExplosionFineX, Y
+    clc
+    adc.w ExplosionFineXVal, Y
+    bcc +
+    pha
+    lda.w ExplosionX, Y
+    inc
+    sta.w ExplosionX, Y
+    pla
+    +
+    sta.w ExplosionFineX, Y
+    
+    lda.w ExplosionY, Y
+    clc
+    adc.w ExplosionYVal, Y
+    sta.w ExplosionY, Y
+    lda.w ExplosionFineY, Y
+    clc
+    adc.w ExplosionFineYVal, Y
+    bcc +
+    pha
+    lda.w ExplosionY, Y
+    inc
+    sta.w ExplosionY, Y
+    pla
+    +
+    sta.w ExplosionFineY, Y
+    dey
+    bne -
 
     ;------------------------;
     ;    Handle Game State   ;
@@ -1472,14 +1512,31 @@ GameLoop_KillPlayer:
     sep #$20
     ldy.w #!MaxEplW*2
     .WriteExplData:
-    ;Fine X
+    ;Fine
     lda.w PlayerExplosionSpeedX, Y
+    sta.w ExplosionFineXVal, Y
+    lda.w PlayerExplosionSpeedY, Y
+    sta.w ExplosionFineYVal, Y
     dey
-    ;Coarse X
+    ;Coarse
     lda.w PlayerExplosionSpeedX, Y
-    sta.w ExplosionX
+    sta.w ExplosionXVal, Y
+    lda.w PlayerExplosionSpeedY, Y
+    sta.w ExplosionYVal, Y
     dey
     bne .WriteExplData
+
+    ;Reset timers to show explosions
+    ldy.w #!MaxEplW
+    -
+    lda.b #!ExplosionStart
+    sta.w ExplosionTimer, Y
+    lda.w OAMCopy               ;Grab player X, since the player is always the first entry into OAM
+    sta.w ExplosionX, Y
+    lda.w OAMCopy+1             ;Player Y
+    sta.w ExplosionY, Y
+    dey
+    bne -
 
     ply
     plx
@@ -1634,6 +1691,18 @@ UpdateExplosives:
     sta.b ZP.R2
     bcc .OAMLoop                ;Should overflow when it reaches loop 4
 
+    ;Make sure explosions don't die when player is dead
+    lda.w GameState
+    cmp.b #!GameState_Dead
+    bne +
+    lda.w ExplosionTimer, Y
+    dec
+    sta.w ExplosionTimer, Y
+    bne .SkipExploDisable
+    lda.b #!ExplosionStart   ;Grab the max timer since we want to _increment_ through the frame list
+    sta.w ExplosionTimer, Y
+    +
+    
     lda.w ExplosionTimer, Y
     beq .SkipExploDisable
     dec
@@ -1971,8 +2040,8 @@ EnemyRowPos:
 
     ;Use for Fine X
 PlayerExplosionSpeedX:
-    dw $0160
     dw $01C0
+    dw $0160
     dw $0000
     dw $FFC0
     dw $FF60
@@ -1980,8 +2049,9 @@ PlayerExplosionSpeedX:
     ;Use for Fine Y
 PlayerExplosionSpeedY:
     dw $0100
-    dw $0100
-    dw $0100
+    dw $0120
+    dw $0140
+    dw $0120
     dw $0100
 
 SineTable:

@@ -116,7 +116,7 @@ GameStateWait =     $0E11   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
 PlayerDeathTimer =  $0E12   ;Frames to wait when player dies
 !PlayerDieReset =   50
-!WaveInit =         $09
+!WaveInit =         $00
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
