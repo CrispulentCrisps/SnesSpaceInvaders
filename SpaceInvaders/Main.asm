@@ -348,7 +348,6 @@ NMIHandler:
     sep #%00100000
     lda.b #$01                  ;Enable DMA 0
     sta.w HW_MDMAEN
-
     rep #$20
     
     ;---------------;
@@ -385,7 +384,7 @@ NMIHandler:
     sep #%00100000                              ;Enter 8bit mode for A
     lda.b #$01
     sta.w HW_MDMAEN                             ;Enable DMA
-    rep #%00100000                              ;Exit 8bit mode for A
+    rep #%00100000                              ;Exit 8bit mode for A 
     lda.w ZP.VrDmaListPtr
     clc
     adc.w #$0008
@@ -393,6 +392,25 @@ NMIHandler:
     jmp .VrDMALoop      ;Keep looping until we find an END flag entry
     .FinishDMALoop:
 
+    ;---------------;
+    ;  HDMA Writes  ;
+    ;---------------;
+    sep #$20
+    lda.w HDMAMirror+1
+    beq +
+    lda.w HDMAMirror
+    sta.w HW_DMAP0
+    lda.w HDMAMirror+1
+    sta.w HW_BBAD0
+    rep #$20
+    lda.w HDMAMirror+2
+    sta.w HW_A1T0L
+    sep #$20
+    lda.w HDMAMirror+4
+    sta.w HW_A1B0
+    lda.b #$01
+    sta.w HW_HDMAEN
+    +
     ;----------------------;
     ;   Controller Input   ;
     ;----------------------;
@@ -463,7 +481,7 @@ GameScene:
     sta.b ZP.EnemyTimer
 
     ;Reset explosion sprites
-    ldy #!MaxEplW
+    ldy #!MaxEplW-1
     -
     lda.b #$00
     sta.w ExplosionTimer, Y
@@ -472,7 +490,7 @@ GameScene:
     sta.w ExplosionX, Y
     sta.w ExplosionY, Y
     dey
-    bne -
+    bpl -
 
     ;Load in initial background onto layer 1
     lda.b #$00
@@ -951,7 +969,7 @@ GameScene:
     jsr UpdateExplosives
 
     ;Update explosion positions by speed
-    ldy.w #!MaxEplW
+    ldy.w #!MaxEplW-1
     -
     ;Add coarse speed
     lda.w ExplosionX, Y
@@ -986,7 +1004,47 @@ GameScene:
     +
     sta.w ExplosionFineY, Y
     dey
-    bne -
+    bpl -
+
+    ;------------------;
+    ;    Handle HDMA   ;
+    ;------------------;
+
+    ;Some example code
+
+    ;stz.b ZP.R0
+    ;ldy.w #$0000
+    ;rep #$20
+    ;lda.w #$0003
+    ;sta.w BGScrollOff, Y
+    ;sep #$20
+    ;iny
+    ;iny
+    ;-
+    ;lda.b #$10
+    ;sta.w BGScrollOff, Y
+    ;iny
+;
+    ;inc.b ZP.R0
+    ;lda.w BGScrollOff, Y
+    ;clc
+    ;adc.b ZP.R0
+    ;sta.w BGScrollOff, Y
+    ;iny
+    ;cpy.w #$000C*2
+    ;bmi -
+    ;
+    ;lda.b #$00
+    ;sta.w HDMAMirror
+    ;lda.b #(HW_BG2HOFS)&$FF
+    ;sta.w HDMAMirror+1
+    ;rep #$20
+    ;lda.w #BGScrollOff
+    ;sta.w HDMAMirror+2
+    ;sep #$20
+    ;lda.b #$80
+    ;sta.w HDMAMirror+4
+
 
     ;------------------------;
     ;    Handle Game State   ;
@@ -997,6 +1055,7 @@ GameScene:
     dec
     sta.w GameStateWait
     bne .SkipSend
+    sep #$20
     lda.b #!GameState_Play
     sta.w GameState
     jsr GameLoop_SendWave
@@ -1510,24 +1569,23 @@ GameLoop_KillPlayer:
     phx
     phy    
     sep #$20
-    ldy.w #!MaxEplW*2
+    ldy.w #!MaxEplW-1
     .WriteExplData:
     ;Fine
-    lda.w PlayerExplosionSpeedX, Y
+    lda.w PlayerExplosionSpeedFineX, Y
     sta.w ExplosionFineXVal, Y
-    lda.w PlayerExplosionSpeedY, Y
+    lda.w PlayerExplosionSpeedFineY, Y
     sta.w ExplosionFineYVal, Y
-    dey
     ;Coarse
     lda.w PlayerExplosionSpeedX, Y
     sta.w ExplosionXVal, Y
     lda.w PlayerExplosionSpeedY, Y
     sta.w ExplosionYVal, Y
     dey
-    bne .WriteExplData
+    bpl .WriteExplData
 
     ;Reset timers to show explosions
-    ldy.w #!MaxEplW
+    ldy.w #!MaxEplW-1
     -
     lda.b #!ExplosionStart
     sta.w ExplosionTimer, Y
@@ -1536,8 +1594,11 @@ GameLoop_KillPlayer:
     lda.w OAMCopy+1             ;Player Y
     sta.w ExplosionY, Y
     dey
-    bne -
-
+    bpl -
+    lda.w OAMCopy+512             ;Player X 9th bit
+    adc.b #%01010101
+    sta.w OAMCopy+512             ;Player X 9th bit
+        
     ply
     plx
     pla
@@ -1615,7 +1676,7 @@ SpawnExplosive:
     pha
     tdc
     sep #$20
-    ldy.w #!MaxEplW
+    ldy.w #!MaxEplW-1
     -
     lda.w ExplosionTimer, Y
     beq .BreakLoop
@@ -1637,7 +1698,7 @@ SpawnExplosive:
 
 UpdateExplosives:
     ;Update Timers
-    ldy.w #!MaxEplW
+    ldy.w #!MaxEplW-1
     tdc
     sep #$20
     -
@@ -1701,8 +1762,7 @@ UpdateExplosives:
     bne .SkipExploDisable
     lda.b #!ExplosionStart   ;Grab the max timer since we want to _increment_ through the frame list
     sta.w ExplosionTimer, Y
-    +
-    
+    +    
     lda.w ExplosionTimer, Y
     beq .SkipExploDisable
     dec
@@ -1715,7 +1775,7 @@ UpdateExplosives:
     sta.w ExplosionY, Y
     .SkipExploDisable:
     dey
-    bne -
+    bpl -
     rts
 
     ;
@@ -2038,21 +2098,33 @@ EnemyRowPos:
         db (!x*24)-!EnemySpeed
     endfor
 
-    ;Use for Fine X
 PlayerExplosionSpeedX:
-    dw $01C0
-    dw $0160
-    dw $0000
-    dw $FFC0
-    dw $FF60
+    db $00
+    db $00
+    db $00
+    db $FF
+    db $FF
+    
+PlayerExplosionSpeedFineX:
+    db $E0
+    db $80
+    db $00
+    db $80
+    db $20
 
-    ;Use for Fine Y
 PlayerExplosionSpeedY:
-    dw $0100
-    dw $0120
-    dw $0140
-    dw $0120
-    dw $0100
+    db $FF
+    db $FF
+    db $FF
+    db $FF
+    db $FF
+
+PlayerExplosionSpeedFineY:
+    db $80
+    db $40
+    db $10
+    db $40
+    db $80
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C

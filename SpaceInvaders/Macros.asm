@@ -80,21 +80,23 @@ EnemyHurtTable =    $0550   ;Array of hurt timers
 !MaxEplW = $0005
 
 ExplosionTimer =    $0580
-ExplosionFrame =    $0580+!MaxEpl
-ExplosionX =        $0580+(!MaxEpl*2)
-ExplosionY =        $0580+(!MaxEpl*3)
-ExplosionFineX =    $0580+(!MaxEpl*4)
-ExplosionFineY =    $0580+(!MaxEpl*5)
-ExplosionXVal =     $0580+(!MaxEpl*6)
-ExplosionYVal =     $0580+(!MaxEpl*7)
-ExplosionFineXVal = $0580+(!MaxEpl*8)
-ExplosionFineYVal = $0580+(!MaxEpl*9)
+ExplosionFrame =    $0580+!MaxEplW
+ExplosionX =        $0580+(!MaxEplW*2)
+ExplosionY =        $0580+(!MaxEplW*3)
+ExplosionFineX =    $0580+(!MaxEplW*4)
+ExplosionFineY =    $0580+(!MaxEplW*5)
+ExplosionXVal =     $0580+(!MaxEplW*6)
+ExplosionYVal =     $0580+(!MaxEplW*7)
+ExplosionFineXVal = $0580+(!MaxEplW*8)
+ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
 !ExplosionTile =    $5D
 
 EnemyTileBuffer =   $7E8000
 ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
+
+BGScrollOff =       $05C0     ;Scrolling offsets for background elements
 
 !BG1HOffMirror =    $0C00
 !BG1VOffMirror =    $0C02
@@ -106,17 +108,20 @@ ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
 !BG4VOffMirror =    $0C0E
 PalMirror =         $0C10
 
-GameState =         $0E10   ;Current state of the GameScene
+HDMAMirror =        $0E10
+
+GameState =         $0EF0   ;Current state of the GameScene
 !GameState_Pre =    $00     ;Before the game starts
 !GameState_Play =   $01     ;Invaders on screen and moving
 !GameState_Stop =   $02     ;Invaders dead, waiting for next wave
-!GameState_Dead =   $03     ;Player dead, resetting wave position
+!GameState_Dead =   $03     ;Player dead
+!GameState_Reset =  $04     ;Player dead, wave resetting
 
-GameStateWait =     $0E11   ;Frames to wait before game scene changes
+GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
-PlayerDeathTimer =  $0E12   ;Frames to wait when player dies
+PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 !PlayerDieReset =   50
-!WaveInit =         $00
+!WaveInit =         $01
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
