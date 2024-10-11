@@ -61,6 +61,9 @@ struct Bullet $0403
 endstruct
 
 ;(8 columns * 5 rows)
+BGIndex  =          $04E0
+EnemyResetMove  =   $04FE
+EnemyResetFlag  =   $04FF
 EnemyHealth =       $0500
 EnemyType =         $0528
 EnemyHurtTable =    $0550   ;Array of hurt timers
@@ -128,8 +131,16 @@ PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 !EnemyCols =        $08
 !EnemyStructWr =    $28
 !EnemyHurtTimer =   $08
-!EnemyHurtPal =     $01<<2
-!EnemyHurtPalFlip = ($01<<2)+$40
+
+!EnemyPal0 =        $04<<2
+!EnemyPal1 =        $05<<2
+!EnemyPal2 =        $06<<2
+!EnemyPal3 =        $07<<2
+!EnemyPal4 =        $03<<2
+
+!EnemyHurtPalInd =  $40
+!EnemyHurtPal =     $04<<2
+!EnemyHurtPalFlip = ($04<<2)+$40
 
 !BulletSpeed =      $07
 !BulletColOff =     $04
@@ -168,9 +179,10 @@ EnemyFloor =        $0409   ;Floor boundaries
 !EnemyMoveR =       $01
 !EnemyMoveD =       $02
 
-!ExplosionPal =     $02<<2
 !ScoreDisp =        $7760
 !LifeDisp =         $777C
+
+!BG_L3_OFF =        $65
 
 ;Character data
 ' ' = $00
