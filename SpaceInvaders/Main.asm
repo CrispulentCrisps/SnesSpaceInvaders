@@ -42,10 +42,22 @@ BG1_L3:
     incbin "bin/gfx/BG-1-L3.bin"
 BG1_L3_End:
 
+BG1_L2:
+    incbin "bin/gfx/BG-1-L2.bin"
+BG1_L2_End:
+
+
 BG1_L3_Pal:
     incbin "bin/gfx/pal/BG-1-L3-Pal.bin"
 BG1_L3_Pal_End:
 
+BG1_L2_Pal:
+    incbin "bin/gfx/pal/BG-1-L2-Pal.bin"
+BG1_L2_Pal_End:
+
+BG1Grad:
+    incbin "bin/gfx/pal/BG-1-L3-Grad.bin"
+BG1GradEnd:
 
 ;---------------;
 ;   Tilemaps    ;
@@ -58,6 +70,10 @@ TestBGEnd:
 BG1_L3_TM:
     incbin "bin/gfx/tilemap/BG-1-L3.bin"
 BG1_L3_TM_End:
+
+BG1_L2_TM:
+    incbin "bin/gfx/tilemap/BG-1-L2.bin"
+BG1_L2_TM_End:
 
 
 Reset:
@@ -186,6 +202,17 @@ Reset:
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
+    
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #BG1_L2&$FFFF        ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #BG1_L2>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #BG1_L2_End-BG1_L2
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
 
     ldy.w #$0000
     -
@@ -196,43 +223,6 @@ Reset:
     iny
     cpy #$100
     bne -
-
-    ;Window Layer 1 Reset
-    ldx.w #L2Ram               ;Shove tile map addr in
-    stx.w HW_VMADDL
-    ldy.w #$0800
-    rep #%00100000              ;Exit Memory mode
-    -
-    stz.w HW_VMDATAL            ;Set layer to empty 0tile
-    dey
-    bne -
-
-    ;-------------------;
-    ;   Load tilemaps   ;
-    ;-------------------;
-    sep #$20
-    ldx.w #L3Ram
-    stx.w HW_VMADDL
-    ;Load BG tiles
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #BG1_L3_TM&$FFFF      ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #BG1_L3_TM>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #BG1_L3_TM_End-BG1_L3_TM
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #HW_VMDATAL&$FF
-    sta.w HW_BBAD0
-    lda.b #$01
-    sta.w HW_MDMAEN             ;Enable DMA channel 0
-
-    ldy.w #(BG1_L3_Pal_End-BG1_L3_Pal)-1
-    -
-    lda.w BG1_L3_Pal, Y
-    sta.w PalMirror, Y
-    dey
-    bpl -   
 
     sep #%00100000              ;Enter Memory mode
     lda.b #$F0
@@ -308,6 +298,8 @@ MainLoop:
     sta.w ZP.OAMPtr
     lda.w #$0000
     sta.w VrDmaPtr+3
+    lda.w #HDMAMirror
+    sta.b ZP.HDMAPtr
     jsr (SelectScene, X)        ;Go to correct subroutine logic in jumptable
     
     lda.w #$FFFF
@@ -401,6 +393,7 @@ NMIHandler:
     sta.w HW_BG4VOFS
     
     ;Update palette entries
+    stz.w HW_CGADD
     lda.b #$02
     sta.w HW_DMAP0
     ldx.w #PalMirror            ;Grab source addr
@@ -462,6 +455,8 @@ NMIHandler:
     ;---------------;
     ;  HDMA Writes  ;
     ;---------------;
+    ldy.w #$0000
+    .HDMALoop:
     sep #$20
     lda.w HDMAMirror+1
     beq +
@@ -474,6 +469,22 @@ NMIHandler:
     sta.w HW_A1T0L
     sep #$20
     lda.w HDMAMirror+4
+    sta.w HW_A1B0
+    lda.b #$01
+    sta.w HW_HDMAEN
+    +
+    
+    lda.w HDMAMirror2+1
+    beq +
+    lda.w HDMAMirror2
+    sta.w HW_DMAP0
+    lda.w HDMAMirror2+1
+    sta.w HW_BBAD0
+    rep #$20
+    lda.w HDMAMirror2+2
+    sta.w HW_A1T0L
+    sep #$20
+    lda.w HDMAMirror2+4
     sta.w HW_A1B0
     lda.b #$01
     sta.w HW_HDMAEN
@@ -520,7 +531,7 @@ GameScene:
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
 
-    lda.b #$01                  ;Set BG Mode to 1
+    lda.b #$01                  ;Set BG Mode to 1 & Layer 3 to hi priority
     sta.w HW_BGMODE
     ;Reset Player
     lda.b #$70
@@ -559,10 +570,61 @@ GameScene:
     dey
     bpl -
 
-    ;Load in initial background onto layer 1
-    lda.b #$00
-    ;jsr GameLoop_LoadBG
+    ;-------------------;
+    ;   Load tilemaps   ;
+    ;-------------------;
+    sep #$20
+    ldx.w #L2Ram
+    stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #BG1_L2_TM&$FFFF      ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #BG1_L2_TM>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #BG1_L2_TM_End-BG1_L2_TM
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
 
+    ldx.w #L3Ram
+    stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #BG1_L3_TM&$FFFF      ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #BG1_L3_TM>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #BG1_L3_TM_End-BG1_L3_TM
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN 
+    
+    ldy.w #(BG1_L3_Pal_End-BG1_L3_Pal)-1
+    -
+    lda.w BG1_L3_Pal, Y
+    sta.w PalMirror, Y
+    dey
+    bpl -
+    lda.b #%01000010
+    sta.w PalMirror
+    lda.b #%00010000
+    sta.w PalMirror+1
+    sep #$20
+        
+    ldy.w #(BG1_L2_Pal_End-BG1_L2_Pal)-1
+    -
+    lda.w BG1_L2_Pal, Y
+    sta.w PalMirror+32, Y
+    dey
+    bpl -
+
+    ldx.w #$00F8
+    stx.w !BG3VOffMirror
     ;Write enemy entries into Enemy struct array
     jsr GameLoop_UpdateEnemyArray
     jsr GameLoop_DrawEnemies
@@ -575,6 +637,8 @@ GameScene:
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipLoad:
+
+
     ;-----------------------;
     ;   Background Logic    ;
     ;-----------------------;
@@ -1107,47 +1171,7 @@ GameScene:
     sta.w ExplosionFineY, Y
     dey
     bpl -
-
-    ;------------------;
-    ;    Handle HDMA   ;
-    ;------------------;
-
-    ;Some example code
-
-    ;stz.b ZP.R0
-    ;ldy.w #$0000
-    ;rep #$20
-    ;lda.w #$0003
-    ;sta.w BGScrollOff, Y
-    ;sep #$20
-    ;iny
-    ;iny
-    ;-
-    ;lda.b #$10
-    ;sta.w BGScrollOff, Y
-    ;iny
-
-    ;inc.b ZP.R0
-    ;lda.w BGScrollOff, Y
-    ;clc
-    ;adc.b ZP.R0
-    ;sta.w BGScrollOff, Y
-    ;iny
-    ;cpy.w #$000C*2
-    ;bmi -
-    ;
-    ;lda.b #$00
-    ;sta.w HDMAMirror
-    ;lda.b #(HW_BG3HOFS)&$FF
-    ;sta.w HDMAMirror+1
-    ;rep #$20
-    ;lda.w #BGScrollOff
-    ;sta.w HDMAMirror+2
-    ;sep #$20
-    ;lda.b #$80
-    ;sta.w HDMAMirror+4
-
-
+    
     ;------------------------;
     ;    Handle Game State   ;
     ;------------------------;
@@ -1288,7 +1312,7 @@ GameLoop_DrawScore:
     iny
     iny
     rep #$20
-    lda.w #(EndLivesText-ScoreText)+32
+    lda.w #(EndLivesText-ScoreText)+36
     sta.b (ZP.VrDmaListPtr), Y
     lda.b ZP.VrDmaListPtr
     clc
@@ -1907,6 +1931,7 @@ GameLoop_UpdateBG:
     phx
     phy
     ldx.w #$0000
+    tdc
     lda.w BGIndex
     asl
     tax
@@ -1925,56 +1950,29 @@ BG0:
     lda.w BGScrollOff
     inc
     sta.w BGScrollOff
-    bit #$10
+    bit #$08
     beq +
     stz.w BGScrollOff
-    inc.w !BG3HOffMirror
+    inc.w !BG2HOffMirror
     +
+    
+    inc.w !BG3HOffMirror
+    inc.w !BG3HOffMirror
+    inc.w !BG3HOffMirror
+    inc.w !BG3HOffMirror
+    inc.w !BG3HOffMirror
     sep #$20
+    lda.b #$03
+    sta.w HDMAMirror
+    lda.b #(HW_CGADD)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #BG1ColTable
+    stx.w HDMAMirror+2
+    ldx.w #$80
+    stx.w HDMAMirror+4
     rts
 
 BG1:
-    rts
-
-GameLoop_LoadBG:
-    pha
-    phx
-    phy
-    php
-    ldy.w #$0000
-    lda.b #(TestBG)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(TestBG>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(TestBG>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    rep #$20
-    lda.w #L2Ram
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
-    lda.w #TestBGEnd-TestBG
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
-    plp
-    ply
-    plx
-    pla
     rts
 
 Text:
@@ -2341,6 +2339,40 @@ PlayerExplosionSpeedFineY:
     db $40
     db $80
 
+BG1ColTable:
+    ;Colour data
+    db $60          ;Scanline counter
+    dw $0000        ;Address
+    dw $1021
+    
+    db $20          ;Scanline counter
+    dw $0000
+    dw $1842
+    
+    db $10          ;Scanline counter
+    dw $0000
+    dw $2063
+    
+    db $08          ;Scanline counter
+    dw $0000
+    dw $2884
+
+    db $08          ;Scanline counter
+    dw $0000
+    dw $30A5
+
+    db $06          ;Scanline counter
+    dw $0000
+    dw $38C6
+
+    db $06          ;Scanline counter
+    dw $0000
+    dw $44E7
+
+    db $01          ;Scanline counter
+    dw $0000
+    dw $4D08
+    
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
 db $1F,$22,$25,$28,$2B,$2E,$31,$33,$36,$39

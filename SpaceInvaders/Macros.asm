@@ -16,6 +16,7 @@ struct ZP $00
 .R7             skip 1  ;General purpose scratch memory
 .NMIDone        skip 2  ;NMI Flag for graphics/logic control
 .VrDmaListPtr   skip 2  ;Pointer to current position in list
+.HDMAPtr        skip 2  ;Pointer for HDMA data
 .SceneIndex     skip 1  ;Current scene we are in
 .ChangeScene    skip 1  ;Tell the scene's to load/deload data
 .Controller     skip 2  ;Controller input
@@ -98,6 +99,7 @@ ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 EnemyTileBuffer =   $7E8000
 ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
+HDMAScrollBuffer =  $7E8500   ;Takes up [score text] + 6 bytes for score display
 
 BGScrollOff =       $05C0     ;Scrolling offsets for background elements
 
@@ -112,6 +114,7 @@ BGScrollOff =       $05C0     ;Scrolling offsets for background elements
 PalMirror =         $0C10
 
 HDMAMirror =        $0E10
+HDMAMirror2 =       $0E18
 
 GameState =         $0EF0   ;Current state of the GameScene
 !GameState_Pre =    $00     ;Before the game starts
@@ -124,7 +127,7 @@ GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 !PlayerDieReset =   50
-!WaveInit =         $01
+!WaveInit =         $0A
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
