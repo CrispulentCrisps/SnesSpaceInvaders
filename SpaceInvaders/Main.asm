@@ -455,8 +455,10 @@ NMIHandler:
     ;---------------;
     ;  HDMA Writes  ;
     ;---------------;
-    ldy.w #$0000
     .HDMALoop:
+    ldy.w #$0000
+    ldx.w #$0000
+    tdc
     sep #$20
     lda.w HDMAMirror+1
     beq +
@@ -467,28 +469,51 @@ NMIHandler:
     rep #$20
     lda.w HDMAMirror+2
     sta.w HW_A1T0L
+    tdc
     sep #$20
     lda.w HDMAMirror+4
     sta.w HW_A1B0
-    lda.b #$01
-    sta.w HW_HDMAEN
+    inx                     ;X being used as our bitfield for HDMA
+    +
+
+    lda.w HDMAMirror1+1
+    beq +
+    lda.w HDMAMirror1
+    sta.w HW_DMAP1
+    lda.w HDMAMirror1+1
+    sta.w HW_BBAD1
+    rep #$20
+    lda.w HDMAMirror1+2
+    sta.w HW_A1T1L
+    tdc
+    sep #$20
+    lda.w HDMAMirror1+4
+    sta.w HW_A1B1
+    txa
+    clc
+    adc.b #$02                     ;X being used as our bitfield for HDMA
+    tax
     +
     
     lda.w HDMAMirror2+1
     beq +
     lda.w HDMAMirror2
-    sta.w HW_DMAP0
+    sta.w HW_DMAP2
     lda.w HDMAMirror2+1
-    sta.w HW_BBAD0
+    sta.w HW_BBAD2
     rep #$20
     lda.w HDMAMirror2+2
-    sta.w HW_A1T0L
+    sta.w HW_A1T2L
+    tdc
     sep #$20
     lda.w HDMAMirror2+4
-    sta.w HW_A1B0
-    lda.b #$01
-    sta.w HW_HDMAEN
+    sta.w HW_A1B2
+    txa
+    clc
+    adc.b #$04                     ;X being used as our bitfield for HDMA
+    tax
     +
+    stx.w HW_HDMAEN
     ;----------------------;
     ;   Controller Input   ;
     ;----------------------;
@@ -539,8 +564,9 @@ GameScene:
     lda.b #$03
     sta.w ZP.Lives
     ;Reset Bullets
-    stz.w Bullet[0].X
-    stz.w Bullet[0].Y
+    lda.b #$F0
+    sta.w Bullet[0].X
+    sta.w Bullet[0].Y
     stz.w Bullet[0].Frame
     lda.b #$00
     sta.w Bullet[0].Enabled
@@ -557,6 +583,9 @@ GameScene:
     sta.b ZP.EnemyPlanePosY
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
+    
+    ldx.w #$0000
+    stx.b ZP.Score
 
     ;Reset explosion sprites
     ldy #!MaxEplW-1
@@ -623,8 +652,8 @@ GameScene:
     dey
     bpl -
 
-    ldx.w #$00F8
-    stx.w !BG3VOffMirror
+    ldx.w #$0000
+    stx.w !BG2VOffMirror
     ;Write enemy entries into Enemy struct array
     jsr GameLoop_UpdateEnemyArray
     jsr GameLoop_DrawEnemies
@@ -637,7 +666,6 @@ GameScene:
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipLoad:
-
 
     ;-----------------------;
     ;   Background Logic    ;
@@ -661,6 +689,7 @@ GameScene:
     lda.w Player.X
     sec
     sbc.b #!PlayerSpeed
+    bcc .SkipLeftInput
     sta.w Player.X
     .SkipLeftInput:
 
@@ -847,7 +876,9 @@ GameScene:
 
     lda.b ZP.R5             ;X remainder
     cmp #2
-    beq .SkipBullet0Logic   ;Skip if we've hit the empty tile next to the enemy
+    bne +
+    jmp .SkipBullet0Logic   ;Skip if we've hit the empty tile next to the enemy
+    +
     lda.b ZP.R7             ;Y remainder
     cmp #2
     beq .SkipBullet0Logic   ;Skip if we've hit the empty tile next to the enemy
@@ -880,12 +911,20 @@ GameScene:
     clc
     adc.w EnemyScoreTable, Y
     bcc ++
+    pha
     clc
-    inc.b ZP.Score+1
+    lda.b ZP.Score+1
+    clc
+    adc.b #$01
+    sta.b ZP.Score+1
         bcc +++
         clc
-        inc.b ZP.Score+2
+        lda.b ZP.Score+2
+        clc
+        adc.b #$01
+        sta.b ZP.Score+2
         +++
+    pla
     ++
     sta.b ZP.Score
     cld
@@ -1018,7 +1057,6 @@ GameScene:
     ;Adjust speed and then apply
     lda.b ZP.EnemyWait
     beq .SetStateWait               ;No enemies means the wave has been beaten
-    lsr
     bne +
     lda.b #$01
     +
@@ -1947,29 +1985,153 @@ BGList:
     dw BG1
 
 BG0:
+    sep #$20
+
+    ;Main city view
     lda.w BGScrollOff
     inc
     sta.w BGScrollOff
     bit #$08
     beq +
     stz.w BGScrollOff
-    inc.w !BG2HOffMirror
+    inc.w BGScrollVal
     +
+    ;Main Road
+    lda.w BGScrollVal+1
+    clc
+    adc.b #$05
+    and.b #$FF
+    sta.w BGScrollVal+1
+
+
+    ;Stars
+    lda.w BGScrollOff+8
+    inc
+    sta.w BGScrollOff+8
+    bit #$40
+    beq +
+    stz.w BGScrollOff+8
+    inc.w BGScrollVal+2
+    +
+    ;Cloud 1
+    lda.w BGScrollOff+9
+    inc
+    sta.w BGScrollOff+9
+    bit #$20
+    beq +
+    stz.w BGScrollOff+9
+    inc.w BGScrollVal+3
+    +
+    ;Cloud 2
+    lda.w BGScrollOff+10
+    inc
+    sta.w BGScrollOff+10
+    bit #$10
+    beq +
+    stz.w BGScrollOff+10
+    inc.w BGScrollVal+4
+    +
+    ;Upper stars
+    lda.w BGScrollOff+11
+    inc
+    sta.w BGScrollOff+11
+    bit #$80
+    beq +
+    stz.w BGScrollOff+11
+    inc.w BGScrollVal+5
+    +
+
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HW_WMADDH
+    ;Construct HDMA table in WRAM
+    ;Buildings
+    lda.b #$7F          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal   ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
     
-    inc.w !BG3HOffMirror
-    inc.w !BG3HOffMirror
-    inc.w !BG3HOffMirror
-    inc.w !BG3HOffMirror
-    inc.w !BG3HOffMirror
-    sep #$20
+    lda.b #$41          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal   ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    
+    ;Road
+    lda.b #$17          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+1 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    
+    ;Score
+    lda.b #$01
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+
+    ;BG3 scroll
+    ldx.w #HDMAScrollBuffer2&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer2>>16)&$FF
+    sta.w HW_WMADDH
+
+    ;Construct HDMA table in WRAM
+    ;Buildings
+    lda.b #$20          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+5 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$1F          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+2 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$23          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+3 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$60          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+4 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    stz.w HW_WMDATA     ;End flag
+    
     lda.b #$03
     sta.w HDMAMirror
     lda.b #(HW_CGADD)&$FF
     sta.w HDMAMirror+1
     ldx.w #BG1ColTable
     stx.w HDMAMirror+2
-    ldx.w #$80
-    stx.w HDMAMirror+4
+    lda.b #$80
+    sta.w HDMAMirror+4
+
+    sep #$20
+    lda.b #$02
+    sta.w HDMAMirror1
+    lda.b #(HW_BG2HOFS)&$FF
+    sta.w HDMAMirror1+1
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HDMAMirror1+2
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HDMAMirror1+4
+    
+    tdc
+    sep #$20
+    lda.b #$02
+    sta.w HDMAMirror2
+    lda.b #(HW_BG3HOFS)&$FF
+    sta.w HDMAMirror2+1
+    ldx.w #HDMAScrollBuffer2&$FFFF
+    stx.w HDMAMirror2+2
+    lda.b #(HDMAScrollBuffer2>>16)&$FF
+    sta.w HDMAMirror2+4
+    
     rts
 
 BG1:
@@ -2172,6 +2334,10 @@ EnemyWaveLookup:
     dw EnemyWave10
     dw EnemyWave11
     dw EnemyWave12
+    dw EnemyWave13
+    dw EnemyWave14
+    dw EnemyWave15
+    dw EnemyWave16
 
 ;Enemy wave definitions
 EnemyWave00:
@@ -2288,6 +2454,30 @@ EnemyWave12:
     db $08,$08,$08,$08,$08,$08,$08,$08
     db $08,$08,$08,$08,$08,$08,$08,$08
     db $08,$08,$08,$08,$08,$08,$08,$08
+EnemyWave13:
+    db $01,$05,$05,$07,$07,$05,$05,$01
+    db $01,$01,$05,$07,$07,$05,$01,$01
+    db $01,$05,$05,$07,$07,$05,$05,$01
+    db $01,$01,$05,$07,$07,$05,$01,$01
+    db $01,$05,$05,$07,$07,$05,$05,$01
+EnemyWave14:
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $04,$04,$04,$04,$04,$04,$04,$04
+EnemyWave15:
+    db $05,$07,$05,$07,$05,$07,$05,$07
+    db $07,$05,$07,$05,$07,$05,$07,$05
+    db $05,$07,$05,$07,$05,$07,$05,$07
+    db $07,$05,$07,$05,$07,$05,$07,$05
+    db $05,$07,$05,$07,$05,$07,$05,$07
+EnemyWave16:
+    db $01,$03,$04,$02,$02,$04,$03,$07
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $07,$05,$06,$07,$08,$06,$05,$07
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:
@@ -2340,38 +2530,36 @@ PlayerExplosionSpeedFineY:
     db $80
 
 BG1ColTable:
-    ;Colour data
-    db $60          ;Scanline counter
+    db $40          ;Scanline counter
     dw $0000        ;Address
-    dw $1021
-    
+    dw $0821        ;Colour value
+    db $20          ;Scanline counter
+    dw $0000        ;Address
+    dw $1021    
     db $20          ;Scanline counter
     dw $0000
-    dw $1842
-    
+    dw $1842    
     db $10          ;Scanline counter
     dw $0000
-    dw $2063
-    
+    dw $2063    
     db $08          ;Scanline counter
     dw $0000
     dw $2884
-
     db $08          ;Scanline counter
     dw $0000
     dw $30A5
-
-    db $06          ;Scanline counter
+    db $08          ;Scanline counter
     dw $0000
     dw $38C6
-
-    db $06          ;Scanline counter
+    db $08          ;Scanline counter
     dw $0000
     dw $44E7
-
-    db $01          ;Scanline counter
+    db $08          ;Scanline counter
     dw $0000
     dw $4D08
+    db $01          ;Scanline counter
+    dw $0000
+    dw $0000
     
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
