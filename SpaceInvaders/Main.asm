@@ -112,6 +112,13 @@ Reset:
     stz.w HW_DAS0H
     lda.b #$01
     sta.w HW_MDMAEN
+    ;Grab RNG Seed for later use
+    ldy.w #$000F
+    -
+    lda.w HW_WMDATA
+    sta.w RNGSeed, Y
+    dey
+    bpl -
     sta.w HW_MDMAEN
 
     ;Reset PPU registers
@@ -672,6 +679,7 @@ GameScene:
     ;-----------------------;
     jsr GameLoop_UpdateBG
 
+    jsr Rand
     ;-------------------;
     ;   Player Logic    ;
     ;-------------------;
@@ -680,6 +688,8 @@ GameScene:
     beq .SkipRightInput
     lda.w Player.X
     adc.b #!PlayerSpeed
+    cmp #$F0
+    bcs .SkipRightInput
     sta.w Player.X
     .SkipRightInput:
     
@@ -864,7 +874,7 @@ GameScene:
     +
     jml +
     +
-
+    
     lda.w HW_RDDIVL         ;Grab division
     cmp #$05
     bmi .SkipExitBullet
@@ -977,10 +987,54 @@ GameScene:
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
 
+    ;-----------------------;
+    ;   Enemy Bullet logic  ;
+    ;-----------------------;
+    lda.w EnemyShootIndex           ;Increment enemy firing index each frame for "random" selection
+    inc
+    cmp #$28
+    bne +
+    sec
+    sbc.b #$28
+    +
+    sta.w EnemyShootIndex
+    
+    ;Wait N frames
+    lda.w EnemyShootControl
+    inc
+    sta.w EnemyShootControl
+    and #$04                    ;Skip over if 4 frames haven't passed
+    beq .BulletWaitFrame
+    ;Otherwise reset the frame wait counter and continue execution
+    stz.w EnemyShootControl
+    ldy.w #$0003
+    -
+    ;Check enemy shoot timers
+    lda.w EnemyShootTimer, Y
+    bne +
+    ;Timer is 0 so we gotta shoot
+    jsr Rand
+    sta.w EnemyShootTimer, Y
+    bit #$10
+    bne +
+    adc.b #$10
+    +
+    dec
+    sta.w EnemyShootTimer, Y
+    ;Check if the bullet is active
+    lda.w EnemyBulletActive, Y
+    beq .SkipEnemyBullet
+    .SkipEnemyBullet:
+    dey
+    bpl -
+    .BulletWaitFrame:
+    ;-------------------------------;
+    ;   Enemy Bullet Drawing logic  ;
+    ;-------------------------------;
+
     ;-----------------;
     ;   Enemy Logic   ;
     ;-----------------;
-
     ;Check game state
     lda.w GameState
     cmp.b #!GameState_Dead
@@ -1508,6 +1562,18 @@ GameLoop_SendWave:
     jsr GameLoop_FindMaxRowBounds
     lda.b #!GameState_Play
     sta.w GameState
+    ldy.w #$0004
+    
+    ;Set RNG up for enemy timers
+    -
+    jsr Rand
+    bit #$40
+    bne +
+    adc.b #$40
+    +
+    sta.w EnemyShootTimer, Y
+    dey
+    bpl -
     rts
 
     ;-------------------------------;
@@ -1842,6 +1908,52 @@ PalCycle:
     pla
     rts
 
+    ;----------------------------;
+    ;   Random Number Generator  ;
+    ;----------------------------;
+    ;
+    ;   Usage:
+    ;       Executes an RNG routine and returns the value in the A register
+    ;   Input:
+    ;       N/A 
+    ;   Output:
+    ;       RNG value in A
+    ;
+    ;   Clobberlist
+    ;       A
+    ;
+Rand:
+    phy
+    phx
+    php
+    ldy.w #$0000
+    sep #$10
+    rep #$20
+    ldy.w RNGIndex
+    lda.w RNGSeed, Y
+    rol
+    eor.w #$FFFF
+    ror
+    sep #$20
+    iny
+    sta.w RNGSeed, Y
+    rep #$20
+    pha
+    sep #$20
+    lda.w RNGIndex
+    clc
+    adc.b #$02
+    and #$0F
+    sta.w RNGIndex
+    rep #$20
+    pla
+    xba
+    and.w #$00FF
+    plp
+    plx
+    ply
+    rts
+
     ;-------------------;
     ;   SpawnExplosive  ;
     ;-------------------;
@@ -2159,21 +2271,21 @@ EndOptionsText:
 
 EnemyTypesPal:
     db $00<<2           ;Empty
-    db !EnemyPal2           ;Basic Squelcher
-    db !EnemyPal3           ;Slow Shooter
-    db !EnemyPal2           ;Boxy Greenback
-    db $05<<2           ;Fast Shooter
+    db !EnemyPal2       ;Basic Squelcher
+    db !EnemyPal3       ;Slow Shooter
+    db !EnemyPal2       ;Boxy Greenback
+    db $05<<2           ;Mind Cake
     db $00<<2           ;Sophisticated mimic
     db $05<<2           ;Purple Shooter
-    db !EnemyPal3           ;Multi Arm
-    db !EnemyPal2           ;Tough Guy
+    db !EnemyPal3       ;Multi Arm
+    db !EnemyPal2       ;Tough Guy
 
 EnemyTypesTile:
     db $00              ;Empty
     db $2D              ;Basic Squelcher
     db $2F              ;Slow Shooter
     db $31              ;Boxy Greenback
-    db $33              ;Fast Shooter
+    db $33              ;Mind Cake
     db $3D              ;Sophisticated mimic
     db $3F              ;Purple Shooter
     db $41              ;MultiArm
@@ -2204,7 +2316,7 @@ EnemyDrawTop:
     db $31
     db (!EnemyPal1)+$40
 
-    ;Fast Shooter
+    ;Mind Cake
     db $33
     db !EnemyPal3
     db $33
@@ -2260,7 +2372,7 @@ EnemyDrawBot:
     db $31+$08
     db (!EnemyPal1)+$40
 
-    ;Fast Shooter
+    ;Mind Cake
     db $33+$08
     db !EnemyPal3
     db $33+$08
@@ -2296,7 +2408,7 @@ EnemyHealthTable:
     db $01              ;Basic Squelcher
     db $02              ;Slow Shooter
     db $01              ;Boxy Greenback
-    db $01              ;Fast Shooter
+    db $01              ;Mind Cake
     db $02              ;Sophisticated mimic
     db $02              ;Purple Shooter
     db $02              ;MultiArm
@@ -2307,7 +2419,7 @@ EnemyScoreTable:
     db $01              ;Basic Squelcher
     db $02              ;Slow Shooter
     db $01              ;Boxy Greenback
-    db $01              ;Fast Shooter
+    db $01              ;Mind Cake
     db $02              ;Sophisticated mimic
     db $02              ;Purple Shooter
     db $04              ;MultiArm
@@ -2473,11 +2585,11 @@ EnemyWave15:
     db $07,$05,$07,$05,$07,$05,$07,$05
     db $05,$07,$05,$07,$05,$07,$05,$07
 EnemyWave16:
-    db $01,$03,$04,$02,$02,$04,$03,$07
+    db $02,$03,$04,$02,$02,$04,$03,$02
     db $01,$01,$01,$01,$01,$01,$01,$01
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $05,$05,$05,$05,$05,$05,$05,$05
-    db $07,$05,$06,$07,$08,$06,$05,$07
+    db $07,$05,$06,$08,$08,$06,$05,$07
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:
@@ -2529,34 +2641,54 @@ PlayerExplosionSpeedFineY:
     db $40
     db $80
 
+EnemyShootTypes:
+    db $00              ;Empty
+    db $00              ;Basic Squelcher
+    db $01              ;Slow Shooter
+    db $00              ;Boxy Greenback
+    db $00              ;Mind Cake
+    db $01              ;Sophisticated mimic
+    db $01              ;Purple Shooter
+    db $01              ;MultiArm
+    db $00              ;Tough Guy
+
 BG1ColTable:
     db $40          ;Scanline counter
     dw $0000        ;Address
     dw $0821        ;Colour value
+    
     db $20          ;Scanline counter
     dw $0000        ;Address
-    dw $1021    
+    dw $1021
+
     db $20          ;Scanline counter
     dw $0000
-    dw $1842    
+    dw $1842
+
     db $10          ;Scanline counter
     dw $0000
-    dw $2063    
+    dw $2063
+    
     db $08          ;Scanline counter
     dw $0000
     dw $2884
+
     db $08          ;Scanline counter
     dw $0000
     dw $30A5
+
     db $08          ;Scanline counter
     dw $0000
     dw $38C6
+
     db $08          ;Scanline counter
     dw $0000
     dw $44E7
+
     db $08          ;Scanline counter
     dw $0000
     dw $4D08
+
     db $01          ;Scanline counter
     dw $0000
     dw $0000

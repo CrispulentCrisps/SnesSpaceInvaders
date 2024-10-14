@@ -47,6 +47,8 @@ endstruct               ;Aligned in 8 byte entries
 ;   Zero = END transfer loop
 ;   NonZero = Execute said transfer
 
+RNGSeed =   $0300       ;16 byte section of memory
+RNGIndex =  $0310       ;Byte index into the RNG seed
 struct Player $0400
 .X      skip 1
 .Frame  skip 1          ;Current player frame
@@ -61,10 +63,16 @@ struct Bullet $0403
 .Enabled    skip 1  ;Test if the current laser is travelling upwards
 endstruct
 
-;(8 columns * 5 rows)
+!EnemyBulletSpeed = $01
+EnemyShootControl = $040E   ;How many frames to wait before shooting
+EnemyShootIndex =   $040F
+EnemyShootTimer =   $0410
+EnemyBulletXPos =   $0414
+EnemyBulletYPos =   $0418
+EnemyBulletActive = $041C
+
 BGIndex  =          $04F0
-Brightness =        $04F1
-BrightnessTimer =   $04F2
+;(8 columns * 5 rows)
 EnemyResetMove  =   $04FE
 EnemyResetFlag  =   $04FF
 EnemyHealth =       $0500
@@ -97,7 +105,7 @@ ExplosionFineXVal = $0580+(!MaxEplW*8)
 ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
-!ExplosionTile =    $5D
+!ExplosionTile =    $5F
 
 EnemyTileBuffer =   $7E8000
 ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
