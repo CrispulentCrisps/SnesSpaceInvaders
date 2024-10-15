@@ -113,12 +113,14 @@ Reset:
     lda.b #$01
     sta.w HW_MDMAEN
     ;Grab RNG Seed for later use
-    ldy.w #$000F
+    ldy.w #$0003
     -
+    ;Grab RNG seed from rubbish memory
     lda.w HW_WMDATA
-    sta.w RNGSeed, Y
-    dey
-    bpl -
+    sta.w RNGSeed
+    lda.w HW_WMDATA
+    sta.w RNGSeed+1
+    lda.b #$01
     sta.w HW_MDMAEN
 
     ;Reset PPU registers
@@ -252,7 +254,7 @@ Reset:
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
 
-    rep #$20    
+    rep #$20
     lda.w #OAMCopy
     sta.w HW_OAMADDL
     sep #$20
@@ -337,6 +339,8 @@ NMIHandler:
     ;------------------;
     ;   OAM Transfer   ;
     ;------------------;
+    ldx.w #OAMCopy
+    stx.w HW_OAMADDL
     sep #%00100000
     lda.b #$02
     sta.w HW_DMAP0
@@ -591,6 +595,16 @@ GameScene:
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
     
+    ;Set RNG up for enemy timers
+    ldy.w #$0003
+    -
+    jsr Rand
+    sta.w EnemyShootTimer, Y
+    lda.b #$00
+    sta.w EnemyBulletActive, Y
+    dey
+    bpl -
+
     ldx.w #$0000
     stx.b ZP.Score
 
@@ -674,12 +688,12 @@ GameScene:
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipLoad:
 
+    jsr Rand
     ;-----------------------;
     ;   Background Logic    ;
     ;-----------------------;
     jsr GameLoop_UpdateBG
 
-    jsr Rand
     ;-------------------;
     ;   Player Logic    ;
     ;-------------------;
@@ -983,54 +997,114 @@ GameScene:
     lda.b #!BulletF1
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b #$22
+    lda.b #!BulletAttr
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
 
     ;-----------------------;
     ;   Enemy Bullet logic  ;
     ;-----------------------;
-    lda.w EnemyShootIndex           ;Increment enemy firing index each frame for "random" selection
-    inc
-    cmp #$28
-    bne +
+    .StartEnemyBulletLogic:
+    jsr Rand
+    lda.w RNGSeed               ;Grab random index
+    and #$7F
+    cmp #$50
+    bmi .SkipShootModulo
     sec
-    sbc.b #$28
-    +
+    sbc.b #$50
+    bra .StartEnemyBulletLogic
+    .SkipShootModulo:
     sta.w EnemyShootIndex
     
-    ;Wait N frames
-    lda.w EnemyShootControl
-    inc
-    sta.w EnemyShootControl
-    and #$04                    ;Skip over if 4 frames haven't passed
-    beq .BulletWaitFrame
-    ;Otherwise reset the frame wait counter and continue execution
-    stz.w EnemyShootControl
+    ;Store enemy XY offset in temp memory
+    ldy.w #$0000
+    ldy.w EnemyShootIndex
+    rep #$20
+    tya
+    and.w #$00FF
+    lsr             ;Divide by 2 since enemy types is byte wide
+    tay
+    sep #$20
+    lda.w EnemyType, Y
+    beq .HandleTimers    ;Don't fire if no enemy is found on said tile
+    tya
+    asl             ;Multiply by 2 since enemy types is word wide
+    tay
+    rep #$20
+    lda.w EnemyPixelPos, Y
+    adc.w #$0800
+    sta.b ZP.R0
+    sec
+    sbc.b ZP.EnemyPlanePosX
+    sta.w EnemyShootDebug
+    sep #$20
+    .HandleTimers:
+    ;Handle Enemy shooting timers
     ldy.w #$0003
-    -
-    ;Check enemy shoot timers
+    .EBTimerLoop:
     lda.w EnemyShootTimer, Y
-    bne +
-    ;Timer is 0 so we gotta shoot
-    jsr Rand
-    sta.w EnemyShootTimer, Y
-    bit #$10
-    bne +
-    adc.b #$10
-    +
     dec
     sta.w EnemyShootTimer, Y
-    ;Check if the bullet is active
-    lda.w EnemyBulletActive, Y
-    beq .SkipEnemyBullet
-    .SkipEnemyBullet:
+    bne +
+    ;Set projectile to enemy index position
+    lda.b #$01
+    sta.w EnemyBulletActive, Y
+    lda.b ZP.R0
+    sec
+    sbc.b ZP.EnemyPlanePosX
+    clc
+    adc.b #$04
+    sta.w EnemyBulletXPos, Y
+    ;YPos
+    lda.b ZP.R1
+    sec
+    sbc.b ZP.EnemyPlanePosY
+    sta.w EnemyBulletYPos, Y    
+    +
     dey
-    bpl -
-    .BulletWaitFrame:
+    bpl .EBTimerLoop
+    sep #$20
+    ;Handle bullet logic    
+    ldy.w #$0003
+    .EBLogicLoop:
+    lda.w EnemyBulletActive, Y
+    beq +
+    lda.w EnemyBulletYPos, Y
+    clc
+    adc.b #!EnemyBulletSpeed
+    sta.w EnemyBulletYPos, Y
+    cmp #!BFloor
+    bcs +
+    bra .SkipDeactive
+    +
+    lda.b #$F0
+    sta.w EnemyBulletXPos, Y
+    sta.w EnemyBulletYPos, Y
+    lda.b #$00
+    sta.w EnemyBulletActive, Y
+    .SkipDeactive:
+    dey
+    bpl .EBLogicLoop
     ;-------------------------------;
     ;   Enemy Bullet Drawing logic  ;
     ;-------------------------------;
+    ldy.w #$0003
+    .EBDrawLoop:
+    lda.w EnemyBulletXPos, Y
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.w EnemyBulletYPos, Y
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!EBulletF1
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!BulletAttr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    dey
+    bpl .EBDrawLoop
+    ldy.w #$0000
 
     ;-----------------;
     ;   Enemy Logic   ;
@@ -1109,6 +1183,7 @@ GameScene:
     cpy.w #$0028
     bne -
     ;Adjust speed and then apply
+    tdc
     lda.b ZP.EnemyWait
     beq .SetStateWait               ;No enemies means the wave has been beaten
     bne +
@@ -1562,15 +1637,10 @@ GameLoop_SendWave:
     jsr GameLoop_FindMaxRowBounds
     lda.b #!GameState_Play
     sta.w GameState
-    ldy.w #$0004
-    
     ;Set RNG up for enemy timers
+    ldy.w #$0003
     -
     jsr Rand
-    bit #$40
-    bne +
-    adc.b #$40
-    +
     sta.w EnemyShootTimer, Y
     dey
     bpl -
@@ -1773,8 +1843,6 @@ GameLoop_DrawEnemies_FrameDecider:
     adc.b ZP.R2
     rts
 
-
-
 GameLoop_ResetPlayer:
     pha
     phx
@@ -1914,42 +1982,64 @@ PalCycle:
     ;
     ;   Usage:
     ;       Executes an RNG routine and returns the value in the A register
+    ;       Generation is based off of 16 bit XORShift
     ;   Input:
     ;       N/A 
     ;   Output:
-    ;       RNG value in A
+    ;       RNG value in RNGSeed
     ;
     ;   Clobberlist
-    ;       A
+    ;       ZP.R6
+    ;       ZP.R7
     ;
 Rand:
     phy
     phx
-    php
-    ldy.w #$0000
-    sep #$10
-    rep #$20
-    ldy.w RNGIndex
-    lda.w RNGSeed, Y
-    rol
-    eor.w #$FFFF
-    ror
-    sep #$20
-    iny
-    sta.w RNGSeed, Y
-    rep #$20
     pha
-    sep #$20
-    lda.w RNGIndex
-    clc
-    adc.b #$02
-    and #$0F
-    sta.w RNGIndex
-    rep #$20
-    pla
-    xba
-    and.w #$00FF
+    php
+    rep #$20    
+    lda.w RNGSeed       ;Grab seed value
+    ;x ^= x << 7
+    asl
+    asl
+    asl
+    asl
+    asl
+    asl
+    asl
+    sta.w ZP.R6         ;Store value to be XOR'd
+    lda.w RNGSeed       ;Grab seed value
+    eor.b ZP.R6
+    sta.w RNGSeed
+    ;x ^= x >> 9
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    sta.w ZP.R6
+    lda.w RNGSeed
+    eor.b ZP.R6
+    sta.w RNGSeed
+    ;x ^= x << 8
+    asl
+    asl
+    asl
+    asl
+    asl
+    asl
+    asl
+    asl
+    sta.w ZP.R6
+    lda.w RNGSeed
+    eor.b ZP.R6
+    sta.w RNGSeed
     plp
+    pla
     plx
     ply
     rts
@@ -1995,6 +2085,7 @@ SpawnExplosive:
 
 UpdateExplosives:
     ;Update Timers
+    ldy.w #$0000
     ldy.w #!MaxEplW-1
     tdc
     sep #$20

@@ -48,14 +48,12 @@ endstruct               ;Aligned in 8 byte entries
 ;   NonZero = Execute said transfer
 
 RNGSeed =   $0300       ;16 byte section of memory
-RNGIndex =  $0310       ;Byte index into the RNG seed
 struct Player $0400
 .X      skip 1
 .Frame  skip 1          ;Current player frame
 .State  skip 1          ;Player animation states
 endstruct
 
-;At most there will be 5 lasers on screen at once, one for the player rest for enemies
 struct Bullet $0403
 .X          skip 1
 .Y          skip 1
@@ -63,10 +61,11 @@ struct Bullet $0403
 .Enabled    skip 1  ;Test if the current laser is travelling upwards
 endstruct
 
-!EnemyBulletSpeed = $01
-EnemyShootControl = $040E   ;How many frames to wait before shooting
-EnemyShootIndex =   $040F
-EnemyShootTimer =   $0410
+;At most 4 eemy bullets on screen at once
+!EnemyBulletSpeed = $02
+EnemyShootDebug =   $040D   ;Current position display for debug purposes
+EnemyShootIndex =   $040F   ;Wich enemy is to fire said bullet
+EnemyShootTimer =   $0410   ;Frames to wait until firing bullet
 EnemyBulletXPos =   $0414
 EnemyBulletYPos =   $0418
 EnemyBulletActive = $041C
@@ -176,15 +175,20 @@ LaserOAM =          $0810
 !PlayerY =          $C8
 !PlayerTileB =      $57
 !PlayerTileT =      $4F
+!BulletAttr =       %00100110
 !BulletF1 =         $51
 !BulletF2 =         $52
+!EBulletF1 =        $59
+!EBulletF2 =        $5A
+
 !EnemyGfx =         $2D
 
-EnemyMax =          $0407   ;R boundaries
-EnemyMin =          $0408   ;L boundaries
-EnemyFloor =        $0409   ;Floor boundaries
+EnemyMax =          $04E7   ;R boundaries
+EnemyMin =          $04E8   ;L boundaries
+EnemyFloor =        $04E9   ;Floor boundaries
 
 !FloorOff =         $10
+!BFloor   =         $C0
 
 !EnemyRBounds =     $80
 !EnemyLBounds =     $40
