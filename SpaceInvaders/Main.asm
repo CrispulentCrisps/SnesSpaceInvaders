@@ -30,13 +30,9 @@ GameSpr:
     incbin "bin/gfx/GameSprites.bin"
 GameSprEnd:
 
-GamePal:
-    incbin "bin/gfx/pal/GamePal.bin"
-GamePalEnd:
-
-GameSprPal:
-    incbin "bin/gfx/pal/GameSpritesPal.bin"
-GameSprPalEnd:
+Title_L2:
+    incbin "bin/gfx/BG-1-L2.bin"
+Title_L2_End:
 
 BG1_L3:
     incbin "bin/gfx/BG-1-L3.bin"
@@ -46,6 +42,22 @@ BG1_L2:
     incbin "bin/gfx/BG-1-L2.bin"
 BG1_L2_End:
 
+
+;---------------;
+;   Palette's   ;
+;---------------;
+;
+GamePal:
+    incbin "bin/gfx/pal/GamePal.bin"
+GamePalEnd:
+
+GameSprPal:
+    incbin "bin/gfx/pal/GameSpritesPal.bin"
+GameSprPalEnd:
+
+Title_L2_Pal:
+    incbin "bin/gfx/pal/Title-BG-L2-Pal.bin"
+Title_L2_Pal_End:
 
 BG1_L3_Pal:
     incbin "bin/gfx/pal/BG-1-L3-Pal.bin"
@@ -62,10 +74,6 @@ BG1GradEnd:
 ;---------------;
 ;   Tilemaps    ;
 ;---------------;
-;
-TestBG:
-    incbin "bin/gfx/tilemap/T1.map"
-TestBGEnd:
 
 BG1_L3_TM:
     incbin "bin/gfx/tilemap/BG-1-L3.bin"
@@ -74,6 +82,10 @@ BG1_L3_TM_End:
 BG1_L2_TM:
     incbin "bin/gfx/tilemap/BG-1-L2.bin"
 BG1_L2_TM_End:
+
+Title_L2_TM:
+    incbin "bin/gfx/tilemap/Title-BG-L2.bin"
+Title_L2_TM_End:
 
 
 Reset:
@@ -554,7 +566,17 @@ SelectScene:
     dw HighscoreScene
 
 TitleScene:
-
+    sep #$20
+    lda.b ZP.ChangeScene
+    bne .LoadTitle
+    jmp .SkipTitleLoad
+    .LoadTitle:
+    lda.b #$8F                  ;Set master brightness to 15 & forces blanking
+    sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
+    stz.b ZP.ChangeScene        ;Reset flag
+    .SkipTitleLoad:
+    
+    rep #$20
     rts
 
 GameScene:
@@ -1140,9 +1162,6 @@ GameScene:
     ++
     .SkipEnemyResetMove:
     +
-    ;Draw enemies
-    jsr GameLoop_DrawEnemies
-    jsr GameLoop_DrawEnemies_FrameDecider
 
     dec.w PlayerDeathTimer
     bne +

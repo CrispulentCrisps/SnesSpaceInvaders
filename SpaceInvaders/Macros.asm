@@ -165,10 +165,10 @@ PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 !EnemyPlaneStartY = $F0
 
 EmptyChar =         $00
-L1Ram =             $7000
-L2Ram =             $7400
-L3Ram =             $7800
-L4Ram =             $7C00
+L1Ram =             $F000
+L2Ram =             $F400
+L3Ram =             $F800
+L4Ram =             $FC00
 OAMCopy =           $0800
 LaserOAM =          $0810
 !PlayerSpeed =      $02

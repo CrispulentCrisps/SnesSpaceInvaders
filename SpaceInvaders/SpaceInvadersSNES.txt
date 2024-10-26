@@ -8,8 +8,6 @@ Scenes:
 	Continue
 
 Title:
-	Ideas:
-	https://youtu.be/X2lgOKPS9qY?feature=shared&t=54 for bg
 	Scroller for dev message
 	
 	SceneFlow [which scenes the game can go to]
@@ -21,13 +19,14 @@ Title:
 
 Options/Sound test:
 	Ideas:
-		Multi-layer starfield
+		Multi-layer starfield		
+		https://youtu.be/X2lgOKPS9qY?feature=shared&t=54 for bg
 
 	SceneFlow:
 		Title:
 
 	BGMode[s]:
-		Mode 0
+		Mode 2
 Highscore:
 	SceneFlow:
 		Title:
