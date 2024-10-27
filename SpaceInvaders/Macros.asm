@@ -36,6 +36,10 @@ struct ZP $00
 .Lives          skip 1  ;Current lives of the player as BCD
 endstruct
 
+!CodeBank =     $808000 ;Hold game code + palette's
+!GFXBank =      $818000 ;Holds tiles and tilemaps
+!MusicBank =    $828000 ;Holds music data
+
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
 .Flags          skip 1  ;Misc flags
@@ -47,7 +51,7 @@ endstruct               ;Aligned in 8 byte entries
 ;   Zero = END transfer loop
 ;   NonZero = Execute said transfer
 
-RNGSeed =   $0300       ;16 byte section of memory
+RNGSeed =           $0300       ;16 byte section of memory
 struct Player $0400
 .X      skip 1
 .Frame  skip 1          ;Current player frame
@@ -165,10 +169,10 @@ PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 !EnemyPlaneStartY = $F0
 
 EmptyChar =         $00
-L1Ram =             $F000
-L2Ram =             $F400
-L3Ram =             $F800
-L4Ram =             $FC00
+L1Ram =             $7000
+L2Ram =             $7400
+L3Ram =             $7800
+L4Ram =             $7C00
 OAMCopy =           $0800
 LaserOAM =          $0810
 !PlayerSpeed =      $02
@@ -203,6 +207,8 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !LifeDisp =         $777C
 
 !BG_L3_OFF =        $65
+
+SinePtr =           $0F00   ;Index into sine table
 
 ;Character data
 ' ' = $00

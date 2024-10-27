@@ -13,15 +13,13 @@ incsrc "Macros.asm"             ;Include ZP shit
 
 arch 65816                      ;sets the architecture to the 65816 CPU on the SNES
 
-org $8000                       ;Go to db 8000
-
-ZVal:
-dw $0000
-
+org !GFXBank
 ;---------------;
 ;  Characters   ;
 ;---------------;
 ;
+
+;   Main game GFX   ;
 GameGfx:
     incbin "bin/gfx/GameGFX.bin"
 GameGfxEnd:
@@ -30,23 +28,60 @@ GameSpr:
     incbin "bin/gfx/GameSprites.bin"
 GameSprEnd:
 
+;       Title       ;
 Title_L2:
-    incbin "bin/gfx/BG-1-L2.bin"
+    incbin "bin/gfx/Title-BG-L2.bin"
 Title_L2_End:
+
+;   Background 1    ;
+BG1_L2:
+    incbin "bin/gfx/BG-1-L2.bin"
+BG1_L2_End:
 
 BG1_L3:
     incbin "bin/gfx/BG-1-L3.bin"
 BG1_L3_End:
 
-BG1_L2:
-    incbin "bin/gfx/BG-1-L2.bin"
-BG1_L2_End:
+;   Background 2    ;
+BG2_L2:
+    incbin "bin/gfx/BG-2-L2.bin"
+BG2_L2_End:
 
+BG2_L3:
+    incbin "bin/gfx/BG-2-L3.bin"
+BG2_L3_End:
+
+;---------------;
+;   Tilemaps    ;
+;---------------;
+;
+BG1_L2_TM:
+    incbin "bin/gfx/tilemap/BG-1-L2.bin"
+BG1_L2_TM_End:
+
+BG1_L3_TM:
+    incbin "bin/gfx/tilemap/BG-1-L3.bin"
+BG1_L3_TM_End:
+
+BG2_L2_TM:
+    incbin "bin/gfx/tilemap/BG-2-L2.bin"
+BG2_L2_TM_End:
+
+BG2_L3_TM:
+    incbin "bin/gfx/tilemap/BG-2-L3.bin"
+BG2_L3_TM_End:
+
+Title_L2_TM:
+    incbin "bin/gfx/tilemap/Title-BG-L2.bin"
+Title_L2_TM_End:
+
+org !CodeBank
 
 ;---------------;
 ;   Palette's   ;
 ;---------------;
 ;
+;   Main game GFX   ;
 GamePal:
     incbin "bin/gfx/pal/GamePal.bin"
 GamePalEnd:
@@ -55,38 +90,32 @@ GameSprPal:
     incbin "bin/gfx/pal/GameSpritesPal.bin"
 GameSprPalEnd:
 
+;       Title       ;
 Title_L2_Pal:
     incbin "bin/gfx/pal/Title-BG-L2-Pal.bin"
 Title_L2_Pal_End:
+
+;   Background 1    ;
+BG1_L2_Pal:
+    incbin "bin/gfx/pal/BG-1-L2-Pal.bin"
+BG1_L2_Pal_End:
 
 BG1_L3_Pal:
     incbin "bin/gfx/pal/BG-1-L3-Pal.bin"
 BG1_L3_Pal_End:
 
-BG1_L2_Pal:
-    incbin "bin/gfx/pal/BG-1-L2-Pal.bin"
-BG1_L2_Pal_End:
+;   Background 2    ;
+BG2_L3_Pal:
+    incbin "bin/gfx/pal/BG-2-L3-Pal.bin"
+BG2_L3_Pal_End:
 
-BG1Grad:
-    incbin "bin/gfx/pal/BG-1-L3-Grad.bin"
-BG1GradEnd:
+BG2_L2_Pal:
+    incbin "bin/gfx/pal/BG-2-L2-Pal.bin"
+BG2_L2_Pal_End:
 
-;---------------;
-;   Tilemaps    ;
-;---------------;
 
-BG1_L3_TM:
-    incbin "bin/gfx/tilemap/BG-1-L3.bin"
-BG1_L3_TM_End:
-
-BG1_L2_TM:
-    incbin "bin/gfx/tilemap/BG-1-L2.bin"
-BG1_L2_TM_End:
-
-Title_L2_TM:
-    incbin "bin/gfx/tilemap/Title-BG-L2.bin"
-Title_L2_TM_End:
-
+ZVal:
+dw $0000
 
 Reset:
     ;Now we initialise the SNES itself, since we've written the ROM header
@@ -107,8 +136,7 @@ Reset:
 
 .ResetOffset
     phk                         ;Push to stack
-    plb                         ;Pull B
-    
+    plb                         ;Pull B    
     ;Clear all memory
     stz.w HW_WMADDL
     stz.w HW_WMADDM
@@ -119,14 +147,12 @@ Reset:
     sta.w HW_BBAD0
     ldx.w #ZVal
     stx.w HW_A1T0L
+    lda.b #(!CodeBank>>16)&$FF
     stz.w HW_A1B0
     stz.w HW_DAS0L
     stz.w HW_DAS0H
     lda.b #$01
     sta.w HW_MDMAEN
-    ;Grab RNG Seed for later use
-    ldy.w #$0003
-    -
     ;Grab RNG seed from rubbish memory
     lda.w HW_WMDATA
     sta.w RNGSeed
@@ -234,6 +260,42 @@ Reset:
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
+    
+    ;BG 2
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #BG2_L2&$FFFF         ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #BG2_L2>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #BG2_L2_End-BG2_L2
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
+    ;BG 2 L3
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #BG2_L3&$FFFF         ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #BG2_L3>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #BG2_L3_End-BG2_L3
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+    
+    ;Title
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #Title_L2&$FFFF        ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #Title_L2>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #Title_L2_End-Title_L2
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
 
     ldy.w #$0000
     -
@@ -289,22 +351,15 @@ Reset:
 
     lda.b #$01
     sta.b ZP.SceneIndex         ;Set starting scene
+    lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
+    lda.b #$01
+    sta.w BGIndex
 
     lda.b #$81
     sta.w HW_NMITIMEN           ;NMI Enabled
 
     rep #%00100000              ;Set A to 16 bit mode
-
-    ;Example VrDmaPtr struct
-    ;lda.w #SineTable             ;Grab source addr
-    ;sta.w VrDmaPtr.Src             
-    ;lda.w #$0180                 ;Load into bank 80 & specify non-end flag
-    ;sta.w VrDmaPtr.Src+2
-    ;lda.w #$2000
-    ;sta.w VrDmaPtr.Dest
-    ;lda.w #$0200
-    ;sta.w VrDmaPtr.Len
 
 MainLoop:
     stz.b ZP.NMIDone
@@ -318,7 +373,12 @@ MainLoop:
     lda.w #OAMCopy
     sta.w ZP.OAMPtr
     lda.w #$0000
-    sta.w VrDmaPtr+3
+    ldy.w #$0032
+    -
+    sta.w VrDmaPtr, Y
+    dey
+    dey
+    bpl -
     lda.w #HDMAMirror
     sta.b ZP.HDMAPtr
     jsr (SelectScene, X)        ;Go to correct subroutine logic in jumptable
@@ -467,7 +527,7 @@ NMIHandler:
     sep #%00100000                              ;Enter 8bit mode for A
     lda.b #$01
     sta.w HW_MDMAEN                             ;Enable DMA
-    rep #%00100000                              ;Exit 8bit mode for A 
+    rep #$20
     lda.w ZP.VrDmaListPtr
     clc
     adc.w #$0008
@@ -574,6 +634,32 @@ TitleScene:
     lda.b #$8F                  ;Set master brightness to 15 & forces blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
+
+    ;Transfer tilemap data
+    ldx.w #L2Ram
+    stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #Title_L2_TM&$FFFF    ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #Title_L2_TM>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #Title_L2_TM_End-Title_L2_TM
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
+    ldy.w #Title_L2_Pal_End-Title_L2_Pal
+    -
+    lda.w Title_L2_Pal, Y
+    sta.w PalMirror, Y
+    dey
+    bpl -
+
+    lda.b #$0F                  ;Set master brightness to 15 & stops blanking
+    sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipTitleLoad:
     
     rep #$20
@@ -645,55 +731,7 @@ GameScene:
     ;-------------------;
     ;   Load tilemaps   ;
     ;-------------------;
-    sep #$20
-    ldx.w #L2Ram
-    stx.w HW_VMADDL
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #BG1_L2_TM&$FFFF      ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #BG1_L2_TM>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #BG1_L2_TM_End-BG1_L2_TM
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #HW_VMDATAL&$FF
-    sta.w HW_BBAD0
-    lda.b #$01
-    sta.w HW_MDMAEN             ;Enable DMA channel 0
-
-    ldx.w #L3Ram
-    stx.w HW_VMADDL
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #BG1_L3_TM&$FFFF      ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #BG1_L3_TM>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #BG1_L3_TM_End-BG1_L3_TM
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #HW_VMDATAL&$FF
-    sta.w HW_BBAD0
-    lda.b #$01
-    sta.w HW_MDMAEN 
-    
-    ldy.w #(BG1_L3_Pal_End-BG1_L3_Pal)-1
-    -
-    lda.w BG1_L3_Pal, Y
-    sta.w PalMirror, Y
-    dey
-    bpl -
-    lda.b #%01000010
-    sta.w PalMirror
-    lda.b #%00010000
-    sta.w PalMirror+1
-    sep #$20
-        
-    ldy.w #(BG1_L2_Pal_End-BG1_L2_Pal)-1
-    -
-    lda.w BG1_L2_Pal, Y
-    sta.w PalMirror+32, Y
-    dey
-    bpl -
+    jsr GameLoop_LoadBG
 
     ldx.w #$0000
     stx.w !BG2VOffMirror
@@ -1835,7 +1873,7 @@ GameLoop_DrawEnemies:
     adc #$0008
     sta.b ZP.VrDmaListPtr
     sep #$20
-    ldy #$0003
+    ldy.w #$0003
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
     rts
@@ -2185,6 +2223,179 @@ UpdateExplosives:
     bpl -
     rts
 
+
+    ;Loads background tilemap data to layer 2 and 3 via DMA 0
+GameLoop_LoadBG:
+    php
+    pha
+    phx
+    phy
+    sep #$20
+    ldx.w #$0000
+    tdc
+    lda.w BGIndex
+    asl
+    tax
+    jsr (BGLoad, X)
+    ply
+    plx
+    pla
+    plp
+    rts
+
+BGLoad:
+    dw BG_City          ;BG-1
+    dw BG_Mountains     ;BG-2
+
+BG_City:
+    ldy.w #$0000
+    rep #$20
+    lda.w #(BG1_L2_TM)&$FFFF
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    lda.b #(BG1_L2_TM>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L2Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG1_L2_TM_End-BG1_L2_TM
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    
+    ldy.w #$0000
+    lda.w #(BG1_L3_TM)&$FFFF
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    lda.b #(BG1_L3_TM>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L3Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG1_L3_TM_End-BG1_L3_TM
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+    
+    ;Transfer palette data
+    ldy.w #BG1_L2_Pal_End-BG1_L2_Pal
+    -
+    lda.w BG1_L2_Pal, Y
+    sta.w PalMirror+32, Y
+    dey
+    bne -
+    ldy.w #BG1_L3_Pal_End-BG1_L3_Pal
+    -
+    lda.w BG1_L3_Pal, Y
+    sta.w PalMirror, Y
+    dey
+    bne -
+    rts
+
+BG_Mountains:
+    ldy.w #$0000
+    rep #$20
+    lda.w #(BG2_L2_TM)&$FFFF
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    lda.b #(BG2_L2_TM>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L2Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG2_L2_TM_End-BG2_L2_TM
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    bra +
+    ldy.w #$0000
+    lda.w #(BG2_L3_TM)&$FFFF
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    lda.b #(BG2_L3_TM>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L3Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG2_L3_TM_End-BG2_L3_TM
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    +
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    ;Transfer palette data
+    ldy.w #BG2_L2_Pal_End-BG2_L2_Pal
+    -
+    lda.w BG2_L2_Pal, Y
+    sta.w PalMirror+32, Y
+    dey
+    bne -
+    
+    ldy.w #BG2_L3_Pal_End-BG2_L3_Pal
+    -
+    lda.w BG2_L3_Pal, Y
+    sta.w PalMirror, Y
+    dey
+    bne -
+    rts
+
 GameLoop_UpdateBG:
     php
     pha
@@ -2357,6 +2568,156 @@ BG0:
     rts
 
 BG1:
+    
+    ;Clouds 1
+    inc.w BGScrollVal
+    ;Cloud 2
+    lda.w BGScrollOff+1
+    inc
+    sta.w BGScrollOff+1
+    bit #$02
+    beq +
+    stz.w BGScrollOff+1
+    inc.w BGScrollVal+1
+    +
+    ;Cloud 3
+    lda.w BGScrollOff+2
+    inc
+    sta.w BGScrollOff+2
+    bit #$04
+    beq +
+    stz.w BGScrollOff+2
+    inc.w BGScrollVal+2
+    +
+
+    ;Mountain 1
+    lda.w BGScrollOff+3
+    inc
+    sta.w BGScrollOff+3
+    bit #$10
+    beq +
+    stz.w BGScrollOff+3
+    inc.w BGScrollVal+3
+    +
+
+    ;Mountain 2
+    lda.w BGScrollOff+4
+    inc
+    sta.w BGScrollOff+4
+    bit #$08
+    beq +
+    stz.w BGScrollOff+4
+    inc.w BGScrollVal+4
+    +
+
+    ;Mountain 3
+    lda.w BGScrollOff+5
+    inc
+    sta.w BGScrollOff+5
+    bit #$04
+    beq +
+    stz.w BGScrollOff+5
+    inc.w BGScrollVal+5
+    +
+
+    ;Mountain 4
+    lda.w BGScrollOff+6
+    inc
+    sta.w BGScrollOff+6
+    bit #$02
+    beq +
+    stz.w BGScrollOff+6
+    inc.w BGScrollVal+6
+    +
+    ;Ground
+    lda.w BGScrollVal+10
+    clc
+    adc.b #$05
+    sta.w BGScrollVal+10
+
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HW_WMADDH
+    ;Construct HDMA table in WRAM
+    ;Cloud1
+    lda.b #$0D          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal   ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    ;Cloud2
+    lda.b #$07          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+1 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    ;Cloud3
+    lda.b #$07          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+2 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$20          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+3 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    
+    lda.b #$23          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+4 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$10          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+5 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$53          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+6 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$10          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+10;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$30          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+15;\
+    stz.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    
+    
+    stz.w HW_WMDATA     ;End flag
+
+
+    lda.b #$03
+    sta.w HDMAMirror
+    lda.b #(HW_CGADD)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #BG2ColTable
+    stx.w HDMAMirror+2
+    lda.b #$80
+    sta.w HDMAMirror+4
+
+    
+    sep #$20
+    lda.b #$02
+    sta.w HDMAMirror1
+    lda.b #(HW_BG2HOFS)&$FF
+    sta.w HDMAMirror1+1
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HDMAMirror1+2
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HDMAMirror1+4
     rts
 
 Text:
@@ -2799,10 +3160,52 @@ BG1ColTable:
     dw $0000
     dw $4D08
 
-    db $01          ;Scanline counter
+    db $40          ;Scanline counter
     dw $0000
     dw $0000
     
+BG2ColTable:
+    db $10          ;Scanline counter
+    dw $0000        ;Address
+    dw $6F7B
+
+    db $0C          ;Scanline counter
+    dw $0000        ;Address
+    dw $3188
+
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $39CA
+
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $420C
+
+    db $06          ;Scanline counter
+    dw $0000        ;Address
+    dw $462C
+
+    db $04          ;Scanline counter
+    dw $0000        ;Address
+    dw $4A4E
+
+    db $03          ;Scanline counter
+    dw $0000        ;Address
+    dw $4E6E
+
+    db $02          ;Scanline counter
+    dw $0000        ;Address
+    dw $5290
+
+    db $01          ;Scanline counter
+    dw $0000        ;Address
+    dw $56B1
+
+    db $40          ;Scanline counter
+    dw $0000
+    dw $0000
+    
+    dw $0000
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
 db $1F,$22,$25,$28,$2B,$2E,$31,$33,$36,$39
