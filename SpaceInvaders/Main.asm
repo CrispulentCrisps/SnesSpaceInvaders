@@ -51,6 +51,8 @@ BG2_L3:
     incbin "bin/gfx/BG-2-L3.bin"
 BG2_L3_End:
 
+org !TilemapBank
+
 ;---------------;
 ;   Tilemaps    ;
 ;---------------;
@@ -115,7 +117,7 @@ BG2_L2_Pal_End:
 
 
 ZVal:
-dw $0000
+    dw $0000
 
 Reset:
     ;Now we initialise the SNES itself, since we've written the ROM header
@@ -238,65 +240,6 @@ Reset:
     lda.b #$03
     sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
 
-    ;Load BG tiles
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #BG1_L3&$FFFF        ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #BG1_L3>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #BG1_L3_End-BG1_L3
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #$01
-    sta.w HW_MDMAEN             ;Enable DMA channel 0
-    
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #BG1_L2&$FFFF        ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #BG1_L2>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #BG1_L2_End-BG1_L2
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #$01
-    sta.w HW_MDMAEN             ;Enable DMA channel 0
-    
-    ;BG 2
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #BG2_L2&$FFFF         ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #BG2_L2>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #BG2_L2_End-BG2_L2
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #$01
-    sta.w HW_MDMAEN             ;Enable DMA channel 0
-
-    ;BG 2 L3
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #BG2_L3&$FFFF         ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #BG2_L3>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #BG2_L3_End-BG2_L3
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #$01
-    sta.w HW_MDMAEN             ;Enable DMA channel 0
-    
-    ;Title
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #Title_L2&$FFFF        ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #Title_L2>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #Title_L2_End-Title_L2
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #$01
-    sta.w HW_MDMAEN             ;Enable DMA channel 0
-
     ldy.w #$0000
     -
     lda.w GamePal, Y
@@ -327,7 +270,10 @@ Reset:
     sta.w HW_OBSEL
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
-
+    lda.b #$1F
+    sta.w INIDSPMirror
+    lda.b #$02
+    sta.w BGMODEMirror
     rep #$20
     lda.w #OAMCopy
     sta.w HW_OAMADDL
@@ -349,7 +295,7 @@ Reset:
     stz.w HW_BG2VOFS            ;Apply scroll
     stz.w HW_BG2VOFS            ;Apply scroll
 
-    lda.b #$01
+    lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -373,7 +319,7 @@ MainLoop:
     lda.w #OAMCopy
     sta.w ZP.OAMPtr
     lda.w #$0000
-    ldy.w #$0032
+    ldy.w #$0040
     -
     sta.w VrDmaPtr, Y
     dey
@@ -404,10 +350,10 @@ NMIHandler:
     phd                 ;Store to stack to prevent clobbering
     
     sep #$20
-    lda.b #$8F
+    lda.w INIDSPMirror
+    ora #$80
     sta.w HW_INIDISP
     rep #$20
-
     ;------------------;
     ;   OAM Transfer   ;
     ;------------------;
@@ -430,11 +376,86 @@ NMIHandler:
     sta.w HW_MDMAEN
     rep #%00100000
 
+    ;---------------;
+    ;   DMA Queue   ;
+    ;---------------;
+    lda.w #VrDmaPtr
+    sta.w ZP.VrDmaListPtr
+    ldy.w #$0003
+    .VrDMALoop:
+    sep #%00100000                              ;Enter 8bit mode for A
+    lda.b (ZP.VrDmaListPtr), Y                  ;Load dma ptr flag
+    beq .FinishDMALoop                          ;Check for 0 for end flag
+    rep #%00100000                              ;Enter 8bit mode for A
+    lda.w #HW_VMDATAL
+    sta.w HW_BBAD7                              ;Shove in DMA destination
+    sep #%00100000                              ;Enter 8bit mode for A
+    lda.b #%000000001                           ;Set transfer to be word length
+    sta.w HW_DMAP7
+    rep #%00100000                              ;Exit 8bit mode for A
+    ldy.w #$0000
+    lda.b (ZP.VrDmaListPtr), Y
+    sta.w HW_A1T7L                              ;Shove in first 2 bytes of source pointer
+    sep #%00100000                              ;Enter 8bit mode for A
+    ldy.w #$0002
+    lda.b (ZP.VrDmaListPtr), Y
+    sta.w HW_A1B7                               ;Shove in first 3rd byte of source pointer [bank]
+    rep #%00100000                              ;Exit 8bit mode for A
+    ldy.w #$0004
+    lda.b (ZP.VrDmaListPtr), Y
+    sta.w HW_VMADDL                             ;Set VRAM addr from DMA pointer
+    ldy.w #$0006
+    lda.b (ZP.VrDmaListPtr), Y
+    sta.w HW_DAS7L                              ;Shove byte amount to enter
+    sep #%00100000                              ;Enter 8bit mode for A
+    lda.b #$80
+    sta.w HW_MDMAEN                             ;Enable DMA
+    rep #$20
+    lda.w ZP.VrDmaListPtr
+    clc
+    adc.w #$0008
+    sta.w ZP.VrDmaListPtr
+    jmp .VrDMALoop      ;Keep looping until we find an END flag entry
+    .FinishDMALoop:
+
     ;-----------------------;
     ;   PPU Mirror write    ;
     ;-----------------------;
     tdc
     sep #$20
+    lda.w BGMODEMirror
+    sta.w HW_BGMODE
+    lda.w TMMirror
+    sta.w HW_TM
+    lda.w TSMirror
+    sta.w HW_TS
+    lda.w CGWSELMirror
+    sta.w HW_CGWSEL
+    lda.w CGADSUBMirror
+    sta.w HW_CGADSUB
+    lda.w COLDATAMirror
+    lda.w HW_COLDATA
+    lda.w WH0Mirror
+    sta.w HW_WH0
+    lda.w WH1Mirror
+    sta.w HW_WH1
+    lda.w WH2Mirror
+    sta.w HW_WH2
+    lda.w WH3Mirror
+    sta.w HW_WH3
+    lda.w W12SELMirror
+    sta.w HW_W12SEL
+    lda.w W34SELMirror
+    sta.w HW_W34SEL
+    lda.w WOBJSELMirror
+    sta.w HW_WOBJSEL
+    lda.w WOBJLOGMirror
+    sta.w HW_WOBJLOG
+    lda.w TMWMirror
+    sta.w HW_TMW
+    lda.w TSWMirror
+    sta.w HW_TSW
+
     ;BG 1
     lda.w !BG1HOffMirror
     sta.w HW_BG1HOFS
@@ -493,48 +514,6 @@ NMIHandler:
     sta.w HW_MDMAEN
     rep #$20
     
-    ;---------------;
-    ;   DMA Queue   ;
-    ;---------------;
-    lda.w #VrDmaPtr
-    sta.w ZP.VrDmaListPtr
-    ldy.w #$0003
-    .VrDMALoop:
-    sep #%00100000                              ;Enter 8bit mode for A
-    lda.b (ZP.VrDmaListPtr), Y                  ;Load dma ptr flag
-    beq .FinishDMALoop                          ;Check for 0 for end flag
-    rep #%00100000                              ;Enter 8bit mode for A
-    lda.w #HW_VMDATAL
-    sta.w HW_BBAD0                              ;Shove in DMA destination
-    sep #%00100000                              ;Enter 8bit mode for A
-    lda.b #%000000001                           ;Set transfer to be word length
-    sta.w HW_DMAP0
-    rep #%00100000                              ;Exit 8bit mode for A
-    ldy.w #$0000
-    lda.b (ZP.VrDmaListPtr), Y
-    sta.w HW_A1T0L                              ;Shove in first 2 bytes of source pointer
-    sep #%00100000                              ;Enter 8bit mode for A
-    ldy.w #$0002
-    lda.b (ZP.VrDmaListPtr), Y
-    sta.w HW_A1B0                               ;Shove in first 3rd byte of source pointer [bank]
-    rep #%00100000                              ;Exit 8bit mode for A
-    ldy.w #$0004
-    lda.b (ZP.VrDmaListPtr), Y
-    sta.w HW_VMADDL                             ;Set VRAM addr from DMA pointer
-    ldy.w #$0006
-    lda.b (ZP.VrDmaListPtr), Y
-    sta.w HW_DAS0L                              ;Shove byte amount to enter
-    sep #%00100000                              ;Enter 8bit mode for A
-    lda.b #$01
-    sta.w HW_MDMAEN                             ;Enable DMA
-    rep #$20
-    lda.w ZP.VrDmaListPtr
-    clc
-    adc.w #$0008
-    sta.w ZP.VrDmaListPtr
-    jmp .VrDMALoop      ;Keep looping until we find an END flag entry
-    .FinishDMALoop:
-
     ;---------------;
     ;  HDMA Writes  ;
     ;---------------;
@@ -605,7 +584,8 @@ NMIHandler:
     sta.b ZP.Controller
 
     sep #$20
-    lda.b #$1F
+    lda.w INIDSPMirror
+    and #$7F
     sta.w HW_INIDISP
     rep #$20
 
@@ -634,9 +614,26 @@ TitleScene:
     lda.b #$8F                  ;Set master brightness to 15 & forces blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
+    lda.b #$FF
+    sta.w TMMirror
+    ;Transfer Title graphics
+    ldx.w #(GameSprEnd-GameGfx)/2
+    stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #Title_L2&$FFFF       ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #Title_L2>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #Title_L2_End-Title_L2
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
 
     ;Transfer tilemap data
-    ldx.w #L2Ram
+    ldx.w #L1Ram
     stx.w HW_VMADDL
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
@@ -658,10 +655,47 @@ TitleScene:
     dey
     bpl -
 
-    lda.b #$0F                  ;Set master brightness to 15 & stops blanking
+    lda.b #$1F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipTitleLoad:
+
+    sep #$20
+    ldx.w #HDMAScrollBuffer2
+    stx.w HW_WMADDL
+    lda.b #$7E
+    sta.w HW_WMADDH
+    inc.w SinePtr
+
+    ldx.w #$0000
+    ldy.w #$0000
+    sep #$10
+    ldx.b #$FF
+    ldy.w SinePtr
+    -
+    lda.b #$FF
+    sta.w HW_WMDATA
+    lda.w SineTable, Y
+    lsr
+    lsr
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    iny
+    dex
+    bne -
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
     
+    rep #$10
+    lda.b #$01
+    sta.w HDMAMirror
+    lda.b #(HW_BG1HOFS)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #HDMAScrollBuffer2
+    stx.w HDMAMirror+2
+    lda.b #$7E
+    sta.w HDMAMirror+4
+
     rep #$20
     rts
 
@@ -674,9 +708,12 @@ GameScene:
     lda.b #$8F                  ;Set master brightness to 15 & forces blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
-
-    lda.b #$01                  ;Set BG Mode to 1 & Layer 3 to hi priority
-    sta.w HW_BGMODE
+    lda.b #$04
+    sta.w BGChange
+    lda.b #$01                  ;Set BG Mode 1
+    sta.w BGMODEMirror
+    lda.b #$03
+    sta.w BGCount
     ;Reset Player
     lda.b #$70
     sta.w Player.X
@@ -735,6 +772,7 @@ GameScene:
 
     ldx.w #$0000
     stx.w !BG2VOffMirror
+    stx.w !BG1VOffMirror
     ;Write enemy entries into Enemy struct array
     jsr GameLoop_UpdateEnemyArray
     jsr GameLoop_DrawEnemies
@@ -1676,6 +1714,17 @@ GameLoop_FindMaxRowBounds:
 GameLoop_SendWave:
     sep #$20
     inc.b ZP.EnemyWaveCount
+    lda.w BGCount
+    inc
+    sta.w BGCount
+    and.w BGChange
+    beq +
+    stz.w BGCount
+    lda.w BGIndex
+    eor #$01
+    sta.w BGIndex
+    jsr GameLoop_LoadBG
+    +  
     lda.b !EnemyMoveR
     sta.b ZP.EnemyDir
     lda.b #!EnemyDownLoop
@@ -1692,6 +1741,7 @@ GameLoop_SendWave:
     sta.b ZP.EnemyTimer
     jsr GameLoop_UpdateEnemyArray
     jsr GameLoop_FindMaxRowBounds
+    jsr GameLoop_DrawScore
     lda.b #!GameState_Play
     sta.w GameState
     ;Set RNG up for enemy timers
@@ -2231,6 +2281,12 @@ GameLoop_LoadBG:
     phx
     phy
     sep #$20
+    ldy.w #$0020
+    lda.b #$00
+    -
+    sta.w BGScrollVal, Y
+    dey
+    bpl -
     ldx.w #$0000
     tdc
     lda.w BGIndex
@@ -2248,12 +2304,60 @@ BGLoad:
     dw BG_Mountains     ;BG-2
 
 BG_City:
+    ;Setup video display
+    lda.w BGMODEMirror
+    and #$F7
+    sta.w BGMODEMirror
+    lda.b #$1F
+    sta.w TMMirror
+    sta.w TSMirror
+    sta.w TMWMirror
+    sta.w TSWMirror
+    stz.w CGWSELMirror
+    stz.w CGADSUBMirror
+    stz.w COLDATAMirror
+    stz.w WH0Mirror
+    stz.w WH1Mirror
+    
+    ;Load Graphics
     ldy.w #$0000
+    lda.b #(BG1_L2)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG1_L2>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG1_L2>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
     rep #$20
-    lda.w #(BG1_L2_TM)&$FFFF
+    lda.w #(GameSprEnd-GameGfx)/2
     sta.b (ZP.VrDmaListPtr), Y
     sep #$20
     iny
+    iny
+    rep #$20
+    lda.w #BG1_L3_End-BG1_L2
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    ;Load Tilemaps
+    ldy.w #$0000
+    lda.b #(BG1_L2_TM)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG1_L2_TM>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
     iny
     lda.b #(BG1_L2_TM>>16)&$FF
     sta.b (ZP.VrDmaListPtr), Y
@@ -2274,12 +2378,18 @@ BG_City:
     clc
     adc #$0008
     sta.b ZP.VrDmaListPtr
-    
-    ldy.w #$0000
-    lda.w #(BG1_L3_TM)&$FFFF
-    sta.b (ZP.VrDmaListPtr), Y
     sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+    
+    ;Layer 3
+    ldy.w #$0000
+    lda.b #(BG1_L3_TM)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
     iny
+    lda.b #(BG1_L3_TM>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
     iny
     lda.b #(BG1_L3_TM>>16)&$FF
     sta.b (ZP.VrDmaListPtr), Y
@@ -2300,12 +2410,11 @@ BG_City:
     clc
     adc #$0008
     sta.b ZP.VrDmaListPtr
-
     sep #$20
     ldy.w #$0003
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
-    
+
     ;Transfer palette data
     ldy.w #BG1_L2_Pal_End-BG1_L2_Pal
     -
@@ -2319,15 +2428,78 @@ BG_City:
     sta.w PalMirror, Y
     dey
     bne -
+    
     rts
 
 BG_Mountains:
+    ;Setup Video info
+    tdc
+    lda.w BGMODEMirror
+    ora #$08            ;Set BG3 to hi priority
+    sta.w BGMODEMirror
+    lda.b #$FB
+    sta.w TMMirror
+    lda.b #$04
+    sta.w TSMirror
+    lda.b #$18
+    sta.w CGWSELMirror
+    lda.b #$4F
+    sta.w CGADSUBMirror
+    lda.b #$FF
+    sta.w COLDATAMirror
+    stz.w WH0Mirror
+    lda.b #$FF
+    sta.w WH1Mirror
+    lda.b #$00
+    sta.w W12SELMirror
+    sta.w W34SELMirror
+    lda.b #$00
+    sta.w WBGLOGMirror
+    sta.w WOBJLOGMirror
+    lda.b #$0B
+    sta.w TMWMirror
+    lda.b #$04
+    sta.w TSWMirror
+
+    ;Load Graphics
     ldy.w #$0000
+    lda.b #(BG2_L2)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG2_L2>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG2_L2>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
     rep #$20
-    lda.w #(BG2_L2_TM)&$FFFF
+    lda.w #(GameSprEnd-GameGfx)/2
     sta.b (ZP.VrDmaListPtr), Y
     sep #$20
     iny
+    iny
+    rep #$20
+    lda.w #BG2_L3_End-BG2_L2
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    ;Load Tilemaps
+    ldy.w #$0000
+    lda.b #(BG2_L2_TM)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG2_L2_TM>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
     iny
     lda.b #(BG2_L2_TM>>16)&$FF
     sta.b (ZP.VrDmaListPtr), Y
@@ -2348,12 +2520,18 @@ BG_Mountains:
     clc
     adc #$0008
     sta.b ZP.VrDmaListPtr
-    bra +
-    ldy.w #$0000
-    lda.w #(BG2_L3_TM)&$FFFF
-    sta.b (ZP.VrDmaListPtr), Y
     sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+    
+    ;Layer 3
+    ldy.w #$0000
+    lda.b #(BG2_L3_TM)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
     iny
+    lda.b #(BG2_L3_TM>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
     iny
     lda.b #(BG2_L3_TM>>16)&$FF
     sta.b (ZP.VrDmaListPtr), Y
@@ -2374,7 +2552,6 @@ BG_Mountains:
     clc
     adc #$0008
     sta.b ZP.VrDmaListPtr
-    +
     sep #$20
     ldy.w #$0003
     lda.b #$00
@@ -2493,14 +2670,14 @@ BG0:
     stz.w HW_WMDATA     ;/
     
     ;Road
-    lda.b #$17          ;Scanline
+    lda.b #$16          ;Scanline
     sta.w HW_WMDATA
     lda.w BGScrollVal+1 ;\
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
     
     ;Score
-    lda.b #$01
+    lda.b #$10
     sta.w HW_WMDATA
     stz.w HW_WMDATA
     stz.w HW_WMDATA
@@ -2567,15 +2744,14 @@ BG0:
     
     rts
 
-BG1:
-    
+BG1:    
     ;Clouds 1
     inc.w BGScrollVal
     ;Cloud 2
     lda.w BGScrollOff+1
     inc
     sta.w BGScrollOff+1
-    bit #$02
+    bit #$04
     beq +
     stz.w BGScrollOff+1
     inc.w BGScrollVal+1
@@ -2584,7 +2760,7 @@ BG1:
     lda.w BGScrollOff+2
     inc
     sta.w BGScrollOff+2
-    bit #$04
+    bit #$10
     beq +
     stz.w BGScrollOff+2
     inc.w BGScrollVal+2
@@ -2594,7 +2770,7 @@ BG1:
     lda.w BGScrollOff+3
     inc
     sta.w BGScrollOff+3
-    bit #$10
+    bit #$20
     beq +
     stz.w BGScrollOff+3
     inc.w BGScrollVal+3
@@ -2629,11 +2805,19 @@ BG1:
     stz.w BGScrollOff+6
     inc.w BGScrollVal+6
     +
-    ;Ground
+
+    ;Cliffside
     lda.w BGScrollVal+10
     clc
-    adc.b #$05
+    adc.b #$02
     sta.w BGScrollVal+10
+    
+    ;Ground
+    lda.w BGScrollVal+11
+    clc
+    adc.b #$05
+    sta.w BGScrollVal+11
+
 
     ldx.w #HDMAScrollBuffer&$FFFF
     stx.w HW_WMADDL
@@ -2677,19 +2861,25 @@ BG1:
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
 
-    lda.b #$53          ;Scanline
+    lda.b #$23          ;Scanline
     sta.w HW_WMDATA
     lda.w BGScrollVal+6 ;\
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
 
-    lda.b #$10          ;Scanline
+    lda.b #$20          ;Scanline
     sta.w HW_WMDATA
     lda.w BGScrollVal+10;\
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
 
-    lda.b #$30          ;Scanline
+    lda.b #$20          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+11;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$10          ;Scanline
     sta.w HW_WMDATA
     lda.w BGScrollVal+15;\
     stz.w HW_WMDATA     ;|  Offsets
@@ -2943,10 +3133,10 @@ EnemyWave02:
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave03:
     db $07,$07,$07,$07,$07,$07,$07,$07
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $02,$02,$02,$02,$02,$02,$02,$02
     db $03,$03,$03,$03,$03,$03,$03,$03
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $01,$01,$01,$01,$01,$01,$01,$01
 EnemyWave04:
     db $07,$07,$07,$07,$07,$07,$07,$07
     db $06,$06,$06,$06,$06,$06,$06,$06

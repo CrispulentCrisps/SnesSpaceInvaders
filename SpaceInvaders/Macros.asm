@@ -38,7 +38,8 @@ endstruct
 
 !CodeBank =     $808000 ;Hold game code + palette's
 !GFXBank =      $818000 ;Holds tiles and tilemaps
-!MusicBank =    $828000 ;Holds music data
+!TilemapBank =  $828000 ;Holds tiles and tilemaps
+!MusicBank =    $838000 ;Holds music data
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -74,7 +75,9 @@ EnemyBulletXPos =   $0414
 EnemyBulletYPos =   $0418
 EnemyBulletActive = $041C
 
-BGIndex  =          $04F0
+BGIndex  =          $04F0   ;Game background index
+BGCount  =          $04F1   ;Incrementer for BG index
+BGChange  =         $04F2   ;How many waves to pass before BG changes
 ;(8 columns * 5 rows)
 EnemyResetMove  =   $04FE
 EnemyResetFlag  =   $04FF
@@ -132,6 +135,28 @@ HDMAMirror =        $0E10
 HDMAMirror1 =       $0E20
 HDMAMirror2 =       $0E30
 
+INIDSPMirror =      $0EA0
+BGMODEMirror =      $0EA1
+TMMirror =          $0EA2
+TSMirror =          $0EA3
+
+CGWSELMirror =      $0EA4
+CGADSUBMirror =     $0EA5
+COLDATAMirror =     $0EA6
+
+WH0Mirror =         $0EA7
+WH1Mirror =         $0EA8
+WH2Mirror =         $0EA9
+WH3Mirror =         $0EAA
+
+W12SELMirror =      $0EAB
+W34SELMirror =      $0EAC
+WOBJSELMirror =     $0EAD
+WBGLOGMirror =      $0EAE
+WOBJLOGMirror =     $0EAF
+TMWMirror =         $0EB0
+TSWMirror =         $0EB1
+
 GameState =         $0EF0   ;Current state of the GameScene
 !GameState_Pre =    $00     ;Before the game starts
 !GameState_Play =   $01     ;Invaders on screen and moving
@@ -143,7 +168,7 @@ GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 !PlayerDieReset =   50
-!WaveInit =         $01
+!WaveInit =         $00
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
