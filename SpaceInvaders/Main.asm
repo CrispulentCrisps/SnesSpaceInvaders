@@ -297,10 +297,10 @@ Reset:
 
     lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
+    lda.b #$00
+    sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
-    lda.b #$01
-    sta.w BGIndex
 
     lda.b #$81
     sta.w HW_NMITIMEN           ;NMI Enabled
@@ -655,6 +655,18 @@ TitleScene:
     dey
     bpl -
 
+    ldx.w #(PalFadeAimBuffer)&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(PalFadeAimBuffer>>16)&$FF
+    sta.w HW_WMADDH
+    ldy.w #$0000
+    -
+    lda.w PalMirror, Y
+    sta.w HW_WMDATA
+    iny
+    cpy #Title_L2_Pal_End-Title_L2_Pal
+    bmi -
+
     lda.b #$1F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipTitleLoad:
@@ -669,14 +681,23 @@ TitleScene:
     ldx.w #$0000
     ldy.w #$0000
     sep #$10
-    ldx.b #$FF
+    ldx.b #$80
     ldy.w SinePtr
     -
-    lda.b #$FF
+    lda.b #$01
     sta.w HW_WMDATA
     lda.w SineTable, Y
-    lsr
-    lsr
+    clc
+    adc.w BGScrollVal
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    iny
+    lda.b #$01
+    sta.w HW_WMDATA
+    lda.w SineTable, Y
+    eor.b #$FF
+    sec
+    sbc.w BGScrollVal
     sta.w HW_WMDATA
     stz.w HW_WMDATA
     iny
@@ -686,15 +707,46 @@ TitleScene:
     stz.w HW_WMDATA
     stz.w HW_WMDATA
     
+    lda.w BGScrollOff
+    inc
+    bit #$02
+    beq +
+    inc.w BGScrollVal
+    lda.b #$00
+    +
+    sta.w BGScrollOff
     rep #$10
-    lda.b #$01
+    lda.b #$02
     sta.w HDMAMirror
-    lda.b #(HW_BG1HOFS)&$FF
+    lda.b #(HW_BG1VOFS)&$FF
     sta.w HDMAMirror+1
     ldx.w #HDMAScrollBuffer2
     stx.w HDMAMirror+2
     lda.b #$7E
     sta.w HDMAMirror+4
+    lda.b #$02
+    sta.w HDMAMirror1
+    lda.b #(HW_BG1HOFS)&$FF
+    sta.w HDMAMirror1+1
+    ldx.w #HDMAScrollBuffer2
+    stx.w HDMAMirror1+2
+    lda.b #$7E
+    sta.w HDMAMirror1+4
+    inc.b ZP.R0
+    lda.b ZP.R0
+    bit #$08
+    beq +
+    ;PALETTE FADE TEST
+    rep #$20
+    lda.w #$2000
+    sta.w ZP.R0
+    sep #$20
+    lda.w PalMaskInd
+    inc
+    and #$1F
+    sta.w PalMaskInd
+    jsr PalFade
+    +
 
     rep #$20
     rts
@@ -1916,7 +1968,7 @@ GameLoop_DrawEnemies:
     iny
     iny
     rep #$20
-    lda.w #960
+    lda.w #940
     sta.b (ZP.VrDmaListPtr), Y
     lda.b ZP.VrDmaListPtr
     clc
@@ -2042,6 +2094,96 @@ ContinueScene:
 HighscoreScene:
     
     rts
+
+
+
+    ;-------------------;
+    ;   Palette Fader   ;
+    ;-------------------;
+    ;
+    ;   Usage:
+    ;       Fades palette ranging from ZP.R0 to ZP.R1
+    ;   Input:
+    ;       ZP.R0   Pal min
+    ;       ZP.R1   Pal max
+    ;   Output:
+    ;       Cycle'd palette by 1 entry
+    ;
+    ;   Clobberlist
+    ;       ZP.R1   lo colour byte
+    ;       ZP.R2   hi colour byte
+    ;       ZP.R2   Temp data
+    ;       ZP.R3   Temp data
+    ;
+PalFade:
+    pha
+    phx
+    phy
+    php
+    rep #$20
+    sep #$10
+    lda.w #(PalFadeAimBuffer)&$FFFF
+    sta.w HW_WMADDL
+    ldy.b #(PalFadeAimBuffer>>16)&$FF
+    sty.w HW_WMADDH
+
+    ldx.w PalMaskInd
+    ldy.b ZP.R0
+    tdc
+    -
+    sep #$20
+    lda.w HW_WMDATA
+    sta.b ZP.R2
+    lda.w HW_WMDATA
+    sta.b ZP.R3
+    rep #$20
+    lda.b ZP.R2
+    and.w FadeMask, X
+    sta.w PalMirror, Y
+    iny
+    iny
+    cpy.b ZP.R1
+    bmi -
+
+    plp
+    ply
+    plx
+    pla
+    rts
+
+FadeMask:
+    dw $7FFF
+    dw $7BDE
+    dw $77BD
+    dw $739C
+    dw $6F7B
+    dw $6B5A
+    dw $6739
+    dw $6318
+    dw $5EF7
+    dw $5AD6
+    dw $56B5
+    dw $5294
+    dw $4E73
+    dw $4A52
+    dw $4631
+    dw $4210
+    dw $3DEF
+    dw $39CE
+    dw $35AD
+    dw $318C
+    dw $2D6B
+    dw $294A
+    dw $2529
+    dw $2108
+    dw $1CE7
+    dw $18C6
+    dw $14A5
+    dw $1084
+    dw $0C63
+    dw $0842
+    dw $0421
+    dw $0000
 
     ;-------------------;
     ;   Palette cycler  ;
@@ -2428,6 +2570,19 @@ BG_City:
     sta.w PalMirror, Y
     dey
     bne -
+
+    ldx.w #(PalFadeAimBuffer)&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(PalFadeAimBuffer>>16)&$FF
+    sta.w HW_WMADDH
+    ldy.w #$0000
+    -
+    lda.w PalMirror, Y
+    sta.w HW_WMDATA
+    iny
+    cpy #BG1_L2_Pal_End-BG1_L2_Pal
+    bmi -
+
     
     rts
 
@@ -3062,7 +3217,6 @@ EnemyDrawBot:
     db !EnemyPal1
     db $43+$08
     db (!EnemyPal1)+$40
-    
 
 EnemyHealthTable:
     db $00              ;Empty

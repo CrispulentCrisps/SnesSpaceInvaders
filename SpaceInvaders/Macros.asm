@@ -78,6 +78,7 @@ EnemyBulletActive = $041C
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
+PalMaskInd =        $04F3
 ;(8 columns * 5 rows)
 EnemyResetMove  =   $04FE
 EnemyResetFlag  =   $04FF
@@ -117,6 +118,7 @@ EnemyTileBuffer =   $7E8000
 ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
 HDMAScrollBuffer =  $7E8500
 HDMAScrollBuffer2 = $7E8600
+PalFadeAimBuffer =  $7E8A00
 
 BGScrollOff =       $05C0     ;Scrolling offsets for background elements
 BGScrollVal =       $05D0
@@ -167,6 +169,7 @@ GameState =         $0EF0   ;Current state of the GameScene
 GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
+
 !PlayerDieReset =   50
 !WaveInit =         $00
 
