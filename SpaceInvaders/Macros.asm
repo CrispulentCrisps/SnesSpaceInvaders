@@ -75,6 +75,7 @@ EnemyBulletXPos =   $0414
 EnemyBulletYPos =   $0418
 EnemyBulletActive = $041C
 
+!MaxBG =            $03
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
@@ -189,7 +190,7 @@ PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 !EnemyHurtPal =     $04<<2
 !EnemyHurtPalFlip = ($04<<2)+$40
 
-!BulletSpeed =      $07
+!BulletSpeed =      $06
 !BulletColOff =     $04
 
 !EnemySpeed =       $02

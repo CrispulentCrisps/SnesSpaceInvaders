@@ -792,7 +792,7 @@ GameScene:
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w BGMODEMirror
-    lda.b #$00
+    lda.b #$03
     sta.w BGCount
     ;Reset Player
     lda.b #$70
@@ -824,6 +824,7 @@ GameScene:
     ldy.w #$0003
     -
     jsr Rand
+    xba
     and #$7F
     sta.w EnemyShootTimer, Y
     lda.b #$00
@@ -1178,7 +1179,20 @@ GameScene:
     lda.b #!BulletAttr
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-
+    
+    ;Player bullet pal cycle
+    sep #$20
+    lda.w Bullet.Frame
+    inc
+    sta.w Bullet.Frame
+    bit #$04
+    beq +
+    ldy.w #$0162
+    tdc
+    lda.b #$02
+    sta.b ZP.R4
+    jsr PalCycle
+    +
     ;-----------------------;
     ;   Enemy Bullet logic  ;
     ;-----------------------;
@@ -1721,7 +1735,10 @@ GameLoop_SendWave:
     stz.w BGCount
     lda.w BGIndex
     inc
-    and #$03
+    cmp.b !MaxBG
+    beq +
+    lda.b #$00
+    +
     sta.w BGIndex
     jsr GameLoop_LoadBG
     +
@@ -1748,7 +1765,8 @@ GameLoop_SendWave:
     ldy.w #$0003
     -
     jsr Rand
-    and #$10
+    xba
+    and #$7F
     sta.w EnemyShootTimer, Y
     dey
     bpl -
@@ -1992,8 +2010,8 @@ GameLoop_Spawn_Enemy_Bullet:
     sta.w EnemyBulletXPos, X
     sta.w EnemyShootDebug
     lda.w EnemyPixelPos+1, Y
-    clc
-    adc.b ZP.EnemyPlanePosY
+    sec
+    sbc.b ZP.EnemyPlanePosY
     sta.w EnemyBulletYPos, X
     sta.w EnemyShootDebug+1
     .SkipShoot
@@ -2011,15 +2029,18 @@ GameLoop_HandleEnemyTimers:
     ;Handle Enemy shooting timers
     ldy.w #$0003
     .EBTimerLoop:
+    lda.w EnemyBulletActive, Y
+    bne .SkipETimer
     lda.w EnemyShootTimer, Y
     dec
     sta.w EnemyShootTimer, Y
-    bne +
+    bne .SkipETimer
     jsr GameLoop_Spawn_Enemy_Bullet
     jsr Rand
+    xba
     and #$3F
     sta.w EnemyShootTimer, Y
-    +
+    .SkipETimer:
     dey
     bpl .EBTimerLoop
     plp
@@ -2079,11 +2100,17 @@ GameLoop_EBulletDraw:
     inc.b ZP.OAMPtr
     dey
     bpl .EBDrawLoop
+    
+    ldy.w #$0166
+    tdc
+    lda.b #$02
+    sta.b ZP.R4
+    jsr PalCycle
+
     plp
     ply
     plx
     pla
-    rts
     rts
 GameLoop_ResetPlayer:
     pha
@@ -2667,6 +2694,9 @@ BG_City:
     iny
     cpy #BG1_L2_Pal_End-BG1_L2_Pal
     bmi -
+    stz.w !BG3VOffMirror
+    stz.w !BG3VOffMirror+1
+    
     rts
 
 BG_Mountains:
@@ -2808,7 +2838,10 @@ BG_Mountains:
     lda.w BG2_L3_Pal, Y
     sta.w PalMirror, Y
     dey
-    bne -
+    bne -    
+    stz.w !BG3VOffMirror
+    stz.w !BG3VOffMirror+1
+
     rts
 BG_Computer:
     ;Setup video display
@@ -3418,7 +3451,6 @@ BG2:
     stx.w HDMAMirror+2
     lda.b #$80
     sta.w HDMAMirror+4
-
     rts
 
 Text:
