@@ -51,6 +51,15 @@ BG2_L3:
     incbin "bin/gfx/BG-2-L3.bin"
 BG2_L3_End:
 
+;   Background 3    ;
+BG3_L2:
+    incbin "bin/gfx/BG-3-L2.bin"
+BG3_L2_End:
+
+BG3_L3:
+    incbin "bin/gfx/BG-3-L3.bin"
+BG3_L3_End:
+
 org !TilemapBank
 
 ;---------------;
@@ -72,6 +81,14 @@ BG2_L2_TM_End:
 BG2_L3_TM:
     incbin "bin/gfx/tilemap/BG-2-L3.bin"
 BG2_L3_TM_End:
+
+BG3_L2_TM:
+    incbin "bin/gfx/tilemap/BG-3-L2.bin"
+BG3_L2_TM_End:
+
+BG3_L3_TM:
+    incbin "bin/gfx/tilemap/BG-3-L3.bin"
+BG3_L3_TM_End:
 
 Title_L2_TM:
     incbin "bin/gfx/tilemap/Title-BG-L2.bin"
@@ -115,6 +132,14 @@ BG2_L2_Pal:
     incbin "bin/gfx/pal/BG-2-L2-Pal.bin"
 BG2_L2_Pal_End:
 
+;   Background 3    ;
+BG3_L3_Pal:
+    incbin "bin/gfx/pal/BG-3-L3-Pal.bin"
+BG3_L3_Pal_End:
+
+BG3_L2_Pal:
+    incbin "bin/gfx/pal/BG-3-L2-Pal.bin"
+BG3_L2_Pal_End:
 
 ZVal:
     dw $0000
@@ -295,9 +320,9 @@ Reset:
     stz.w HW_BG2VOFS            ;Apply scroll
     stz.w HW_BG2VOFS            ;Apply scroll
 
-    lda.b #$00
+    lda.b #$01
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$00
+    lda.b #$02
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -687,6 +712,8 @@ TitleScene:
     lda.b #$01
     sta.w HW_WMDATA
     lda.w SineTable, Y
+    lsr
+    lsr
     clc
     adc.w BGScrollVal
     sta.w HW_WMDATA
@@ -695,6 +722,8 @@ TitleScene:
     lda.b #$01
     sta.w HW_WMDATA
     lda.w SineTable, Y
+    lsr
+    lsr
     eor.b #$FF
     sec
     sbc.w BGScrollVal
@@ -718,7 +747,7 @@ TitleScene:
     rep #$10
     lda.b #$02
     sta.w HDMAMirror
-    lda.b #(HW_BG1VOFS)&$FF
+    lda.b #(HW_BG1HOFS)&$FF
     sta.w HDMAMirror+1
     ldx.w #HDMAScrollBuffer2
     stx.w HDMAMirror+2
@@ -741,11 +770,10 @@ TitleScene:
     lda.w #$2000
     sta.w ZP.R0
     sep #$20
-    lda.w PalMaskInd
-    inc
-    and #$1F
-    sta.w PalMaskInd
-    jsr PalFade
+    ldy.w #$0002
+    lda.b #$06
+    sta.b ZP.R4
+    jsr PalCycle
     +
 
     rep #$20
@@ -764,7 +792,7 @@ GameScene:
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w BGMODEMirror
-    lda.b #$03
+    lda.b #$00
     sta.w BGCount
     ;Reset Player
     lda.b #$70
@@ -796,6 +824,7 @@ GameScene:
     ldy.w #$0003
     -
     jsr Rand
+    and #$7F
     sta.w EnemyShootTimer, Y
     lda.b #$00
     sta.w EnemyBulletActive, Y
@@ -1037,8 +1066,7 @@ GameScene:
     jml +
     +
     jml +
-    +
-    
+    +    
     lda.w HW_RDDIVL         ;Grab division
     cmp #$05
     bmi .SkipExitBullet
@@ -1056,7 +1084,7 @@ GameScene:
     lda.b ZP.R7             ;Y remainder
     cmp #2
     beq .SkipBullet0Logic   ;Skip if we've hit the empty tile next to the enemy
-
+    tdc
     lda.b ZP.R6             ;Y Division output
     asl
     asl
@@ -1154,106 +1182,23 @@ GameScene:
     ;-----------------------;
     ;   Enemy Bullet logic  ;
     ;-----------------------;
-    .StartEnemyBulletLogic:
-    jsr Rand
-    lda.w RNGSeed               ;Grab random index
-    and #$7F
-    cmp #$50
-    bmi .SkipShootModulo
-    sec
-    sbc.b #$50
-    bra .StartEnemyBulletLogic
-    .SkipShootModulo:
+    tdc
+    sep #$20
+    lda.w EnemyShootIndex
+    inc
     sta.w EnemyShootIndex
-    
-    ;Store enemy XY offset in temp memory
-    ldy.w #$0000
-    ldy.w EnemyShootIndex
-    rep #$20
-    tya
-    and.w #$00FF
-    lsr             ;Divide by 2 since enemy types is byte wide
-    tay
-    sep #$20
-    lda.w EnemyType, Y
-    beq .HandleTimers    ;Don't fire if no enemy is found on said tile
-    tya
-    asl             ;Multiply by 2 since enemy types is word wide
-    tay
-    rep #$20
-    lda.w EnemyPixelPos, Y
-    adc.w #$0800
-    sta.b ZP.R0
-    sec
-    sbc.b ZP.EnemyPlanePosX
-    sta.w EnemyShootDebug
-    sep #$20
-    .HandleTimers:
-    ;Handle Enemy shooting timers
-    ldy.w #$0003
-    .EBTimerLoop:
-    lda.w EnemyShootTimer, Y
-    dec
-    sta.w EnemyShootTimer, Y
-    bne +
-    ;Set projectile to enemy index position
-    lda.b #$01
-    sta.w EnemyBulletActive, Y
-    lda.b ZP.R0
-    sec
-    sbc.b ZP.EnemyPlanePosX
-    clc
-    adc.b #$04
-    sta.w EnemyBulletXPos, Y
-    ;YPos
-    lda.b ZP.R1
-    sec
-    sbc.b ZP.EnemyPlanePosY
-    sta.w EnemyBulletYPos, Y    
+    cmp.b #$28
+    bmi +
+    stz.w EnemyShootIndex
     +
-    dey
-    bpl .EBTimerLoop
+    jsr GameLoop_HandleEnemyTimers
     sep #$20
-    ;Handle bullet logic    
-    ldy.w #$0003
-    .EBLogicLoop:
-    lda.w EnemyBulletActive, Y
-    beq +
-    lda.w EnemyBulletYPos, Y
-    clc
-    adc.b #!EnemyBulletSpeed
-    sta.w EnemyBulletYPos, Y
-    cmp #!BFloor
-    bcs +
-    bra .SkipDeactive
-    +
-    lda.b #$F0
-    sta.w EnemyBulletXPos, Y
-    sta.w EnemyBulletYPos, Y
-    lda.b #$00
-    sta.w EnemyBulletActive, Y
-    .SkipDeactive:
-    dey
-    bpl .EBLogicLoop
+    ;Handle bullet logic
+    jsr GameLoop_EBulletLogic
     ;-------------------------------;
     ;   Enemy Bullet Drawing logic  ;
     ;-------------------------------;
-    ldy.w #$0003
-    .EBDrawLoop:
-    lda.w EnemyBulletXPos, Y
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    lda.w EnemyBulletYPos, Y
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    lda.b #!EBulletF1
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    lda.b #!BulletAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    dey
-    bpl .EBDrawLoop
+    jsr GameLoop_EBulletDraw
     ldy.w #$0000
 
     ;-----------------;
@@ -1443,8 +1388,10 @@ GameScene:
     ;------------------------;
     ;    Handle Explosions   ;
     ;------------------------;
-    ldy.w #!EnemyHurtPalInd*2
+    ldy.w #!EnemyHurtPalInd*2+1
     tdc
+    lda.b #$0F
+    sta.b ZP.R4
     jsr PalCycle
     jsr UpdateExplosives
 
@@ -1773,10 +1720,11 @@ GameLoop_SendWave:
     beq +
     stz.w BGCount
     lda.w BGIndex
-    eor #$01
+    inc
+    and #$03
     sta.w BGIndex
     jsr GameLoop_LoadBG
-    +  
+    +
     lda.b !EnemyMoveR
     sta.b ZP.EnemyDir
     lda.b #!EnemyDownLoop
@@ -1800,6 +1748,7 @@ GameLoop_SendWave:
     ldy.w #$0003
     -
     jsr Rand
+    and #$10
     sta.w EnemyShootTimer, Y
     dey
     bpl -
@@ -2002,6 +1951,140 @@ GameLoop_DrawEnemies_FrameDecider:
     adc.b ZP.R2
     rts
 
+GameLoop_Spawn_Enemy_Bullet:
+    pha
+    phx
+    phy
+    php    
+    ;Store enemy XY offset in temp memory
+    ldy.w #$0000
+    sep #$30
+    ldy.w EnemyShootIndex       ;Grab current enemy to fire
+    lda.w EnemyType, Y
+    beq .SkipShoot              ;Skip shooting if enemy is dead
+    tax
+    lda.w EnemyShootTypes, X
+    beq .SkipShoot              ;Skip shooting if enemy cannot shoot
+    ;If we CAN shoot    
+    ;Check for first inactive bullet
+    ldx.b #$00
+    -
+    lda.w EnemyBulletActive, X  ;Don't fire if the current enemy bullet is active
+    beq .InactiveBulletFound
+    inx
+    cpx.b #$04                  ;Break if no enemy bullets found to be active
+    bne -
+    bra .SkipShoot
+    .InactiveBulletFound:
+
+    ;Otherwise we do the firing code
+    tdc
+    lda.w EnemyShootIndex       ;Grab current enemy to fire
+    asl
+    tay
+    ;Set active
+    lda.b #$01
+    sta.w EnemyBulletActive, X
+    ;Set position
+    lda.w EnemyPixelPos, Y
+    sec
+    sbc.b ZP.EnemyPlanePosX
+    sta.w EnemyBulletXPos, X
+    sta.w EnemyShootDebug
+    lda.w EnemyPixelPos+1, Y
+    clc
+    adc.b ZP.EnemyPlanePosY
+    sta.w EnemyBulletYPos, X
+    sta.w EnemyShootDebug+1
+    .SkipShoot
+    plp
+    ply
+    plx
+    pla
+    rts
+
+GameLoop_HandleEnemyTimers:
+    pha
+    phx
+    phy
+    php    
+    ;Handle Enemy shooting timers
+    ldy.w #$0003
+    .EBTimerLoop:
+    lda.w EnemyShootTimer, Y
+    dec
+    sta.w EnemyShootTimer, Y
+    bne +
+    jsr GameLoop_Spawn_Enemy_Bullet
+    jsr Rand
+    and #$3F
+    sta.w EnemyShootTimer, Y
+    +
+    dey
+    bpl .EBTimerLoop
+    plp
+    ply
+    plx
+    pla
+    rts
+GameLoop_EBulletLogic:
+    pha
+    phx
+    phy
+    php
+    ldy.w #$0003
+    .EBLogicLoop:
+    lda.w EnemyBulletActive, Y
+    beq +
+    lda.w EnemyBulletYPos, Y
+    clc
+    adc.b #!EnemyBulletSpeed
+    sta.w EnemyBulletYPos, Y
+    cmp #!BFloor
+    bcs +
+    bra .SkipDeactive
+    +
+    lda.b #$F0
+    sta.w EnemyBulletXPos, Y
+    sta.w EnemyBulletYPos, Y
+    lda.b #$00
+    sta.w EnemyBulletActive, Y
+    .SkipDeactive:
+    dey
+    bpl .EBLogicLoop
+    plp
+    ply
+    plx
+    pla
+    rts
+
+GameLoop_EBulletDraw:
+    pha
+    phx
+    phy
+    php
+    ldy.w #$0003
+    .EBDrawLoop:
+    lda.w EnemyBulletXPos, Y
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.w EnemyBulletYPos, Y
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!EBulletF1
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!BulletAttr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    dey
+    bpl .EBDrawLoop
+    plp
+    ply
+    plx
+    pla
+    rts
+    rts
 GameLoop_ResetPlayer:
     pha
     phx
@@ -2193,6 +2276,7 @@ FadeMask:
     ;       Takes a given palette address and cycles the first 15 colours of it
     ;   Input:
     ;       Y [Palette index]
+    ;       ZP.R4 [Range]
     ;   Output:
     ;       Cycle'd palette by 1 entry
     ;
@@ -2201,7 +2285,7 @@ PalCycle:
     phy
     rep #$20
     ;First, grab the last palette of the selected zone
-    lda.w PalMirror+2, Y
+    lda.w PalMirror, Y
     sta.b ZP.R0
     stz.b ZP.R2
     ;Next we loop over the palette entries
@@ -2214,7 +2298,7 @@ PalCycle:
     inc.b ZP.R2
     sep #$20
     lda.b ZP.R2
-    cmp.b #$10
+    cmp.b ZP.R4
     bne -
     ;Then we apply the last colour back to the start of the palette [past the transparent first colour]
     rep #$20
@@ -2444,6 +2528,7 @@ GameLoop_LoadBG:
 BGLoad:
     dw BG_City          ;BG-1
     dw BG_Mountains     ;BG-2
+    dw BG_Computer      ;BG-3
 
 BG_City:
     ;Setup video display
@@ -2582,8 +2667,6 @@ BG_City:
     iny
     cpy #BG1_L2_Pal_End-BG1_L2_Pal
     bmi -
-
-    
     rts
 
 BG_Mountains:
@@ -2727,7 +2810,135 @@ BG_Mountains:
     dey
     bne -
     rts
+BG_Computer:
+    ;Setup video display
+    lda.w BGMODEMirror
+    and #$F7
+    sta.w BGMODEMirror
+    lda.b #$1F
+    sta.w TMMirror
+    sta.w TSMirror
+    sta.w TMWMirror
+    sta.w TSWMirror
+    stz.w CGWSELMirror
+    stz.w CGADSUBMirror
+    stz.w COLDATAMirror
+    stz.w WH0Mirror
+    stz.w WH1Mirror    
+    ;Load Graphics
+    ldy.w #$0000
+    lda.b #(BG3_L2)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG3_L2>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG3_L2>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #(GameSprEnd-GameGfx)/2
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG3_L3_End-BG3_L2
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
 
+    ;Load Tilemaps
+    ldy.w #$0000
+    lda.b #(BG3_L2_TM)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG3_L2_TM>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG3_L2_TM>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L2Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG3_L2_TM_End-BG3_L2_TM
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+    
+    ;Layer 3
+    ldy.w #$0000
+    lda.b #(BG3_L3_TM)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG3_L3_TM>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG3_L3_TM>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L3Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG3_L3_TM_End-BG3_L3_TM
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    lda.b #$20
+    sta.w !BG3VOffMirror
+    stz.w !BG3VOffMirror+1
+
+    ;Transfer palette data
+    ldy.w #BG3_L2_Pal_End-BG3_L2_Pal
+    -
+    lda.w BG3_L2_Pal, Y
+    sta.w PalMirror+32, Y
+    dey
+    bne -
+    ldy.w #BG3_L3_Pal_End-BG3_L3_Pal
+    -
+    lda.w BG3_L3_Pal, Y
+    sta.w PalMirror, Y
+    dey
+    bne -
+    rts
 GameLoop_UpdateBG:
     php
     pha
@@ -2748,6 +2959,7 @@ GameLoop_UpdateBG:
 BGList:
     dw BG0
     dw BG1
+    dw BG2
 
 BG0:
     sep #$20
@@ -3053,7 +3265,6 @@ BG1:
     lda.b #$80
     sta.w HDMAMirror+4
 
-    
     sep #$20
     lda.b #$02
     sta.w HDMAMirror1
@@ -3063,6 +3274,151 @@ BG1:
     stx.w HDMAMirror1+2
     lda.b #(HDMAScrollBuffer>>16)&$FF
     sta.w HDMAMirror1+4
+    rts
+
+BG2:
+    lda.w BGScrollOff+$0F
+    inc
+    sta.w BGScrollOff+$0F
+    cmp.b #$05
+    bne +
+    stz.w BGScrollOff+$0F
+    ;Wires
+    ldy.w #$000A
+    tdc
+    lda.b #$03
+    sta.b ZP.R4
+    jsr PalCycle
+    ;Forewires
+    ldy.w #$0048
+    tdc
+    lda.b #$07
+    sta.b ZP.R4
+    jsr PalCycle
+    +
+
+    lda.w BGScrollOff
+    inc
+    sta.w BGScrollOff
+    bit #$40
+    beq +
+    stz.w BGScrollOff
+    inc.w !BG3HOffMirror
+    stz.w !BG3HOffMirror+1
+    +
+    
+    ;Top CPU line
+    lda.w BGScrollOff+1
+    inc
+    sta.w BGScrollOff+1
+    bit #$20
+    beq +
+    stz.w BGScrollOff+1
+    inc.w BGScrollVal+1
+    +
+
+    ;Bottom CPU line
+    lda.w BGScrollOff+2
+    inc
+    sta.w BGScrollOff+2
+    bit #$08
+    beq +
+    stz.w BGScrollOff+2
+    inc.w BGScrollVal+2
+    +
+
+    ;Buildings
+    lda.w BGScrollOff+3
+    inc
+    sta.w BGScrollOff+3
+    bit #$04
+    beq +
+    stz.w BGScrollOff+3
+    inc.w BGScrollVal+3
+    +
+
+    ;Pinout fence
+    lda.w BGScrollOff+4
+    inc
+    sta.w BGScrollOff+4
+    bit #$02
+    beq +
+    stz.w BGScrollOff+4
+    inc.w BGScrollVal+4
+    +
+    
+    lda.w BGScrollVal+5
+    clc
+    adc.b #$03
+    sta.w BGScrollVal+5
+
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HW_WMADDH
+
+    lda.b #$70          ;Scanline
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    ;Cloud2
+    lda.b #$07          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+1 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    ;Cloud3
+    lda.b #$20          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+2 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$1B          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+3 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$15          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+4 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$10          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+5 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$01          ;Scanline
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA     ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    stz.w HW_WMDATA     ;End
+
+    sep #$20
+    lda.b #$02
+    sta.w HDMAMirror1
+    lda.b #(HW_BG2HOFS)&$FF
+    sta.w HDMAMirror1+1
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HDMAMirror1+2
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HDMAMirror1+4
+
+    lda.b #$03
+    sta.w HDMAMirror
+    lda.b #(HW_CGADD)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #BG3ColTable
+    stx.w HDMAMirror+2
+    lda.b #$80
+    sta.w HDMAMirror+4
+
     rts
 
 Text:
@@ -3265,6 +3621,13 @@ EnemyWaveLookup:
     dw EnemyWave14
     dw EnemyWave15
     dw EnemyWave16
+    dw EnemyWave17
+    dw EnemyWave18
+    dw EnemyWave19
+    dw EnemyWave1A
+    dw EnemyWave1B
+    dw EnemyWave1C
+    dw EnemyWave1D
 
 ;Enemy wave definitions
 EnemyWave00:
@@ -3305,7 +3668,7 @@ EnemyWave05:
     db $04,$04,$06,$06,$06,$06,$04,$04
 EnemyWave06:
     db $05,$05,$05,$05,$05,$05,$05,$05
-    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $02,$02,$02,$02,$02,$02,$02,$02
     db $03,$03,$03,$03,$03,$03,$03,$03
     db $01,$01,$01,$01,$01,$01,$01,$01
     db $01,$01,$01,$01,$01,$01,$01,$01
@@ -3316,95 +3679,137 @@ EnemyWave07:
     db $01,$05,$01,$05,$01,$05,$01,$05
     db $01,$05,$01,$05,$01,$05,$01,$05
 EnemyWave08:
-    db $02,$08,$02,$08,$02,$08,$02,$08
-    db $02,$08,$02,$08,$02,$08,$02,$08
-    db $02,$08,$02,$08,$02,$08,$02,$08
-    db $02,$08,$02,$08,$02,$08,$02,$08
-    db $02,$08,$02,$08,$02,$08,$02,$08
+    db $01,$05,$01,$05,$01,$05,$01,$05
+    db $01,$05,$01,$05,$01,$05,$01,$05
+    db $01,$05,$01,$05,$01,$05,$01,$05
+    db $01,$05,$01,$05,$01,$05,$01,$05
+    db $01,$05,$01,$05,$01,$05,$01,$05
 EnemyWave09:
-    db $01,$02,$03,$04,$05,$06,$07,$08
-    db $01,$02,$03,$04,$05,$06,$07,$08
-    db $01,$02,$03,$04,$05,$06,$07,$08
-    db $01,$02,$03,$04,$05,$06,$07,$08
-    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $02,$08,$02,$08,$02,$08,$02,$08
+    db $02,$08,$02,$08,$02,$08,$02,$08
+    db $02,$08,$02,$08,$02,$08,$02,$08
+    db $02,$08,$02,$08,$02,$08,$02,$08
+    db $02,$08,$02,$08,$02,$08,$02,$08
 EnemyWave0A:
-    db $08,$08,$08,$08,$08,$08,$08,$08
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $04,$04,$04,$04,$04,$04,$04,$04
-    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $01,$02,$03,$04,$05,$06,$07,$08
 EnemyWave0B:
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $04,$04,$04,$04,$04,$04,$04,$04
 EnemyWave0C:
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
 EnemyWave0D:
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $02,$02,$02,$02,$02,$02,$02,$02
 EnemyWave0E:
-    db $04,$04,$04,$04,$04,$04,$04,$04
-    db $04,$04,$04,$04,$04,$04,$04,$04
-    db $04,$04,$04,$04,$04,$04,$04,$04
-    db $04,$04,$04,$04,$04,$04,$04,$04
-    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $03,$03,$03,$03,$03,$03,$03,$03
 EnemyWave0F:
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $04,$04,$04,$04,$04,$04,$04,$04
 EnemyWave10:
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $05,$05,$05,$05,$05,$05,$05,$05
 EnemyWave11:
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $06,$06,$06,$06,$06,$06,$06,$06
 EnemyWave12:
-    db $08,$08,$08,$08,$08,$08,$08,$08
-    db $08,$08,$08,$08,$08,$08,$08,$08
-    db $08,$08,$08,$08,$08,$08,$08,$08
-    db $08,$08,$08,$08,$08,$08,$08,$08
-    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $07,$07,$07,$07,$07,$07,$07,$07
 EnemyWave13:
-    db $01,$05,$05,$07,$07,$05,$05,$01
-    db $01,$01,$05,$07,$07,$05,$01,$01
-    db $01,$05,$05,$07,$07,$05,$05,$01
-    db $01,$01,$05,$07,$07,$05,$01,$01
-    db $01,$05,$05,$07,$07,$05,$05,$01
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $08,$08,$08,$08,$08,$08,$08,$08
 EnemyWave14:
+    db $01,$05,$05,$07,$07,$05,$05,$01
+    db $01,$01,$05,$07,$07,$05,$01,$01
+    db $01,$05,$05,$07,$07,$05,$05,$01
+    db $01,$01,$05,$07,$07,$05,$01,$01
+    db $01,$05,$05,$07,$07,$05,$05,$01
+EnemyWave15:
     db $04,$04,$04,$04,$04,$04,$04,$04
     db $05,$05,$05,$05,$05,$05,$05,$05
     db $06,$06,$06,$06,$06,$06,$06,$06
     db $05,$05,$05,$05,$05,$05,$05,$05
     db $04,$04,$04,$04,$04,$04,$04,$04
-EnemyWave15:
-    db $05,$07,$05,$07,$05,$07,$05,$07
-    db $07,$05,$07,$05,$07,$05,$07,$05
-    db $05,$07,$05,$07,$05,$07,$05,$07
-    db $07,$05,$07,$05,$07,$05,$07,$05
-    db $05,$07,$05,$07,$05,$07,$05,$07
 EnemyWave16:
+    db $05,$07,$05,$07,$05,$07,$05,$07
+    db $07,$05,$07,$05,$07,$05,$07,$05
+    db $05,$07,$05,$07,$05,$07,$05,$07
+    db $07,$05,$07,$05,$07,$05,$07,$05
+    db $05,$07,$05,$07,$05,$07,$05,$07
+EnemyWave17:
     db $02,$03,$04,$02,$02,$04,$03,$02
     db $01,$01,$01,$01,$01,$01,$01,$01
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $05,$05,$05,$05,$05,$05,$05,$05
     db $07,$05,$06,$08,$08,$06,$05,$07
+EnemyWave18:
+    db $02,$03,$02,$03,$02,$03,$02,$03
+    db $03,$02,$03,$02,$03,$02,$03,$02
+    db $02,$03,$02,$03,$02,$03,$02,$03
+    db $03,$02,$03,$02,$03,$02,$03,$02
+    db $02,$03,$02,$03,$02,$03,$02,$03
+EnemyWave19:
+    db $01,$00,$01,$00,$05,$00,$08,$00
+    db $01,$00,$01,$00,$00,$00,$08,$00
+    db $01,$01,$01,$00,$05,$00,$08,$00
+    db $01,$00,$01,$00,$05,$00,$00,$00
+    db $01,$00,$01,$00,$05,$00,$08,$00
+EnemyWave1A:
+    db $01,$01,$00,$02,$02,$02,$00,$00
+    db $01,$01,$00,$02,$00,$00,$02,$00
+    db $00,$00,$00,$02,$00,$00,$02,$00
+    db $01,$01,$00,$02,$00,$00,$02,$00
+    db $01,$01,$00,$02,$02,$02,$00,$00
+EnemyWave1B:
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $01,$01,$01,$01,$01,$01,$01,$01
+EnemyWave1C:
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $04,$04,$04,$04,$04,$04,$04,$04
+EnemyWave1D:
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $04,$04,$04,$04,$04,$04,$04,$04
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:
@@ -3461,11 +3866,11 @@ EnemyShootTypes:
     db $00              ;Basic Squelcher
     db $01              ;Slow Shooter
     db $00              ;Boxy Greenback
-    db $00              ;Mind Cake
-    db $01              ;Sophisticated mimic
+    db $01              ;Mind Cake
+    db $00              ;Sophisticated mimic
     db $01              ;Purple Shooter
     db $01              ;MultiArm
-    db $00              ;Tough Guy
+    db $01              ;Tough Guy
 
 BG1ColTable:
     db $40          ;Scanline counter
@@ -3550,6 +3955,35 @@ BG2ColTable:
     dw $0000
     
     dw $0000
+
+    
+BG3ColTable:
+    db $40          ;Scanline counter
+    dw $0000        ;Address
+    dw $0020
+    db $20          ;Scanline counter
+    dw $0000        ;Address
+    dw $0441
+    db $18          ;Scanline counter
+    dw $0000        ;Address
+    dw $0862
+    db $18          ;Scanline counter
+    dw $0000        ;Address
+    dw $00882
+    db $10          ;Scanline counter
+    dw $0000        ;Address
+    dw $10A4
+    db $10          ;Scanline counter
+    dw $0000        ;Address
+    dw $14C5
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $18E6
+    db $04          ;Scanline counter
+    dw $0000        ;Address
+    dw $0000
+    db $00
+
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
 db $1F,$22,$25,$28,$2B,$2E,$31,$33,$36,$39

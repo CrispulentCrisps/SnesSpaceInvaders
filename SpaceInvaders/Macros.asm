@@ -83,7 +83,7 @@ PalMaskInd =        $04F3
 EnemyResetMove  =   $04FE
 EnemyResetFlag  =   $04FF
 EnemyHealth =       $0500
-EnemyType =         $0528
+EnemyType =         $0528   ;Array of current enemy types
 EnemyHurtTable =    $0550   ;Array of hurt timers
 
 ;Explosions each carry a
@@ -97,8 +97,8 @@ EnemyHurtTable =    $0550   ;Array of hurt timers
 ;
 ;   If an explosion has 0 frames then it is "Dead" and can be skipped over
 
-!MaxEpl = $05
-!MaxEplW = $0005
+!MaxEpl =           $05
+!MaxEplW =          $0005
 
 ExplosionTimer =    $0580
 ExplosionFrame =    $0580+!MaxEplW
@@ -171,7 +171,7 @@ GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 
 !PlayerDieReset =   50
-!WaveInit =         $00
+!WaveInit =         $02
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
