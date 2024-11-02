@@ -75,7 +75,7 @@ EnemyBulletXPos =   $0414
 EnemyBulletYPos =   $0418
 EnemyBulletActive = $041C
 
-!MaxBG =            $03
+!MaxBG =            $04
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
@@ -172,7 +172,7 @@ GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 
 !PlayerDieReset =   50
-!WaveInit =         $02
+!WaveInit =         $01
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
@@ -209,6 +209,7 @@ LaserOAM =          $0810
 !PlayerTileB =      $57
 !PlayerTileT =      $4F
 !BulletAttr =       %00100110
+!EBullAttr =        %00100110
 !BulletF1 =         $51
 !BulletF2 =         $52
 !EBulletF1 =        $59

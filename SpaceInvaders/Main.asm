@@ -60,6 +60,15 @@ BG3_L3:
     incbin "bin/gfx/BG-3-L3.bin"
 BG3_L3_End:
 
+;   Background 4    ;
+BG4_L2:
+    incbin "bin/gfx/BG-4-L2.bin"
+BG4_L2_End:
+
+BG4_L3:
+    incbin "bin/gfx/BG-4-L3.bin"
+BG4_L3_End:
+
 org !TilemapBank
 
 ;---------------;
@@ -89,6 +98,14 @@ BG3_L2_TM_End:
 BG3_L3_TM:
     incbin "bin/gfx/tilemap/BG-3-L3.bin"
 BG3_L3_TM_End:
+
+BG4_L2_TM:
+    incbin "bin/gfx/tilemap/BG-4-L2.bin"
+BG4_L2_TM_End:
+
+BG4_L3_TM:
+    incbin "bin/gfx/tilemap/BG-4-L3.bin"
+BG4_L3_TM_End:
 
 Title_L2_TM:
     incbin "bin/gfx/tilemap/Title-BG-L2.bin"
@@ -140,6 +157,15 @@ BG3_L3_Pal_End:
 BG3_L2_Pal:
     incbin "bin/gfx/pal/BG-3-L2-Pal.bin"
 BG3_L2_Pal_End:
+
+;   Background 4    ;
+BG4_L3_Pal:
+    incbin "bin/gfx/pal/BG-4-L3-Pal.bin"
+BG4_L3_Pal_End:
+
+BG4_L2_Pal:
+    incbin "bin/gfx/pal/BG-4-L2-Pal.bin"
+BG4_L2_Pal_End:
 
 ZVal:
     dw $0000
@@ -322,7 +348,7 @@ Reset:
 
     lda.b #$01
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$02
+    lda.b #$03
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -755,7 +781,7 @@ TitleScene:
     sta.w HDMAMirror+4
     lda.b #$02
     sta.w HDMAMirror1
-    lda.b #(HW_BG1HOFS)&$FF
+    lda.b #(HW_BG1VOFS)&$FF
     sta.w HDMAMirror1+1
     ldx.w #HDMAScrollBuffer2
     stx.w HDMAMirror1+2
@@ -773,7 +799,7 @@ TitleScene:
     ldy.w #$0002
     lda.b #$06
     sta.b ZP.R4
-    jsr PalCycle
+    ;jsr PalCycle
     +
 
     rep #$20
@@ -1727,19 +1753,21 @@ GameLoop_FindMaxRowBounds:
 GameLoop_SendWave:
     sep #$20
     inc.b ZP.EnemyWaveCount
+    tdc
     lda.w BGCount
     inc
     sta.w BGCount
-    and.w BGChange
-    beq +
+    cmp.w BGChange
+    bne +
     stz.w BGCount
     lda.w BGIndex
     inc
-    cmp.b !MaxBG
-    beq +
-    lda.b #$00
-    +
     sta.w BGIndex
+    cmp.b !MaxBG
+    bne ++
+    lda.b #$00
+    sta.w BGIndex
+    ++
     jsr GameLoop_LoadBG
     +
     lda.b !EnemyMoveR
@@ -2007,6 +2035,8 @@ GameLoop_Spawn_Enemy_Bullet:
     lda.w EnemyPixelPos, Y
     sec
     sbc.b ZP.EnemyPlanePosX
+    clc
+    adc.b #$04
     sta.w EnemyBulletXPos, X
     sta.w EnemyShootDebug
     lda.w EnemyPixelPos+1, Y
@@ -2350,7 +2380,6 @@ PalCycle:
     ;
     ;   Clobberlist
     ;       ZP.R6
-    ;       ZP.R7
     ;
 Rand:
     phy
@@ -2556,6 +2585,7 @@ BGLoad:
     dw BG_City          ;BG-1
     dw BG_Mountains     ;BG-2
     dw BG_Computer      ;BG-3
+    dw BG_Surfboard     ;BG-4
 
 BG_City:
     ;Setup video display
@@ -2696,7 +2726,6 @@ BG_City:
     bmi -
     stz.w !BG3VOffMirror
     stz.w !BG3VOffMirror+1
-    
     rts
 
 BG_Mountains:
@@ -2972,6 +3001,135 @@ BG_Computer:
     dey
     bne -
     rts
+
+BG_Surfboard:
+    ;Setup video display
+    lda.w BGMODEMirror
+    and #$F7
+    sta.w BGMODEMirror
+    lda.b #$1F
+    sta.w TMMirror
+    sta.w TSMirror
+    sta.w TMWMirror
+    sta.w TSWMirror
+    stz.w CGWSELMirror
+    stz.w CGADSUBMirror
+    stz.w COLDATAMirror
+    stz.w WH0Mirror
+    stz.w WH1Mirror
+    ;Load Graphics
+    ldy.w #$0000
+    lda.b #(BG4_L2)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG4_L2>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG4_L2>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #(GameSprEnd-GameGfx)/2
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG4_L3_End-BG4_L2
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    ;Load Tilemaps
+    ldy.w #$0000
+    lda.b #(BG4_L2_TM)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG4_L2_TM>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG4_L2_TM>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L2Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG4_L2_TM_End-BG4_L2_TM
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+    
+    ;Layer 3
+    ldy.w #$0000
+    lda.b #(BG4_L3_TM)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG4_L3_TM>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG4_L3_TM>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L3Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG4_L3_TM_End-BG4_L3_TM
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    
+    ;Transfer palette data
+    ldy.w #BG4_L2_Pal_End-BG4_L2_Pal
+    -
+    lda.w BG4_L2_Pal, Y
+    sta.w PalMirror+32, Y
+    dey
+    bne -
+    ldy.w #BG4_L3_Pal_End-BG4_L3_Pal
+    -
+    lda.w BG4_L3_Pal, Y
+    sta.w PalMirror, Y
+    dey
+    bne -
+
+    rts
+
 GameLoop_UpdateBG:
     php
     pha
@@ -2993,6 +3151,7 @@ BGList:
     dw BG0
     dw BG1
     dw BG2
+    dw BG3
 
 BG0:
     sep #$20
@@ -3323,9 +3482,9 @@ BG2:
     sta.b ZP.R4
     jsr PalCycle
     ;Forewires
-    ldy.w #$0048
+    ldy.w #$0028
     tdc
-    lda.b #$07
+    lda.b #$06
     sta.b ZP.R4
     jsr PalCycle
     +
@@ -3451,6 +3610,137 @@ BG2:
     stx.w HDMAMirror+2
     lda.b #$80
     sta.w HDMAMirror+4
+    rts
+
+BG3:
+    ;Ocean
+    lda.w BGScrollOff
+    inc
+    sta.w BGScrollOff
+    bit #$04
+    beq +
+    stz.w BGScrollOff
+    ldy.w #$0022
+    tdc
+    lda.b #$06
+    sta.b ZP.R4
+    jsr PalCycle
+    +
+    
+    ;Top waves
+    lda.w BGScrollOff+1
+    inc
+    sta.w BGScrollOff+1
+    bit #$10
+    beq +
+    stz.w BGScrollOff+1
+    inc.w BGScrollVal+1
+    +
+    lda.w BGScrollOff+2
+    inc
+    sta.w BGScrollOff+2
+    bit #$08
+    beq +
+    stz.w BGScrollOff+2
+    inc.w BGScrollVal+2
+    +
+    lda.w BGScrollOff+3
+    inc
+    sta.w BGScrollOff+3
+    bit #$04
+    beq +
+    stz.w BGScrollOff+3
+    inc.w BGScrollVal+3
+    +
+    lda.w BGScrollOff+4
+    inc
+    sta.w BGScrollOff+4
+    bit #$02
+    beq +
+    stz.w BGScrollOff+4
+    inc.w BGScrollVal+4
+    +
+    
+    inc.w BGScrollVal+5
+
+    inc.w BGScrollVal+6
+    inc.w BGScrollVal+6
+
+    inc.w BGScrollVal+7
+    inc.w BGScrollVal+7
+    inc.w BGScrollVal+7
+
+    lda.w BGScrollVal+8
+    adc.b #$04
+    sta.w BGScrollVal+8
+
+    lda.w BGScrollVal+9
+    adc.b #$08
+    sta.w BGScrollVal+9
+
+    stz.w BGScrollVal+10
+    
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HW_WMADDH
+
+    lda.b #$70          ;Scanline
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    lda.b #$01          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+1 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$02          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+2 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$04          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+3 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$08          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+4 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$10          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+5 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$20          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+6 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$28          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+7 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$10          ;Scanline
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+
+    stz.w HW_WMDATA     ;End
+
+    sep #$20
+    lda.b #$02
+    sta.w HDMAMirror1
+    lda.b #(HW_BG2HOFS)&$FF
+    sta.w HDMAMirror1+1
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HDMAMirror1+2
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HDMAMirror1+4
     rts
 
 Text:
@@ -3958,11 +4248,11 @@ BG2ColTable:
     dw $0000        ;Address
     dw $39CA
 
-    db $08          ;Scanline counter
+    db $06          ;Scanline counter
     dw $0000        ;Address
     dw $420C
 
-    db $06          ;Scanline counter
+    db $04          ;Scanline counter
     dw $0000        ;Address
     dw $462C
 
