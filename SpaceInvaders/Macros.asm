@@ -16,7 +16,6 @@ struct ZP $00
 .R7             skip 1  ;General purpose scratch memory
 .NMIDone        skip 2  ;NMI Flag for graphics/logic control
 .VrDmaListPtr   skip 2  ;Pointer to current position in list
-.HDMAPtr        skip 2  ;Pointer for HDMA data
 .SceneIndex     skip 1  ;Current scene we are in
 .ChangeScene    skip 1  ;Tell the scene's to load/deload data
 .Controller     skip 2  ;Controller input
@@ -57,9 +56,10 @@ struct Player $0400
 .X      skip 1
 .Frame  skip 1          ;Current player frame
 .State  skip 1          ;Player animation states
+.Dead   skip 1          
 endstruct
 
-struct Bullet $0403
+struct Bullet $0404
 .X          skip 1
 .Y          skip 1
 .Frame      skip 1  ;Current animation frame
@@ -75,7 +75,7 @@ EnemyBulletXPos =   $0414
 EnemyBulletYPos =   $0418
 EnemyBulletActive = $041C
 
-!MaxBG =            $04
+!MaxBG =            $03
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
@@ -87,6 +87,30 @@ EnemyHealth =       $0500
 EnemyType =         $0528   ;Array of current enemy types
 EnemyHurtTable =    $0550   ;Array of hurt timers
 
+UFOXPos =           $06B0
+UFOActive =         $06B1   ;Flag for if the UFO is active or not
+UFOTimer =          $06B2   ;Frames to wait before UFO appears
+UFOFrame =          $06B4
+UFOFrameTimer =     $06B5
+UFODeleteFlag =     $06B6   ;flag to delete UFO when position overflow is hit
+!UFOScore =         $0100   ;Score to give to the player when shooting down the UFO
+!UFOSpeed =         $02     ;How fast the UFO moves
+!UFOResetTime =     $5DC    ;Timer to wait to make UFO active, (30 seconds on PAL, 25 for NTSC)
+!UFOYPos =          $00     ;Y Position of the UFO
+!UFOYPosB =         $08     ;Y Position of the UFO
+!UFOStartX =        $FF
+!UFOTile0 =         $53
+!UFOTile1 =         $54
+!UFOTile2 =         $5B
+!UFOTile3 =         $5C
+!UFOAttr =          $30
+!UFOAttrMir =       $70
+
+OBJTimers =         $0700   ;16 byte array of timers for general OBJ use
+OBJFrame =          $0710   ;16 byte array of general object frame counts, used for animating less important objects
+OBJXPos =           $0720   ;16 byte array of object types XPositions
+OBJYPos =           $0730   ;16 byte array of object types YPositions
+OBJActive =         $0740   ;16 byte array of object active states
 ;Explosions each carry a
 ;   Timer   [Byte]  How many frames left the explosion has
 ;   Frame   [Byte]  What tile it is currently to display
@@ -118,11 +142,11 @@ ExplosionFineYVal = $0580+(!MaxEplW*9)
 EnemyTileBuffer =   $7E8000
 ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
 HDMAScrollBuffer =  $7E8500
-HDMAScrollBuffer2 = $7E8600
+HDMAScrollBuffer2 = $7E8800
 PalFadeAimBuffer =  $7E8A00
 
-BGScrollOff =       $05C0     ;Scrolling offsets for background elements
-BGScrollVal =       $05D0
+BGScrollOff =       $06C0     ;Scrolling offsets for background elements
+BGScrollVal =       $06D0
 
 !BG1HOffMirror =    $0C00
 !BG1VOffMirror =    $0C02
@@ -172,7 +196,7 @@ GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 
 !PlayerDieReset =   50
-!WaveInit =         $01
+!WaveInit =         $02
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
@@ -239,6 +263,18 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !BG_L3_OFF =        $65
 
 SinePtr =           $0F00   ;Index into sine table
+
+!SurfboardT0 =      $A3
+!SurfboardT1 =      $A4
+!SurfboardAttr =    $38
+!Rock1Tile =        $A7
+!Rock2Tile =        $A9
+!Rock3Tile =        $AF
+!Rock4Tile =        $B1
+!Rock5Tile =        $B2
+!Rock6Tile =        $B5
+!RockFrontAttr =    $3A
+!RockBackAttr =     $1A
 
 ;Character data
 ' ' = $00

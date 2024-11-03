@@ -65,9 +65,15 @@ BG4_L2:
     incbin "bin/gfx/BG-4-L2.bin"
 BG4_L2_End:
 
+BG4_OBJ:
+    incbin "bin/gfx/Surfboard.bin"
+    incbin "bin/gfx/OceanRocks.bin"
+BG4_OBJ_End:
+
 BG4_L3:
     incbin "bin/gfx/BG-4-L3.bin"
 BG4_L3_End:
+
 
 org !TilemapBank
 
@@ -166,6 +172,14 @@ BG4_L3_Pal_End:
 BG4_L2_Pal:
     incbin "bin/gfx/pal/BG-4-L2-Pal.bin"
 BG4_L2_Pal_End:
+
+Surfboard_Pal:
+    incbin "bin/gfx/pal/Surfboard-Pal.bin"
+Surfboard_Pal_End:
+
+OceanRocks_Pal:
+    incbin "bin/gfx/pal/OceanRocks-Pal.bin"
+OceanRocks_Pal_End:
 
 ZVal:
     dw $0000
@@ -360,24 +374,29 @@ Reset:
 
 MainLoop:
     stz.b ZP.NMIDone
-    sep #%00110000              ;Set X width to 8
-    lda.b ZP.SceneIndex         ;Load our scene in
-    asl
-    tax
-    rep #%00110000              ;Set CPU to 16 bit mode
     lda.w #VrDmaPtr
     sta.w ZP.VrDmaListPtr
     lda.w #OAMCopy
     sta.w ZP.OAMPtr
+    ldy.w #$220
+    lda.w #$0000
+    -
+    sta.w OAMCopy, Y
+    dey
+    dey
+    bpl -
     lda.w #$0000
     ldy.w #$0040
     -
     sta.w VrDmaPtr, Y
     dey
     dey
-    bpl -
-    lda.w #HDMAMirror
-    sta.b ZP.HDMAPtr
+    bpl -    
+    sep #%00110000              ;Set X width to 8
+    lda.b ZP.SceneIndex         ;Load our scene in
+    asl
+    tax
+    rep #%00110000              ;Set CPU to 16 bit mode
     jsr (SelectScene, X)        ;Go to correct subroutine logic in jumptable
     
     lda.w #$FFFF
@@ -814,7 +833,7 @@ GameScene:
     lda.b #$8F                  ;Set master brightness to 15 & forces blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
-    lda.b #$04
+    lda.b #$08
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w BGMODEMirror
@@ -858,8 +877,20 @@ GameScene:
     dey
     bpl -
 
+    ldy.w #$000F
+    -
+    lda.b #$FF
+    sta.w OBJXPos, Y
+    sta.w OBJYPos, Y
+    dey
+    bpl -
     ldx.w #$0000
     stx.b ZP.Score
+
+    ;Setup UFO
+    lda.w #!UFOResetTime
+    sta.w UFOTimer
+    stz.w UFOActive
 
     ;Reset explosion sprites
     ldy #!MaxEplW-1
@@ -893,12 +924,6 @@ GameScene:
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipLoad:
-
-    jsr Rand
-    ;-----------------------;
-    ;   Background Logic    ;
-    ;-----------------------;
-    jsr GameLoop_UpdateBG
 
     ;-------------------;
     ;   Player Logic    ;
@@ -946,10 +971,18 @@ GameScene:
     stz.w Player.Frame
     stz.w Player.State
 
+    jsr HandleEBulletCollisions
+
     ;------------------------------;
     ;   Player Drawing Commands    ;
     ;------------------------------;
     ;Player will take the first 4 spots of OAM
+    lda.w Player.Dead
+    beq +
+    lda.w OAMCopy+512             ;Player X 9th bit
+    ora.b #%01010101
+    sta.w OAMCopy+512             ;Player X 9th bit
+    +
     ;BL tile
     lda.w Player.X
     sta.b (ZP.OAMPtr)
@@ -1013,7 +1046,6 @@ GameScene:
     lda.b #$62
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    
 
     ;-------------------;
     ;   Bullet Logic    ;
@@ -1218,7 +1250,14 @@ GameScene:
     lda.b #$02
     sta.b ZP.R4
     jsr PalCycle
+    ;Enemy Bullet
+    ldy.w #$0166
+    tdc
+    lda.b #$02
+    sta.b ZP.R4
+    jsr PalCycle
     +
+
     ;-----------------------;
     ;   Enemy Bullet logic  ;
     ;-----------------------;
@@ -1263,9 +1302,6 @@ GameScene:
     +
     lda.w EnemyResetMove
     beq .SkipEnemyResetMove
-    ;Add speed offset
-    inc.b ZP.EnemyPlanePosY
-
     ;Check if we've hit the starting Y posiiton
     lda.b ZP.EnemyPlanePosY
     cmp.b #!EnemyPlaneStartY
@@ -1273,6 +1309,8 @@ GameScene:
     ;If we have then set the reset flag to reset the wave
     inc.w EnemyResetFlag
     ++
+    ;Add speed offset
+    inc.b ZP.EnemyPlanePosY
     .SkipEnemyResetMove:
     +
 
@@ -1280,9 +1318,6 @@ GameScene:
     bne +
     ;TRIGGER PLAYER DEATH
     jsr GameLoop_KillPlayer
-    lda.b #$FF
-    sta.w PlayerDeathTimer
-    sta.w EnemyResetMove
     +
     jmp .SkipFloor
     .SkipWaveReset:
@@ -1425,6 +1460,11 @@ GameScene:
     dec.b ZP.EnemyTimer
     .SkipEnemy
 
+    ;-------------------;
+    ;    Handle UFO     ;
+    ;-------------------;
+    jsr GameLoop_HandleUFO
+
     ;------------------------;
     ;    Handle Explosions   ;
     ;------------------------;
@@ -1489,6 +1529,11 @@ GameScene:
     .SkipSend:
     +
     sep #$20
+
+    ;-----------------------;
+    ;   Background Logic    ;
+    ;-----------------------;
+    jsr GameLoop_UpdateBG
 
     ;-----------------------;
     ;   END OF GAME SCENE   ;
@@ -2078,6 +2123,7 @@ GameLoop_HandleEnemyTimers:
     plx
     pla
     rts
+
 GameLoop_EBulletLogic:
     pha
     phx
@@ -2091,12 +2137,15 @@ GameLoop_EBulletLogic:
     clc
     adc.b #!EnemyBulletSpeed
     sta.w EnemyBulletYPos, Y
+    sec
+    sbc.b #$04
     cmp #!BFloor
     bcs +
     bra .SkipDeactive
     +
-    lda.b #$F0
+    lda.b #$FF
     sta.w EnemyBulletXPos, Y
+    lda.b #$00
     sta.w EnemyBulletYPos, Y
     lda.b #$00
     sta.w EnemyBulletActive, Y
@@ -2130,18 +2179,13 @@ GameLoop_EBulletDraw:
     inc.b ZP.OAMPtr
     dey
     bpl .EBDrawLoop
-    
-    ldy.w #$0166
-    tdc
-    lda.b #$02
-    sta.b ZP.R4
-    jsr PalCycle
 
     plp
     ply
     plx
     pla
     rts
+
 GameLoop_ResetPlayer:
     pha
     phx
@@ -2161,21 +2205,59 @@ GameLoop_ResetPlayer:
     sta.w ExplosionYVal, Y
     dey
     bpl .WriteExplData
-
-    lda.w OAMCopy+512             ;Player X 9th bit
-    sec
-    sbc.b #%01010101
-    sta.w OAMCopy+512             ;Player X 9th bit
+    stz.w Player.Dead
     lda.b #$01
+    sec
     dec.b ZP.Lives
     bne +
-
+    ;GAMEOVER code
     +
     jsr GameLoop_DrawScore
     plp
     ply
     plx
     pla
+    rts
+
+HandleEBulletCollisions:
+    ldy.w #$0003
+    .ColLoop:
+    ;if enemy bullet is active
+    lda.w EnemyBulletActive, Y
+    beq .SkipCol
+    ;BulletX >= Player.X
+    lda.w Player.X
+    sec
+    sbc.w EnemyBulletXPos, Y
+    bcs .SkipCol
+    ;BulletX <= Player.X + 16
+    lda.w Player.X
+    clc
+    adc.b #$10
+    sec
+    sbc.w EnemyBulletXPos, Y
+    bcc .SkipCol
+    ;BulletY >= Player.Y
+    lda.b #!PlayerY
+    sec
+    sbc.b #$0C
+    sec
+    sbc.w EnemyBulletYPos, Y
+    bcs .SkipCol
+    ;if GameState != Dead
+    lda.w GameState
+    cmp.b #!GameState_Dead
+    beq .SkipCol
+    jsr GameLoop_KillPlayer
+    lda.b #$00
+    ldy.w #$0003
+    -
+    sta.w EnemyBulletActive, Y
+    dey
+    bpl -
+    .SkipCol:
+    dey
+    bpl .ColLoop
     rts
 
     ;
@@ -2185,6 +2267,13 @@ GameLoop_KillPlayer:
     phx
     phy    
     sep #$20
+    lda.b #!GameState_Dead
+    sta.w GameState
+    lda.b #$FF
+    sta.w PlayerDeathTimer
+    sta.w EnemyResetMove
+    sta.w Player.Dead
+    stz.w EnemyResetFlag
     ldy.w #!MaxEplW-1
     .WriteExplData:
     ;Fine
@@ -2205,15 +2294,14 @@ GameLoop_KillPlayer:
     -
     lda.b #!ExplosionStart
     sta.w ExplosionTimer, Y
-    lda.w OAMCopy               ;Grab player X, since the player is always the first entry into OAM
+    lda.w Player.X
     sta.w ExplosionX, Y
-    lda.w OAMCopy+1             ;Player Y
+    lda.b #!PlayerY
     sta.w ExplosionY, Y
     dey
     bpl -
     lda.w OAMCopy+512             ;Player X 9th bit
-    clc
-    adc.b #%01010101
+    ora.b #%01010101
     sta.w OAMCopy+512             ;Player X 9th bit
     lda.b #$01
     sta.w EnemyResetMove
@@ -2470,6 +2558,196 @@ SpawnExplosive:
     ;Assuming we've not found an empty spot
     .ReturnNull:
     pla
+    rts
+
+GameLoop_HandleUFO:
+    lda.w UFOTimer
+    dec
+    sta.w UFOTimer
+    bne +
+    lda.w UFOActive
+    bne .SkipUFOInit
+    ;Activate UFO if we've reached the timer and it's not currently active
+    lda.b #!UFOStartX
+    sta.w UFOXPos
+    lda.b #$01
+    sta.w UFOActive
+    stz.w UFODeleteFlag
+    .SkipUFOInit:
+    +
+    ;Update if UFO active
+    lda.w UFOActive
+    beq .InactiveUFO
+    lda.w UFOXPos
+    dec
+    sta.w UFOXPos
+    lda.w UFOXPos
+    cmp #$7F
+    bpl +
+    lda.b #$01
+    sta.w UFODeleteFlag
+    +
+    lda.w UFOXPos
+    ;make UFO inactive if we've went too far over
+    bcc +
+    lda.w UFODeleteFlag
+    beq +
+    rep #$20
+    lda.w #!UFOResetTime
+    sta.w UFOTimer
+    sep #$20
+    stz.w UFOActive
+    +
+    jsr GameLoop_DrawUFO
+    .InactiveUFO:
+
+    ;Handle UFO animations
+    lda.w UFOFrameTimer
+    inc
+    sta.w UFOFrameTimer
+    bit #$04
+    beq +
+    lda.w UFOFrame
+    eor #$02
+    sta.w UFOFrame
+    stz.w UFOFrameTimer
+    +
+    rts
+
+GameLoop_DrawUFO:
+    ;Top left
+    lda.w UFOXPos
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOYPos
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOTile0
+    clc
+    adc.w UFOFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOAttr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Top mid
+    lda.w UFOXPos
+    clc
+    adc.b #$08
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOYPos
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOTile1
+    clc
+    adc.w UFOFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOAttr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Top mid
+    lda.w UFOXPos
+    clc
+    adc.b #$10
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOYPos
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOTile1
+    clc
+    adc.w UFOFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOAttr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Top right
+    lda.w UFOXPos
+    clc
+    adc.b #$18
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOYPos
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOTile0
+    clc
+    adc.w UFOFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOAttrMir
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+
+    ;Bottom left
+    lda.w UFOXPos
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOYPosB
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOTile2
+    clc
+    adc.w UFOFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOAttr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Bottom mid
+    lda.w UFOXPos
+    clc
+    adc.b #$08
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOYPosB
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOTile3
+    clc
+    adc.w UFOFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOAttr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Bottom mid
+    lda.w UFOXPos
+    clc
+    adc.b #$10
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOYPosB
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOTile3
+    clc
+    adc.w UFOFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOAttr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Bottom right
+    lda.w UFOXPos
+    clc
+    adc.b #$18
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOYPosB
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOTile2
+    clc
+    adc.w UFOFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!UFOAttrMir
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     rts
 
 UpdateExplosives:
@@ -3127,7 +3405,19 @@ BG_Surfboard:
     sta.w PalMirror, Y
     dey
     bne -
+    ldy.w #Surfboard_Pal_End-Surfboard_Pal
+    -
+    lda.w Surfboard_Pal, Y
+    sta.w PalMirror+(192*2), Y
+    dey
+    bne -
 
+    ldy.w #OceanRocks_Pal_End-OceanRocks_Pal
+    -
+    lda.w OceanRocks_Pal, Y
+    sta.w PalMirror+(208*2), Y
+    dey
+    bne -
     rts
 
 GameLoop_UpdateBG:
@@ -3627,7 +3917,7 @@ BG3:
     jsr PalCycle
     +
     
-    ;Top waves
+    ;BG3 
     lda.w BGScrollOff+1
     inc
     sta.w BGScrollOff+1
@@ -3636,99 +3926,83 @@ BG3:
     stz.w BGScrollOff+1
     inc.w BGScrollVal+1
     +
+    
     lda.w BGScrollOff+2
     inc
     sta.w BGScrollOff+2
-    bit #$08
+    bit #$20
     beq +
     stz.w BGScrollOff+2
     inc.w BGScrollVal+2
     +
+    
     lda.w BGScrollOff+3
     inc
     sta.w BGScrollOff+3
-    bit #$04
+    bit #$40
     beq +
     stz.w BGScrollOff+3
     inc.w BGScrollVal+3
     +
-    lda.w BGScrollOff+4
-    inc
-    sta.w BGScrollOff+4
-    bit #$02
-    beq +
-    stz.w BGScrollOff+4
-    inc.w BGScrollVal+4
-    +
     
-    inc.w BGScrollVal+5
-
-    inc.w BGScrollVal+6
-    inc.w BGScrollVal+6
-
-    inc.w BGScrollVal+7
-    inc.w BGScrollVal+7
-    inc.w BGScrollVal+7
-
-    lda.w BGScrollVal+8
-    adc.b #$04
-    sta.w BGScrollVal+8
-
-    lda.w BGScrollVal+9
-    adc.b #$08
-    sta.w BGScrollVal+9
-
-    stz.w BGScrollVal+10
-    
+    ;BG2
     ldx.w #HDMAScrollBuffer&$FFFF
     stx.w HW_WMADDL
     lda.b #(HDMAScrollBuffer>>16)&$FF
     sta.w HW_WMADDH
 
-    lda.b #$70          ;Scanline
+    lda.b #$7F          ;Scanline
     sta.w HW_WMDATA
     stz.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
+    
+    sep #$20
+    tdc
+    lda.w BGScrollVal+5
+    inc
+    sta.w BGScrollVal+5
+    bit #$04
+    beq +
+    inc.w BGScrollVal+4
+    +
+    inc.w BGScrollVal+4
 
-    lda.b #$01          ;Scanline
+    tdc
+    lda.b #$D8          ;Scanline
+    sta.w HW_WMDATA
+    ;Skew water
+    ldy.w #$0000
+    -
+    lda.w BGScrollVal+4
+    adc.w SkewTable, Y
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    iny
+    cpy.w #$005D
+    bne -
+
+    stz.w HW_WMDATA
+
+    ldx.w #HDMAScrollBuffer2&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer2>>16)&$FF
+    sta.w HW_WMADDH
+
+    lda.b #$20          ;Scanline
     sta.w HW_WMDATA
     lda.w BGScrollVal+1 ;\
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
-    lda.b #$02          ;Scanline
+    lda.b #$0F          ;Scanline
     sta.w HW_WMDATA
     lda.w BGScrollVal+2 ;\
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
-    lda.b #$04          ;Scanline
+    lda.b #$20          ;Scanline
     sta.w HW_WMDATA
     lda.w BGScrollVal+3 ;\
     sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    lda.b #$08          ;Scanline
-    sta.w HW_WMDATA
-    lda.w BGScrollVal+4 ;\
-    sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    lda.b #$10          ;Scanline
-    sta.w HW_WMDATA
-    lda.w BGScrollVal+5 ;\
-    sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    lda.b #$20          ;Scanline
-    sta.w HW_WMDATA
-    lda.w BGScrollVal+6 ;\
-    sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    lda.b #$28          ;Scanline
-    sta.w HW_WMDATA
-    lda.w BGScrollVal+7 ;\
-    sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    lda.b #$10          ;Scanline
-    sta.w HW_WMDATA
-    stz.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
+    stz.w HW_WMDATA     ;/    
 
     stz.w HW_WMDATA     ;End
 
@@ -3741,6 +4015,75 @@ BG3:
     stx.w HDMAMirror1+2
     lda.b #(HDMAScrollBuffer>>16)&$FF
     sta.w HDMAMirror1+4
+    
+    tdc
+    sep #$20
+    lda.b #$02
+    sta.w HDMAMirror2
+    lda.b #(HW_BG3HOFS)&$FF
+    sta.w HDMAMirror2+1
+    ldx.w #HDMAScrollBuffer2&$FFFF
+    stx.w HDMAMirror2+2
+    lda.b #(HDMAScrollBuffer2>>16)&$FF
+    sta.w HDMAMirror2+4
+
+    lda.b #$03
+    sta.w HDMAMirror
+    lda.b #(HW_CGADD)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #BG4ColTable
+    stx.w HDMAMirror+2
+    lda.b #$80
+    sta.w HDMAMirror+4
+    
+    ;Surfboard frames
+    lda.w OBJTimers+15
+    inc
+    sta.w OBJTimers+15
+    bit #$08
+    beq +
+    lda.w OBJFrame
+    eor #$02
+    sta.w OBJFrame
+    stz.w OBJTimers+15
+    +
+
+    ;Surfboard, takes 2 OAM entries
+    lda.w Player.X
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!PlayerY
+    clc
+    adc.b #$06
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!SurfboardT0
+    clc
+    adc.w OBJFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!SurfboardAttr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    ;Second surfboard sprite
+    lda.w Player.X
+    clc
+    adc.b #$08
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!PlayerY
+    clc
+    adc.b #$06
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!SurfboardT1
+    clc
+    adc.w OBJFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!SurfboardAttr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
     rts
 
 Text:
@@ -4291,7 +4634,7 @@ BG3ColTable:
     dw $0862
     db $18          ;Scanline counter
     dw $0000        ;Address
-    dw $00882
+    dw $0088
     db $10          ;Scanline counter
     dw $0000        ;Address
     dw $10A4
@@ -4301,6 +4644,33 @@ BG3ColTable:
     db $08          ;Scanline counter
     dw $0000        ;Address
     dw $18E6
+    db $04          ;Scanline counter
+    dw $0000        ;Address
+    dw $0000
+    db $00
+
+BG4ColTable:
+    db $10          ;Scanline counter
+    dw $0000        ;Address
+    dw $5294
+    db $10          ;Scanline counter
+    dw $0000        ;Address
+    dw $4A52
+    db $10          ;Scanline counter
+    dw $0000        ;Address
+    dw $420F
+    db $10          ;Scanline counter
+    dw $0000        ;Address
+    dw $39CB
+    db $10          ;Scanline counter
+    dw $0000        ;Address
+    dw $3188
+    db $10          ;Scanline counter
+    dw $0000        ;Address
+    dw $2947
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $2946
     db $04          ;Scanline counter
     dw $0000        ;Address
     dw $0000
@@ -4333,6 +4703,32 @@ db $9E,$A0,$A2,$A4,$A6,$A8,$AB,$AD,$AF,$B2
 db $B4,$B7,$B9,$BC,$BF,$C1,$C4,$C7,$CA,$CD
 db $CF,$D2,$D5,$D8,$DB,$DE,$E1,$E4,$E7,$EA
 db $ED,$F0,$F4,$F7,$FA,$FD
+
+;log(24/t)
+SkewTable:
+db $FF,$FF,$FF,$EA,$DA,$CE,$C4,$BC,$B4,$AE
+db $A8,$A3,$9E,$99,$95,$92,$8E,$8B,$88,$85
+db $82,$7F,$7C,$7A,$78,$75,$73,$71,$6F,$6D
+db $6B,$6A,$68,$66,$64,$63,$61,$60,$5E,$5D
+db $5B,$5A,$59,$57,$56,$55,$54,$53,$51,$50
+db $4F,$4E,$4D,$4C,$4B,$4A,$49,$48,$47,$46
+db $45,$44,$43,$42,$42,$41,$40,$3F,$3E,$3D
+db $3D,$3C,$3B,$3A,$3A,$39,$38,$37,$37,$36
+db $35,$35,$34,$33,$33,$32,$31,$31,$30,$2F
+db $2F,$2E,$2E,$2D,$2C,$2C,$2B,$2B,$2A,$29
+db $29,$28,$28,$27,$27,$26,$26,$25,$25,$24
+db $24,$23,$23,$22,$22,$21,$21,$20,$20,$1F
+db $1F,$1E,$1E,$1E,$1D,$1D,$1C,$1C,$1B,$1B
+db $1A,$1A,$1A,$19,$19,$18,$18,$18,$17,$17
+db $16,$16,$16,$15,$15,$14,$14,$14,$13,$13
+db $13,$12,$12,$11,$11,$11,$10,$10,$10,$0F
+db $0F,$0F,$0E,$0E,$0E,$0D,$0D,$0D,$0C,$0C
+db $0C,$0B,$0B,$0B,$0A,$0A,$0A,$09,$09,$09
+db $09,$08,$08,$08,$07,$07,$07,$06,$06,$06
+db $06,$05,$05,$05,$04,$04,$04,$04,$03,$03
+db $03,$02,$02,$02,$02,$01,$01,$01,$01,$00
+db $00,$00,$00,$00 
+
                                 ;First half of the header
 org $FFB0                       ;Goto FFB0
 db "00"                         ;ROM data Region
