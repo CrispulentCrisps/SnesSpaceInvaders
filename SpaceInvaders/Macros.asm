@@ -196,7 +196,7 @@ GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 
 !PlayerDieReset =   50
-!WaveInit =         $02
+!WaveInit =         $1
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
@@ -264,17 +264,11 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 SinePtr =           $0F00   ;Index into sine table
 
-!SurfboardT0 =      $A3
-!SurfboardT1 =      $A4
+!SurfboardT0 =      $B9
+!SurfboardT1 =      $BA
 !SurfboardAttr =    $38
-!Rock1Tile =        $A7
-!Rock2Tile =        $A9
-!Rock3Tile =        $AF
-!Rock4Tile =        $B1
-!Rock5Tile =        $B2
-!Rock6Tile =        $B5
-!RockFrontAttr =    $3A
-!RockBackAttr =     $1A
+
+!SprFont1Attr =     $30
 
 ;Character data
 ' ' = $00

@@ -74,6 +74,10 @@ BG4_L3:
     incbin "bin/gfx/BG-4-L3.bin"
 BG4_L3_End:
 
+;   Sprite font 1    ;  5x5
+SPRFont:
+    incbin "bin/gfx/SprFont.bin"
+SPRFont_End:
 
 org !TilemapBank
 
@@ -131,6 +135,10 @@ GamePalEnd:
 GameSprPal:
     incbin "bin/gfx/pal/GameSpritesPal.bin"
 GameSprPalEnd:
+
+SPRFont_Pal:
+    incbin "bin/gfx/pal/SprFont-Pal.bin"
+SPRFont_Pal_End:
 
 ;       Title       ;
 Title_L2_Pal:
@@ -360,7 +368,7 @@ Reset:
     stz.w HW_BG2VOFS            ;Apply scroll
     stz.w HW_BG2VOFS            ;Apply scroll
 
-    lda.b #$01
+    lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
     lda.b #$03
     sta.w BGIndex
@@ -687,8 +695,21 @@ TitleScene:
     lda.b #$FF
     sta.w TMMirror
     ;Transfer Title graphics
-    ldx.w #(GameSprEnd-GameGfx)/2
+    ldx.w #$0000
     stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #SPRFont&$FFFF       ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #SPRFont>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #SPRFont_End-SPRFont
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
     ldx.w #Title_L2&$FFFF       ;Grab graphics addr
@@ -717,29 +738,33 @@ TitleScene:
     sta.w HW_BBAD0
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
+    
+    ldy.w #SPRFont_Pal_End-SPRFont_Pal
+    -
+    lda.w SPRFont_Pal, Y
+    sta.w PalMirror+256, Y
+    dey
+    bpl -
 
     ldy.w #Title_L2_Pal_End-Title_L2_Pal
     -
     lda.w Title_L2_Pal, Y
-    sta.w PalMirror, Y
+    sta.w PalMirror+32, Y
     dey
     bpl -
-
-    ldx.w #(PalFadeAimBuffer)&$FFFF
-    stx.w HW_WMADDL
-    lda.b #(PalFadeAimBuffer>>16)&$FF
-    sta.w HW_WMADDH
-    ldy.w #$0000
-    -
-    lda.w PalMirror, Y
-    sta.w HW_WMDATA
-    iny
-    cpy #Title_L2_Pal_End-Title_L2_Pal
-    bmi -
-
     lda.b #$1F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipTitleLoad:
+
+    ldx.w #TestText
+    stx.b ZP.R0
+    lda.b #TestTextEnd-TestText
+    sta.b ZP.R2
+    ldx.w #$1010
+    stx.b ZP.R3
+    lda.b #$06
+    sta.b ZP.R5
+    jsr DrawSpriteText
 
     sep #$20
     ldx.w #HDMAScrollBuffer2
@@ -2113,7 +2138,7 @@ GameLoop_HandleEnemyTimers:
     jsr GameLoop_Spawn_Enemy_Bullet
     jsr Rand
     xba
-    and #$3F
+    and #$7F
     sta.w EnemyShootTimer, Y
     .SkipETimer:
     dey
@@ -3951,9 +3976,23 @@ BG3:
     lda.b #(HDMAScrollBuffer>>16)&$FF
     sta.w HW_WMADDH
 
-    lda.b #$7F          ;Scanline
+    lda.w BGScrollOff+6
+    inc
+    sta.w BGScrollOff+6
+    bit #$08
+    beq +
+    stz.w BGScrollOff+6
+    inc.w BGScrollVal+6
+    +
+
+    lda.b #$3F          ;Scanline
     sta.w HW_WMDATA
     stz.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$41          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+6
+    sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
     
     sep #$20
@@ -3968,7 +4007,7 @@ BG3:
     inc.w BGScrollVal+4
 
     tdc
-    lda.b #$D8          ;Scanline
+    lda.b #$D7          ;Scanline
     sta.w HW_WMDATA
     ;Skew water
     ldy.w #$0000
@@ -4035,7 +4074,7 @@ BG3:
     stx.w HDMAMirror+2
     lda.b #$80
     sta.w HDMAMirror+4
-    
+
     ;Surfboard frames
     lda.w OBJTimers+15
     inc
@@ -4086,6 +4125,54 @@ BG3:
     inc.b ZP.OAMPtr
     rts
 
+    ;
+    ;   ZP.R0   \   Text ptr
+    ;   ZP.R1   /
+    ;   ZP.R2   |   Character amount to write
+    ;   ZP.R3   \   Text off X
+    ;   ZP.R4   /   Text off Y
+    ;   ZP.R5   |   Text spacing
+    ;
+DrawSpriteText:
+    pha
+    phx
+    phy
+    php
+
+    ldy.w #$0000
+    sep #$10
+    -    
+    lda.b ZP.R3
+    sta.b (ZP.OAMPtr)
+    clc
+    adc.b ZP.R5
+    sta.b ZP.R3
+    inc.b ZP.OAMPtr
+    lda.b ZP.R4
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b (ZP.R0)       ;Grab character
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    inc.b ZP.R0
+    inc.b ZP.R0
+    lda.b #!SprFont1Attr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    iny
+    iny
+    cpy.b ZP.R2
+    bmi -
+    plp
+    ply
+    plx
+    pla
+    rts
+
+TestText:
+    dw " 89ABCDEFGHIJKLMNOPQRSTUVWXYZ!?:>"
+TestTextEnd:
+
 Text:
     dw "HELLO GUYS"
 EndText:
@@ -4098,12 +4185,16 @@ LivesText:
     dw "LIVES: "
 EndLivesText:
 
+StartText:
+    dw "START GAME!"
+StartTextEnd:
+
 HighScoreText:
-    dw "HIGH SCORE"
+    dw "HIGH SCORES!"
 EndHighScoreText:
 
 OptionsText:
-    dw "OPTIONS"
+    dw "OPTIONS!"
 EndOptionsText:
 
 EnemyTypesPal:
@@ -4293,6 +4384,10 @@ EnemyWaveLookup:
     dw EnemyWave1B
     dw EnemyWave1C
     dw EnemyWave1D
+    dw EnemyWave1E
+    dw EnemyWave1F
+    dw EnemyWave20
+    dw EnemyWave21
 
 ;Enemy wave definitions
 EnemyWave00:
@@ -4475,6 +4570,30 @@ EnemyWave1D:
     db $07,$07,$07,$07,$07,$07,$07,$07
     db $04,$04,$04,$04,$04,$04,$04,$04
     db $04,$04,$04,$04,$04,$04,$04,$04
+EnemyWave1E:
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $02,$01,$01,$03,$02,$01,$01,$03
+    db $03,$02,$01,$01,$03,$02,$01,$01
+    db $01,$03,$02,$01,$01,$03,$02,$01
+    db $01,$01,$03,$02,$01,$01,$03,$02
+EnemyWave1F:
+    db $06,$03,$06,$04,$06,$03,$06,$04
+    db $03,$06,$04,$06,$03,$06,$04,$06
+    db $06,$04,$06,$03,$06,$04,$06,$03
+    db $04,$06,$03,$06,$04,$06,$03,$06
+    db $06,$03,$06,$04,$06,$03,$06,$04
+EnemyWave20:
+    db $07,$05,$05,$02,$02,$05,$05,$07
+    db $05,$07,$05,$02,$02,$05,$07,$05
+    db $05,$05,$07,$02,$02,$07,$05,$05
+    db $05,$07,$05,$02,$02,$05,$07,$05
+    db $07,$05,$05,$02,$02,$05,$05,$07
+EnemyWave21:
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $01,$02,$03,$04,$05,$06,$07,$08
+    db $08,$07,$06,$05,$04,$03,$02,$01
+    db $08,$07,$06,$05,$04,$03,$02,$01
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:
