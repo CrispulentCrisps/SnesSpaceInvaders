@@ -35,10 +35,10 @@ struct ZP $00
 .Lives          skip 1  ;Current lives of the player as BCD
 endstruct
 
-!CodeBank =     $808000 ;Hold game code + palette's
-!GFXBank =      $818000 ;Holds tiles and tilemaps
-!TilemapBank =  $828000 ;Holds tiles and tilemaps
-!MusicBank =    $838000 ;Holds music data
+!CodeBank =     $008000 ;Hold game code + palette's
+!GFXBank =      $018000 ;Holds character data
+!TilemapBank =  $028000 ;Holds tilemap
+!MusicBank =    $038000 ;Holds music data
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -59,11 +59,12 @@ struct Player $0400
 .Dead   skip 1          
 endstruct
 
-struct Bullet $0404
+struct Bullet $0405
 .X          skip 1
 .Y          skip 1
 .Frame      skip 1  ;Current animation frame
 .Enabled    skip 1  ;Test if the current laser is travelling upwards
+.Dir        skip 1  ;H dir
 endstruct
 
 ;At most 4 eemy bullets on screen at once
@@ -75,7 +76,7 @@ EnemyBulletXPos =   $0414
 EnemyBulletYPos =   $0418
 EnemyBulletActive = $041C
 
-!MaxBG =            $03
+!MaxBG =            $02
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
@@ -105,7 +106,8 @@ UFODeleteFlag =     $06B6   ;flag to delete UFO when position overflow is hit
 !UFOTile3 =         $5C
 !UFOAttr =          $30
 !UFOAttrMir =       $70
-
+!UFOXBit1 =         $05
+!UFOXBit2 =         $50
 OBJTimers =         $0700   ;16 byte array of timers for general OBJ use
 OBJFrame =          $0710   ;16 byte array of general object frame counts, used for animating less important objects
 OBJXPos =           $0720   ;16 byte array of object types XPositions
@@ -196,7 +198,7 @@ GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 
 !PlayerDieReset =   50
-!WaveInit =         $1
+!WaveInit =         $01
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
@@ -215,6 +217,7 @@ PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 !EnemyHurtPalFlip = ($04<<2)+$40
 
 !BulletSpeed =      $06
+!BulletHSpeed =     $01
 !BulletColOff =     $04
 
 !EnemySpeed =       $02
@@ -270,6 +273,8 @@ SinePtr =           $0F00   ;Index into sine table
 
 !SprFont1Attr =     $30
 
+!Ret =              $2A
+
 ;Character data
 ' ' = $00
 '0' = $00+1
@@ -313,3 +318,4 @@ SinePtr =           $0F00   ;Index into sine table
 ''' = $26+1
 ':' = $27+1
 '>' = $28+1
+'|' = $29+1

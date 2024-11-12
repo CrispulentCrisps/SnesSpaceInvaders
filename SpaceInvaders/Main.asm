@@ -368,13 +368,14 @@ Reset:
     stz.w HW_BG2VOFS            ;Apply scroll
     stz.w HW_BG2VOFS            ;Apply scroll
 
-    lda.b #$00
+    lda.b #$01
     sta.b ZP.SceneIndex         ;Set starting scene
     lda.b #$03
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
-
+    lda.b #$00
+    sta.w HW_SETINI
     lda.b #$81
     sta.w HW_NMITIMEN           ;NMI Enabled
 
@@ -755,16 +756,38 @@ TitleScene:
     lda.b #$1F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipTitleLoad:
-
-    ldx.w #TestText
-    stx.b ZP.R0
-    lda.b #TestTextEnd-TestText
-    sta.b ZP.R2
-    ldx.w #$1010
-    stx.b ZP.R3
-    lda.b #$06
-    sta.b ZP.R5
+    ldx.w #HighscoreText
+    stx.b ZP.MemPointer
+    ldx.w #HighscoreTextEnd-HighscoreText
+    stx.b ZP.R1
+    sep #$10
+    ldy.w SinePtr
+    rep #$10
+    lda.b #$38
+    sta.b ZP.R3
+    lda.b #$20
+    sta.b ZP.R4
+    ldx.w #$0C06
+    stx.b ZP.R5
     jsr DrawSpriteText
+
+    lda.w BGScrollOff+2
+    inc
+    sta.w BGScrollOff+2
+    and #$04
+    beq +
+    stz.w BGScrollOff+2
+    ldy.w #$0102
+    tdc
+    lda.b #$05
+    sta.b ZP.R4
+    jsr PalCycle
+    ldy.w #$0022
+    tdc
+    lda.b #$07
+    sta.b ZP.R4
+    jsr PalCycle
+    +
 
     sep #$20
     ldx.w #HDMAScrollBuffer2
@@ -831,21 +854,6 @@ TitleScene:
     stx.w HDMAMirror1+2
     lda.b #$7E
     sta.w HDMAMirror1+4
-    inc.b ZP.R0
-    lda.b ZP.R0
-    bit #$08
-    beq +
-    ;PALETTE FADE TEST
-    rep #$20
-    lda.w #$2000
-    sta.w ZP.R0
-    sep #$20
-    ldy.w #$0002
-    lda.b #$06
-    sta.b ZP.R4
-    ;jsr PalCycle
-    +
-
     rep #$20
     rts
 
@@ -862,7 +870,7 @@ GameScene:
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w BGMODEMirror
-    lda.b #$03
+    lda.b #$00
     sta.w BGCount
     ;Reset Player
     lda.b #$70
@@ -977,23 +985,46 @@ GameScene:
     cmp.b #!GameState_Dead
     beq .SkipShoot
     lda.b ZP.Controller+1
-    and #$80                    ;Check A button
+    and #$40                    ;Check A button
     beq .SkipShoot
-    lda.w Bullet[0].Enabled
+    lda.w Bullet[0].Enabled   
     bne .SkipShoot
     ;Enable bullet
     lda.b #$01
     sta.w Bullet[0].Enabled
     ;Set Bullet position to the player's
     lda.w Player.X
+    clc
     adc.b #$04
     sta.w Bullet[0].X
     sta.w LaserOAM
     lda.b #!PlayerY
     sta.w Bullet[0].Y
+    ;Set bullet direction
+    stz.w Bullet.Dir
+    lda.b ZP.Controller
+    and #$10                ;Check L
+    beq .SkipL
+    lda.b #!BulletHSpeed
+    sta.w Bullet.Dir
+    .SkipL:
+    lda.b ZP.Controller
+    and #$20                ;Check R
+    beq .SkipShoot
+    lda.b #$00
+    sec
+    sbc.b #!BulletHSpeed
+    sta.w Bullet.Dir
     .SkipShoot:
-    
+
+    sep #$20
     stz.w Player.Frame
+    lda.w Player.X
+    bit #$4
+    beq +
+    lda.b #$01
+    sta.w Player.Frame
+    +
     stz.w Player.State
 
     jsr HandleEBulletCollisions
@@ -1016,6 +1047,8 @@ GameScene:
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.b #!PlayerTileB
+    clc
+    adc.w Player.Frame
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.b #$22
@@ -1032,6 +1065,8 @@ GameScene:
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.b #!PlayerTileB
+    clc
+    adc.w Player.Frame
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.b #$62
@@ -1083,13 +1118,20 @@ GameScene:
     ;Grab the bullet Y
     lda.w Bullet.Y
     ;Decrement position by speed
+    sec
     sbc.b #!BulletSpeed
     bcs .SkipDisable0
     stz.w Bullet.Enabled
     lda.b #$FF
     sta.w Bullet[0].X
+    stz.w Bullet.Dir
     .SkipDisable0:
     sta.w Bullet.Y
+    
+    lda.w Bullet.X
+    clc
+    adc.w Bullet.Dir
+    sta.w Bullet.X
     ;Collision code
     lda.b #$FF
     sta.b ZP.BulletColTile      ;Reset collided tile index
@@ -1244,6 +1286,7 @@ GameScene:
     sta.b ZP.BulletColTile
     lda.b #!EnemyHurtTimer
     sta.w EnemyHurtTable, Y
+    jsr GameLoop_DrawEnemies
     .SkipEnemyHurt:
 
     .SkipBullet0Logic:
@@ -1356,7 +1399,7 @@ GameScene:
     bne .DoEnemy
     jmp .SkipFloor
     .DoEnemy:
-    jsr GameLoop_DrawEnemies
+    ;jsr GameLoop_DrawEnemies
     ;Check enemy count and set enemy speed to amount of enemies on screen
     sep #$20
     stz.b ZP.EnemyWait
@@ -1480,6 +1523,7 @@ GameScene:
     stz.w !BG1VOffMirror+1
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
+    jsr GameLoop_DrawEnemies
     jsr GameLoop_DrawEnemies_FrameDecider
     .SkipMove:
     dec.b ZP.EnemyTimer
@@ -1490,6 +1534,11 @@ GameScene:
     ;-------------------;
     jsr GameLoop_HandleUFO
 
+    ;-----------------------;
+    ;   Background Logic    ;
+    ;-----------------------;
+    jsr GameLoop_UpdateBG
+    
     ;------------------------;
     ;    Handle Explosions   ;
     ;------------------------;
@@ -1554,11 +1603,6 @@ GameScene:
     .SkipSend:
     +
     sep #$20
-
-    ;-----------------------;
-    ;   Background Logic    ;
-    ;-----------------------;
-    jsr GameLoop_UpdateBG
 
     ;-----------------------;
     ;   END OF GAME SCENE   ;
@@ -1868,6 +1912,13 @@ GameLoop_SendWave:
     sta.w EnemyShootTimer, Y
     dey
     bpl -
+    
+    lda.b #$00
+    ldy.w #$0028
+    -
+    sta.w EnemyHurtTable, Y
+    dey
+    bpl -
     rts
 
     ;-------------------------------;
@@ -1943,7 +1994,7 @@ GameLoop_DrawEnemies:
         inc.b ZP.MemPointer2
         sep #$20
     endfor
-    sep #$20
+
     for t = 0..8
         stz.w HW_WMDATA                 ;Write empty tile
         stz.w HW_WMDATA                 ;Write empty tile
@@ -2003,6 +2054,7 @@ GameLoop_DrawEnemies:
         inc.b ZP.MemPointer2
         sep #$20
     endfor
+
     for t = 0..40
         stz.w HW_WMDATA                 ;Write empty tile
         stz.w HW_WMDATA                 ;Write empty tile
@@ -2563,6 +2615,7 @@ Rand:
     ;
 SpawnExplosive:
     pha
+    phy
     tdc
     sep #$20
     ldy.w #!MaxEplW-1
@@ -2582,6 +2635,7 @@ SpawnExplosive:
     sta.w ExplosionY, Y
     ;Assuming we've not found an empty spot
     .ReturnNull:
+    ply
     pla
     rts
 
@@ -3416,7 +3470,8 @@ BG_Surfboard:
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
 
-    
+    stz.w !BG3VOffMirror
+    stz.w !BG3VOffMirror+1
     ;Transfer palette data
     ldy.w #BG4_L2_Pal_End-BG4_L2_Pal
     -
@@ -4125,44 +4180,95 @@ BG3:
     inc.b ZP.OAMPtr
     rts
 
+    ;   ZP.MemPointer   | Text addr
     ;
-    ;   ZP.R0   \   Text ptr
-    ;   ZP.R1   /
-    ;   ZP.R2   |   Character amount to write
-    ;   ZP.R3   \   Text off X
-    ;   ZP.R4   /   Text off Y
-    ;   ZP.R5   |   Text spacing
+    ;   ZP.R1           \
+    ;   ZP.R2           /   Character amount to write
     ;
+    ;   ZP.R3           \   Text off X
+    ;   ZP.R4           /   Text off Y
+    ;
+    ;   ZP.R5           |   Text spacing X
+    ;
+    ;   ZP.R6           |   Carridge return spacing
+    ;
+    ;   ZP.R7           |   Original Xpos
 DrawSpriteText:
     pha
     phx
     phy
     php
-
+    lda.b ZP.R3
+    sta.b ZP.R7
     ldy.w #$0000
-    sep #$10
-    -    
+    sep #$20
+    -
+    lda.b (ZP.MemPointer)   ;Grab character
+    bne .DrawCharacter      ;Skip if space character
+    rep #$20
+    inc.b ZP.MemPointer
+    inc.b ZP.MemPointer
+    sep #$20
+    lda.b ZP.R3
+    clc
+    adc.b ZP.R5
+    sta.b ZP.R3
+    bra .IncLoop
+    .DrawCharacter:
+    lda.b (ZP.MemPointer)   ;Grab character
+    cmp #!Ret
+    bne .SkipReturn
+    ;increment YPOS
+    sep #$20
+    lda.b ZP.R4
+    clc
+    adc.b ZP.R6
+    sta.b ZP.R4
+    ;Set XPOS back to original position
+    lda.b ZP.R7
+    sta.b ZP.R3
+    rep #$20
+    inc.b ZP.MemPointer
+    inc.b ZP.MemPointer
+    sep #$20
+    bra .IncLoop
+    .SkipReturn:
+    ;X
     lda.b ZP.R3
     sta.b (ZP.OAMPtr)
     clc
     adc.b ZP.R5
     sta.b ZP.R3
+    rep #$20
     inc.b ZP.OAMPtr
+    sep #$20
+    ;Y
     lda.b ZP.R4
     sta.b (ZP.OAMPtr)
+    rep #$20
     inc.b ZP.OAMPtr
-    lda.b (ZP.R0)       ;Grab character
+    sep #$20
+    ;Tile
+    lda.b (ZP.MemPointer)       ;Grab character
     sta.b (ZP.OAMPtr)
+    rep #$20
     inc.b ZP.OAMPtr
-    inc.b ZP.R0
-    inc.b ZP.R0
+    sep #$20
+    rep #$20
+    inc.b ZP.MemPointer
+    inc.b ZP.MemPointer
+    sep #$20
+    ;Attr
     lda.b #!SprFont1Attr
     sta.b (ZP.OAMPtr)
+    rep #$20
     inc.b ZP.OAMPtr
+    sep #$20
+    .IncLoop:
     iny
     iny
-    cpy.b ZP.R2
-    bmi -
+    cpy.b ZP.R1
+    bne -
     plp
     ply
     plx
@@ -4170,12 +4276,25 @@ DrawSpriteText:
     rts
 
 TestText:
-    dw " 89ABCDEFGHIJKLMNOPQRSTUVWXYZ!?:>"
+    dw "HELLO! THIS A TEST OF THE|"
+    dw "!! SPRITE BASED TEXT RENDERING !!|"
+    dw "IT'S A SYSTEM I'VE MADE FOR|"
+    dw "MORE PRECISE TEXT DRAWING|"
+    dw "SO HELLO SNES DEV LOT :D|"
 TestTextEnd:
 
-Text:
-    dw "HELLO GUYS"
-EndText:
+HighscoreText:
+    dw "01      CRIS      100000|"
+    dw "02      TOAS      090000|"
+    dw "03      DAVR      080000|"
+    dw "04      MRMA      070000|"
+    dw "05      JUIC      060000|"
+    dw "06      WANK      050000|"
+    dw "07      PZZA      040000|"
+    dw "08      FUCK      030000|"
+    dw "09      DEAD      020000|"
+    dw "10      HEHE      010000|"
+HighscoreTextEnd:
 
 ScoreText:
     dw "SCORE: "
@@ -4753,7 +4872,7 @@ BG3ColTable:
     dw $0862
     db $18          ;Scanline counter
     dw $0000        ;Address
-    dw $0088
+    dw $0882
     db $10          ;Scanline counter
     dw $0000        ;Address
     dw $10A4
