@@ -76,7 +76,7 @@ EnemyBulletXPos =   $0414
 EnemyBulletYPos =   $0418
 EnemyBulletActive = $041C
 
-!MaxBG =            $02
+!MaxBG =            $04
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
@@ -104,8 +104,8 @@ UFODeleteFlag =     $06B6   ;flag to delete UFO when position overflow is hit
 !UFOTile1 =         $54
 !UFOTile2 =         $5B
 !UFOTile3 =         $5C
-!UFOAttr =          $30
-!UFOAttrMir =       $70
+!UFOAttr =          %00101000
+!UFOAttrMir =       %01101000
 !UFOXBit1 =         $05
 !UFOXBit2 =         $50
 OBJTimers =         $0700   ;16 byte array of timers for general OBJ use
@@ -140,12 +140,13 @@ ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
 !ExplosionTile =    $5F
+!ExplosionAttr =    %00111100
 
 EnemyTileBuffer =   $7E8000
 ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
 HDMAScrollBuffer =  $7E8500
 HDMAScrollBuffer2 = $7E8800
-PalFadeAimBuffer =  $7E8A00
+PalFadeAimBuffer =  $7E9000
 
 BGScrollOff =       $06C0     ;Scrolling offsets for background elements
 BGScrollVal =       $06D0
@@ -173,18 +174,18 @@ CGWSELMirror =      $0EA4
 CGADSUBMirror =     $0EA5
 COLDATAMirror =     $0EA6
 
-WH0Mirror =         $0EA7
-WH1Mirror =         $0EA8
-WH2Mirror =         $0EA9
-WH3Mirror =         $0EAA
+WH0Mirror =         $0EA8
+WH1Mirror =         $0EA9
+WH2Mirror =         $0EAA
+WH3Mirror =         $0EAB
 
-W12SELMirror =      $0EAB
-W34SELMirror =      $0EAC
-WOBJSELMirror =     $0EAD
-WBGLOGMirror =      $0EAE
-WOBJLOGMirror =     $0EAF
-TMWMirror =         $0EB0
-TSWMirror =         $0EB1
+W12SELMirror =      $0EAC
+W34SELMirror =      $0EAD
+WOBJSELMirror =     $0EAE
+WBGLOGMirror =      $0EAF
+WOBJLOGMirror =     $0EB0
+TMWMirror =         $0EB1
+TSWMirror =         $0EB2
 
 GameState =         $0EF0   ;Current state of the GameScene
 !GameState_Pre =    $00     ;Before the game starts
@@ -235,8 +236,9 @@ LaserOAM =          $0810
 !PlayerY =          $C8
 !PlayerTileB =      $57
 !PlayerTileT =      $4F
-!BulletAttr =       %00100110
-!EBullAttr =        %00100110
+!PlayerAttr =       %00111010
+!BulletAttr =       %00101110
+!EBullAttr =        %00101110
 !BulletF1 =         $51
 !BulletF2 =         $52
 !EBulletF1 =        $59

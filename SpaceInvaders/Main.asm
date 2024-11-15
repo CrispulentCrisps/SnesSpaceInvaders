@@ -292,7 +292,7 @@ Reset:
     ;Load Game Sprite Palette
     lda.b #$02
     sta.w HW_DMAP1              ;Setup DMAP1
-    ldx.w #GameSprPal&$FFFF        ;Grab palette addr
+    ldx.w #GameSprPal&$FFFF     ;Grab palette addr
     stx.w HW_A1T1L              ;Shove lo+mid addr byte
     lda.b #GameSprPal>>16&$FF
     sta.w HW_A1B1               ;Store bank
@@ -318,7 +318,7 @@ Reset:
     lda.w GamePal, Y
     sta.w PalMirror, Y
     lda.w GameSprPal, Y
-    sta.w PalMirror+256, Y
+    sta.w PalMirror+384, Y
     iny
     cpy #$100
     bne -
@@ -370,7 +370,7 @@ Reset:
 
     lda.b #$01
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$03
+    lda.b #$01
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -513,7 +513,9 @@ NMIHandler:
     lda.w CGADSUBMirror
     sta.w HW_CGADSUB
     lda.w COLDATAMirror
-    lda.w HW_COLDATA
+    sta.w HW_COLDATA
+    lda.w COLDATAMirror+1
+    sta.w HW_COLDATA
     lda.w WH0Mirror
     sta.w HW_WH0
     lda.w WH1Mirror
@@ -528,6 +530,8 @@ NMIHandler:
     sta.w HW_W34SEL
     lda.w WOBJSELMirror
     sta.w HW_WOBJSEL
+    lda.w WBGLOGMirror
+    sta.w HW_WBGLOG
     lda.w WOBJLOGMirror
     sta.w HW_WOBJLOG
     lda.w TMWMirror
@@ -1051,7 +1055,7 @@ GameScene:
     adc.w Player.Frame
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b #$22
+    lda.b #!PlayerAttr
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     
@@ -1069,7 +1073,7 @@ GameScene:
     adc.w Player.Frame
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b #$62
+    lda.b #!PlayerAttr+$40
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
 
@@ -1085,7 +1089,7 @@ GameScene:
     lda.b #!PlayerTileT
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b #$22
+    lda.b #!PlayerAttr
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     
@@ -1103,7 +1107,7 @@ GameScene:
     lda.b #!PlayerTileT
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b #$62
+    lda.b #!PlayerAttr+$40
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
 
@@ -2657,9 +2661,7 @@ GameLoop_HandleUFO:
     ;Update if UFO active
     lda.w UFOActive
     beq .InactiveUFO
-    lda.w UFOXPos
-    dec
-    sta.w UFOXPos
+    dec UFOXPos
     lda.w UFOXPos
     cmp #$7F
     bpl +
@@ -2874,7 +2876,7 @@ UpdateExplosives:
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     ;Write Attr
-    lda.b #%00110100            ;Palette 2, hi priority
+    lda.b #!ExplosionAttr
     clc
     adc.b ZP.R2                 ;Add on tile offsets
     sta.b (ZP.OAMPtr)
@@ -2957,6 +2959,7 @@ BG_City:
     stz.w CGWSELMirror
     stz.w CGADSUBMirror
     stz.w COLDATAMirror
+    stz.w COLDATAMirror+1
     stz.w WH0Mirror
     stz.w WH1Mirror
     
@@ -3095,22 +3098,24 @@ BG_Mountains:
     sta.w TMMirror
     lda.b #$04
     sta.w TSMirror
-    lda.b #$18
+    lda.b #$8A
     sta.w CGWSELMirror
-    lda.b #$4F
+    lda.b #$5F
     sta.w CGADSUBMirror
-    lda.b #$FF
+    lda.b #$E0
     sta.w COLDATAMirror
+    sta.w COLDATAMirror+1
     stz.w WH0Mirror
     lda.b #$FF
     sta.w WH1Mirror
     lda.b #$00
     sta.w W12SELMirror
     sta.w W34SELMirror
-    lda.b #$00
+    lda.b #$FF
     sta.w WBGLOGMirror
+    lda.b #$FF
     sta.w WOBJLOGMirror
-    lda.b #$0B
+    lda.b #$1F
     sta.w TMWMirror
     lda.b #$04
     sta.w TSWMirror
@@ -3242,6 +3247,7 @@ BG_Computer:
     stz.w CGWSELMirror
     stz.w CGADSUBMirror
     stz.w COLDATAMirror
+    stz.w COLDATAMirror+1
     stz.w WH0Mirror
     stz.w WH1Mirror    
     ;Load Graphics
@@ -3372,6 +3378,7 @@ BG_Surfboard:
     stz.w CGWSELMirror
     stz.w CGADSUBMirror
     stz.w COLDATAMirror
+    stz.w COLDATAMirror+1
     stz.w WH0Mirror
     stz.w WH1Mirror
     ;Load Graphics
@@ -3813,10 +3820,7 @@ BG1:
     lda.w BGScrollVal+15;\
     stz.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
-    
-    
     stz.w HW_WMDATA     ;End flag
-
 
     lda.b #$03
     sta.w HDMAMirror
@@ -3827,6 +3831,41 @@ BG1:
     lda.b #$80
     sta.w HDMAMirror+4
 
+    ldx.w #HDMAScrollBuffer2&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer2>>16)&$FF
+    sta.w HW_WMADDH
+    tdc 
+    inc.w SinePtr
+    lda.w BGScrollVal+12
+    inc
+    sta.w BGScrollVal+12
+    bit #$04
+    beq +
+    stz.w BGScrollVal+12
+    inc.w !BG3HOffMirror
+    +
+    sep #$10
+    ldy.w SinePtr
+    ldx.b #$E0
+    -
+    lda.b #$01          ;Scanline counter
+    sta.w HW_WMDATA
+    lda.w FogOffset, Y
+    lsr
+    lsr
+    lsr
+    lsr
+    clc
+    adc.w !BG3HOffMirror
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    iny
+    dex
+    bne -
+    stz.w HW_WMDATA
+
+    rep #$10
     sep #$20
     lda.b #$02
     sta.w HDMAMirror1
@@ -3836,6 +3875,14 @@ BG1:
     stx.w HDMAMirror1+2
     lda.b #(HDMAScrollBuffer>>16)&$FF
     sta.w HDMAMirror1+4
+    lda.b #$02
+    sta.w HDMAMirror2
+    lda.b #(HW_BG3HOFS)&$FF
+    sta.w HDMAMirror2+1
+    ldx.w #HDMAScrollBuffer2&$FFFF
+    stx.w HDMAMirror2+2
+    lda.b #(HDMAScrollBuffer2>>16)&$FF
+    sta.w HDMAMirror2+4
     rts
 
 BG2:
@@ -4966,6 +5013,35 @@ db $09,$08,$08,$08,$07,$07,$07,$06,$06,$06
 db $06,$05,$05,$05,$04,$04,$04,$04,$03,$03
 db $03,$02,$02,$02,$02,$01,$01,$01,$01,$00
 db $00,$00,$00,$00 
+
+;sin(2*pi*t/T)*(1-(t%2*2))
+FogOffset:
+db $00,$FD,$06,$F7,$0C,$F0,$13,$EA,$19,$E4
+db $1F,$DE,$25,$D8,$2B,$D2,$31,$CD,$36,$C7
+db $3C,$C1,$41,$BC,$47,$B7,$4C,$B2,$51,$AD
+db $55,$A8,$5A,$A4,$5E,$A0,$62,$9C,$66,$98
+db $6A,$95,$6D,$91,$70,$8F,$73,$8C,$75,$8A
+db $78,$87,$7A,$86,$7B,$84,$7D,$83,$7E,$82
+db $7E,$81,$7F,$81,$7F,$81,$7F,$81,$7E,$82
+db $7E,$83,$7D,$84,$7B,$86,$7A,$87,$78,$8A
+db $75,$8C,$73,$8F,$70,$91,$6D,$95,$6A,$98
+db $66,$9C,$62,$A0,$5E,$A4,$5A,$A8,$55,$AD
+db $51,$B2,$4C,$B7,$47,$BC,$41,$C1,$3C,$C7
+db $36,$CD,$31,$D2,$2B,$D8,$25,$DE,$1F,$E4
+db $19,$EA,$13,$F0,$0C,$F7,$06,$FD,$00,$03
+db $FA,$09,$F4,$10,$ED,$16,$E7,$1C,$E1,$22
+db $DB,$28,$D5,$2E,$CF,$33,$CA,$39,$C4,$3F
+db $BF,$44,$B9,$49,$B4,$4E,$AF,$53,$AB,$58
+db $A6,$5C,$A2,$60,$9E,$64,$9A,$68,$96,$6B
+db $93,$6F,$90,$71,$8D,$74,$8B,$76,$88,$79
+db $86,$7A,$85,$7C,$83,$7D,$82,$7E,$82,$7F
+db $81,$7F,$81,$7F,$81,$7F,$82,$7E,$82,$7D
+db $83,$7C,$85,$7A,$86,$79,$88,$76,$8B,$74
+db $8D,$71,$90,$6F,$93,$6B,$96,$68,$9A,$64
+db $9E,$60,$A2,$5C,$A6,$58,$AB,$53,$AF,$4E
+db $B4,$49,$B9,$44,$BF,$3F,$C4,$39,$CA,$33
+db $CF,$2E,$D5,$28,$DB,$22,$E1,$1C,$E7,$16
+db $ED,$10,$F4,$09,$FA,$03 
 
                                 ;First half of the header
 org $FFB0                       ;Goto FFB0
