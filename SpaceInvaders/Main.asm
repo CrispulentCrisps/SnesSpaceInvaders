@@ -370,7 +370,7 @@ Reset:
 
     lda.b #$01
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$01
+    lda.b #$00
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -870,7 +870,7 @@ GameScene:
     lda.b #$8F                  ;Set master brightness to 15 & forces blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
-    lda.b #$08
+    lda.b #!StartMaxBGCount
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w BGMODEMirror
@@ -1878,10 +1878,9 @@ GameLoop_SendWave:
     cmp.w BGChange
     bne +
     stz.w BGCount
+    inc.w BGIndex
     lda.w BGIndex
-    inc
-    sta.w BGIndex
-    cmp.b !MaxBG
+    cmp.b #!MaxBG
     bne ++
     lda.b #$00
     sta.w BGIndex
@@ -2948,6 +2947,10 @@ BGLoad:
 
 BG_City:
     ;Setup video display
+    stz.w HDMAMirror2
+    stz.w HDMAMirror2+1
+    stz.w HDMAMirror2+2
+    stz.w HDMAMirror2+3
     lda.w BGMODEMirror
     and #$F7
     sta.w BGMODEMirror
@@ -3235,6 +3238,10 @@ BG_Mountains:
 
     rts
 BG_Computer:
+    stz.w HDMAMirror2
+    stz.w HDMAMirror2+1
+    stz.w HDMAMirror2+2
+    stz.w HDMAMirror2+3
     ;Setup video display
     lda.w BGMODEMirror
     and #$F7
@@ -3366,6 +3373,10 @@ BG_Computer:
     rts
 
 BG_Surfboard:
+    stz.w HDMAMirror2
+    stz.w HDMAMirror2+1
+    stz.w HDMAMirror2+2
+    stz.w HDMAMirror2+3
     ;Setup video display
     lda.w BGMODEMirror
     and #$F7

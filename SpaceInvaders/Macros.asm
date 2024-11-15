@@ -76,6 +76,7 @@ EnemyBulletXPos =   $0414
 EnemyBulletYPos =   $0418
 EnemyBulletActive = $041C
 
+!StartMaxBGCount =  $06
 !MaxBG =            $04
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
