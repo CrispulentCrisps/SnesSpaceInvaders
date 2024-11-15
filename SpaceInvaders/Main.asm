@@ -1672,13 +1672,36 @@ GameLoop_DrawScore:
     dey
     bpl -
 
-    ;Next, we draw some empty characters
-    ldy.w #$000D
-    -
+    ;Space char
     stz.w HW_WMDATA
-    dey
-    bpl -
-
+    stz.w HW_WMDATA
+    ;Next, we draw the wave counter
+    ldy.w #$0000
+    -
+    lda.w WaveText, Y
+    sta.w HW_WMDATA
+    iny
+    lda.b #!EnemyPal4
+    sta.w HW_WMDATA
+    iny
+    cpy #(EndWaveText-WaveText)
+    bne -
+    ;Draw said wave amount to screen
+    lda.b ZP.EnemyWaveCount
+    and #$F0
+    inc
+    sta.w HW_WMDATA
+    lda.b #!EnemyPal4
+    sta.w HW_WMDATA
+    lda.b ZP.EnemyWaveCount
+    inc
+    and #$0F
+    sta.w HW_WMDATA
+    lda.b #!EnemyPal4
+    sta.w HW_WMDATA
+    ;Space char
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
     ldy.w #$0000
     ;Draw Lives text characters
     -
@@ -4357,6 +4380,10 @@ HighscoreTextEnd:
 ScoreText:
     dw "SCORE: "
 EndScoreText:
+
+WaveText:
+    dw "WAVE: "
+EndWaveText:
 
 LivesText:
     dw "LIVES: "
