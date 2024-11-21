@@ -2625,15 +2625,20 @@ HighscoreScene:
     sta.w HW_M7SEL
     lda.b #$FF
     sta.w TMMirror
-    lda.b #$FF
-    stz.w !BG1HOffMirror
-    stz.w !BG1HOffMirror+1
-    stz.w !BG1VOffMirror
-    stz.w !BG1VOffMirror+1
-    ldx.w #$0080
-    stx.w M7XMirror
-    stx.w M7YMirror
+    rep #$20
+    lda.w #$0200
+    sta.w !BG1HOffMirror
+    sta.w !BG1HOffMirror+1
+    sta.w !BG1VOffMirror
+    sta.w !BG1VOffMirror+1
+    lda.w !BG1HOffMirror
+    adc.w #$0080
+    sta.w M7XMirror
+    lda.w !BG1VOffMirror
+    adc.w #$0080
+    sta.w M7YMirror
 
+    sep #$20
     ldy.w #HDMAMirror2-HDMAMirror
     lda.b #$00
     -
@@ -2655,23 +2660,47 @@ HighscoreScene:
     ;B = Sin  @
     ;C = -Sin @
     ;D = Cos  @
-    
+    rep #$20
     lda.w Sin16, Y
+    asl
+    asl
+    asl
     sta.w M7BMirror
-    lda.w Sin16, Y
-    eor.b #$FF
+    eor.w #$FFFF
     sta.w M7CMirror
-    lda.w Sin16+1, Y
-    sta.w M7BMirror+1
-    eor.b #$FF
-    sta.w M7CMirror+1
     lda.w Cos16, Y
+    ;asl
     sta.w M7DMirror
     sta.w M7AMirror
-    lda.w Cos16+1, Y
-    sta.w M7DMirror+1
-    sta.w M7AMirror+1
 
+    lda.w !BG1HOffMirror
+    adc.w #$0080
+    sta.w M7XMirror
+    lda.w !BG1VOffMirror
+    adc.w #$0080
+    sta.w M7YMirror
+
+    ;sep #$20
+    ;lda.b ZP.Controller
+    ;and #$20                ;Check R
+    ;beq .SkipMoveR
+    ;rep #$20
+    ;lda.w !BG1HOffMirror
+    ;clc
+    ;adc.w #$0004
+    ;sta.w !BG1HOffMirror
+    ;sep #$20
+    ;.SkipMoveR:
+;
+    ;lda.b ZP.Controller
+    ;and #$10                ;Check L
+    ;beq .SkipMoveL
+    ;rep #$20
+    ;lda.w !BG1HOffMirror
+    ;sec
+    ;sbc.w #$0004
+    ;sta.w !BG1HOffMirror
+    ;.SkipMoveL:
     rep #$20
     rts
 
