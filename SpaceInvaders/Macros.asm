@@ -33,12 +33,15 @@ struct ZP $00
 .BulletColTile  skip 1  ;Index into enemy array
 .Score          skip 3  ;Current score of the player
 .Lives          skip 1  ;Current lives of the player as BCD
+.Modifiers      skip 2  ;Bitfield for current game modifiers
 endstruct
 
 !CodeBank =     $008000 ;Hold game code + palette's
 !GFXBank =      $018000 ;Holds character data
 !TilemapBank =  $028000 ;Holds tilemap
-!MusicBank =    $038000 ;Holds music data
+!Mode7Bank =    $038000 ;Holds Mode7 data
+!MusicBank =    $048000 ;Holds music data
+!MusicBank2 =   $058000 ;Holds music data
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -188,6 +191,13 @@ WOBJLOGMirror =     $0EB0
 TMWMirror =         $0EB1
 TSWMirror =         $0EB2
 
+M7AMirror =         $0EB3
+M7BMirror =         $0EB5
+M7CMirror =         $0EB7
+M7DMirror =         $0EB9
+M7XMirror =         $0EBB
+M7YMirror =         $0EBD
+
 GameState =         $0EF0   ;Current state of the GameScene
 !GameState_Pre =    $00     ;Before the game starts
 !GameState_Play =   $01     ;Invaders on screen and moving
@@ -199,8 +209,13 @@ GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 
+OptionIndex =       $0EFE   ;Index into what option to pick on a menu
+SinePtr =           $0EFF   ;Index into sine table
+SPRTextPosX =       $0F00   ;\  array of 128 position entries
+SPRTextPosY =       $1000   ;/
+
 !PlayerDieReset =   50
-!WaveInit =         $01
+!WaveInit =         $0A
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
@@ -268,15 +283,14 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !BG_L3_OFF =        $65
 
-SinePtr =           $0F00   ;Index into sine table
-
 !SurfboardT0 =      $B9
 !SurfboardT1 =      $BA
 !SurfboardAttr =    $38
 
 !SprFont1Attr =     $30
 
-!Ret =              $2A
+!ArrowX =           $50
+!ArrowChar =        $29
 
 ;Character data
 ' ' = $00
