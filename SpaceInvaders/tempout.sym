@@ -824,10 +824,10 @@
 00:8590 ZVal
 
 [source files]
-0000 66e46d7e main.asm
+0000 18e1b952 main.asm
 
 [rom checksum]
-45832fc2
+cde2fa01
 
 [addr-to-line mapping]
 01:8000 0000:00000018
