@@ -28,6 +28,10 @@ GameSpr:
     incbin "bin/gfx/GameSprites.bin"
 GameSprEnd:
 
+Invaders:
+    incbin "bin/gfx/Invaders.bin"
+EndInvaders:
+
 ;       Title       ;
 Title_L2:
     incbin "bin/gfx/Title-BG-L2.bin"
@@ -145,6 +149,10 @@ GameSprPalEnd:
 SPRFont_Pal:
     incbin "bin/gfx/pal/SprFont-Pal.bin"
 SPRFont_Pal_End:
+
+InvadersPal:
+    incbin "bin/gfx/pal/InvadersPal.bin"
+InvadersPalEnd:
 
 ;       Title       ;
 Title_L2_Pal:
@@ -468,8 +476,9 @@ NMIHandler:
     ;---------------;
     lda.w #VrDmaPtr
     sta.w ZP.VrDmaListPtr
-    ldy.w #$0003
+    
     .VrDMALoop:
+    ldy.w #$0003
     sep #%00100000                              ;Enter 8bit mode for A
     lda.b (ZP.VrDmaListPtr), Y                  ;Load dma ptr flag
     beq .FinishDMALoop                          ;Check for 0 for end flag
@@ -983,17 +992,9 @@ GameScene:
     lda.b #$03
     sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
 
-    ;Load Game Sprite Palette
-    lda.b #$02
-    sta.w HW_DMAP1              ;Setup DMAP1
-    ldx.w #GameSprPal&$FFFF     ;Grab palette addr
-    stx.w HW_A1T1L              ;Shove lo+mid addr byte
-    lda.b #GameSprPal>>16&$FF
-    sta.w HW_A1B1               ;Store bank
-    ldx.w #GameSprPalEnd-GameSprPal
-    stx.w HW_DAS1L              ;Return amount of bytes to be written in VRAM
-    lda.b #HW_CGDATA&$FF        ;Grab Video mem data lo addr
-    sta.w HW_BBAD1              ;Set bus addr
+    ldx.w #$0000
+    stx.b ZP.R0
+    jsr LoadEnemyGFX
 
     ;Load Game Sprites
     lda.b #$01
@@ -1011,12 +1012,13 @@ GameScene:
     -
     lda.w GamePal, Y
     sta.w PalMirror, Y
+    lda.w InvadersPal, Y
     lda.w GameSprPal, Y
     sta.w PalMirror+384, Y
     iny
     cpy #$100
     bne -
-
+    
     ;Clear tilemap 1
     ldx.w #L1Ram
     stx.w HW_VMADDL             ;Set VRAM address to L1RAM
@@ -1566,7 +1568,6 @@ GameScene:
     bne .DoEnemy
     jmp .SkipFloor
     .DoEnemy:
-    ;jsr GameLoop_DrawEnemies
     ;Check enemy count and set enemy speed to amount of enemies on screen
     sep #$20
     stz.b ZP.EnemyWait
@@ -1579,6 +1580,10 @@ GameScene:
     lda.w EnemyHurtTable, Y
     beq +
     dec
+    bne ++
+    sta.w EnemyHurtTable, Y
+    jsr GameLoop_DrawEnemies
+    ++
     sta.w EnemyHurtTable, Y
     +
     iny
@@ -1609,8 +1614,8 @@ GameScene:
     .SkipMoveJmp:
     sep #$20
     lda.b ZP.EnemyFrame
-    eor #$FF
-    and #$01
+    inc
+    and #$07
     sta.b ZP.EnemyFrame
     lda.w GameState
     ;Downward movement code
@@ -1690,7 +1695,6 @@ GameScene:
     stz.w !BG1VOffMirror+1
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
-    jsr GameLoop_DrawEnemies
     jsr GameLoop_DrawEnemies_FrameDecider
     .SkipMove:
     dec.b ZP.EnemyTimer
@@ -2087,9 +2091,6 @@ GameLoop_SendWave:
     stz.b !BG1VOffMirror+1
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
-    jsr GameLoop_UpdateEnemyArray
-    jsr GameLoop_FindMaxRowBounds
-    jsr GameLoop_DrawScore
     lda.b #!GameState_Play
     sta.w GameState
     ;Set RNG up for enemy timers
@@ -2108,8 +2109,50 @@ GameLoop_SendWave:
     sta.w EnemyHurtTable, Y
     dey
     bpl -
+    
+    jsr GameLoop_UpdateEnemyArray
+    jsr GameLoop_DrawEnemies
+    jsr GameLoop_FindMaxRowBounds
+    jsr GameLoop_DrawScore
     rts
 
+LoadEnemyGFX:
+    php    
+    ldy.w #$0000
+    rep #$20
+    lda.w #Invaders&$FFFF       ;Grab graphics addr
+    clc
+    adc.b ZP.R0
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    iny
+    sep #$20
+    lda.b #(Invaders>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #!EnemyTileDest
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #$0400
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+    plp
+    rts
+    
     ;-------------------------------;
     ;   Enemy Drawing Subroutine    ;
     ;-------------------------------;
@@ -2122,6 +2165,9 @@ GameLoop_SendWave:
     ;
 GameLoop_DrawEnemies:
     ;Enemy Load loop
+    pha
+    phx
+    phy
     sep #$20
     stz.w HW_WMADDH
     lda.b #(EnemyTileBuffer>>8)&$FF
@@ -2146,7 +2192,6 @@ GameLoop_DrawEnemies:
         asl
         tax
         lda.w EnemyDrawTop+0, X
-        adc.b ZP.EnemyFrame
         sta.w HW_WMDATA
         lda.b (ZP.MemPointer2)          ;Grab hurt timer
         bne +++
@@ -2157,7 +2202,6 @@ GameLoop_DrawEnemies:
         ++++
         sta.w HW_WMDATA
         lda.w EnemyDrawTop+2, X
-        adc.b ZP.EnemyFrame
         sta.w HW_WMDATA
         lda.b (ZP.MemPointer2)          ;Grab hurt timer
         bne +++
@@ -2206,7 +2250,6 @@ GameLoop_DrawEnemies:
         asl
         tax
         lda.w EnemyDrawBot+0, X
-        adc.b ZP.EnemyFrame
         sta.w HW_WMDATA
         lda.b (ZP.MemPointer2)          ;Grab hurt timer
         bne +++
@@ -2217,7 +2260,6 @@ GameLoop_DrawEnemies:
         ++++
         sta.w HW_WMDATA
         lda.w EnemyDrawBot+2, X
-        adc.b ZP.EnemyFrame
         sta.w HW_WMDATA
         lda.b (ZP.MemPointer2)          ;Grab hurt timer
         bne +++
@@ -2284,6 +2326,9 @@ GameLoop_DrawEnemies:
     ldy.w #$0003
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
+    ply
+    plx
+    pla
     rts
     
     ;-----------------------------------;
@@ -2298,14 +2343,23 @@ GameLoop_DrawEnemies:
     ;
 GameLoop_DrawEnemies_FrameDecider:
     pha
-    stz.b ZP.R2                     ;Reset frame offset
-    beq .ZeroTileSkip
-    lda.b ZP.EnemyFrame
-    sta.b ZP.R2
-    .ZeroTileSkip:
+    php
+    rep #$20
+    stz.b ZP.R0
+    stz.b ZP.R1
+    ldx.w #$0000
+    tdc
+    sep #$30
+    ldx.b ZP.EnemyFrame
+    lda.w EnemyFrameOffset, X
+    tax
+    rep #$20
+    lda.w EnemyVramOff, X
+    sta.b ZP.R0
+    sep #$20
+    plp
+    jsr LoadEnemyGFX
     pla
-    clc
-    adc.b ZP.R2
     rts
 
 GameLoop_Spawn_Enemy_Bullet:
@@ -3192,7 +3246,7 @@ BG_City:
     sta.b (ZP.VrDmaListPtr), Y
     iny
     rep #$20
-    lda.w #(GameSprEnd-GameGfx)/2
+    lda.w #!BGTileDest
     sta.b (ZP.VrDmaListPtr), Y
     sep #$20
     iny
@@ -3336,7 +3390,7 @@ BG_Mountains:
     sta.b (ZP.VrDmaListPtr), Y
     iny
     rep #$20
-    lda.w #(GameSprEnd-GameGfx)/2
+    lda.w #!BGTileDest
     sta.b (ZP.VrDmaListPtr), Y
     sep #$20
     iny
@@ -3470,7 +3524,7 @@ BG_Computer:
     sta.b (ZP.VrDmaListPtr), Y
     iny
     rep #$20
-    lda.w #(GameSprEnd-GameGfx)/2
+    lda.w #!BGTileDest
     sta.b (ZP.VrDmaListPtr), Y
     sep #$20
     iny
@@ -3605,7 +3659,7 @@ BG_Surfboard:
     sta.b (ZP.VrDmaListPtr), Y
     iny
     rep #$20
-    lda.w #(GameSprEnd-GameGfx)/2
+    lda.w #!BGTileDest
     sta.b (ZP.VrDmaListPtr), Y
     sep #$20
     iny
@@ -3704,17 +3758,9 @@ BG_Surfboard:
     ldy.w #Surfboard_Pal_End-Surfboard_Pal
     -
     lda.w Surfboard_Pal, Y
-    sta.w PalMirror+(192*2), Y
+    sta.w PalMirror+(144*2), Y
     dey
     bne -
-
-    ldy.w #OceanRocks_Pal_End-OceanRocks_Pal
-    -
-    lda.w OceanRocks_Pal, Y
-    sta.w PalMirror+(208*2), Y
-    dey
-    bne -
-    rts
 
 GameLoop_UpdateBG:
     php
@@ -4666,51 +4712,51 @@ EnemyDrawTop:
     dw $0000
 
     ;Basic Squelcher
-    db $2D
+    db $50
     db !EnemyPal1
-    db $2D
+    db $50
     db (!EnemyPal1)+$40
 
     ;Slow Shooter
-    db $2F
+    db $51
     db !EnemyPal2
-    db $2F
+    db $51
     db (!EnemyPal2)+$40
 
     ;Boxy Greenback
-    db $31
+    db $52
     db !EnemyPal1
-    db $31
+    db $52
     db (!EnemyPal1)+$40
 
     ;Mind Cake
-    db $33
+    db $53
     db !EnemyPal3
-    db $33
+    db $53
     db (!EnemyPal3)+$40
 
     ;Sophisticated mimic
-    db $3D
+    db $54
     db !EnemyPal4
-    db $3D
+    db $54
     db (!EnemyPal4)+$40
 
     ;Purple shooter
-    db $3F
+    db $55
     db !EnemyPal3
-    db $3F
+    db $55
     db (!EnemyPal3)+$40
 
     ;MultiArm
-    db $41
+    db $56
     db !EnemyPal2
-    db $41
+    db $56
     db (!EnemyPal2)+$40
 
     ;Tough Guy
-    db $43
+    db $57
     db !EnemyPal1
-    db $43
+    db $57
     db (!EnemyPal1)+$40
 
 EnemyDrawBot:
@@ -4721,51 +4767,51 @@ EnemyDrawBot:
     db $00<<2
 
     ;Basic Squelcher
-    db $2D+$08
+    db $60
     db !EnemyPal1
-    db $2D+$08
+    db $60
     db (!EnemyPal1)+$40
 
     ;Slow Shooter
-    db $2F+$08
+    db $61
     db !EnemyPal2
-    db $2F+$08
+    db $61
     db (!EnemyPal2)+$40
 
     ;Boxy Greenback
-    db $31+$08
+    db $62
     db !EnemyPal1
-    db $31+$08
+    db $62
     db (!EnemyPal1)+$40
 
     ;Mind Cake
-    db $33+$08
+    db $63
     db !EnemyPal3
-    db $33+$08
+    db $63
     db (!EnemyPal3)+$40
 
     ;Sophisticated mimic
-    db $3D+$08
+    db $64
     db !EnemyPal4
-    db $3D+$08
+    db $64
     db (!EnemyPal4)+$40
 
     ;Purple shooter
-    db $3F+$08
+    db $65
     db !EnemyPal3
-    db $3F+$08
+    db $65
     db (!EnemyPal3)+$40
 
     ;MultiArm
-    db $41+$08
+    db $66
     db !EnemyPal2
-    db $41+$08
+    db $66
     db (!EnemyPal2)+$40
 
     ;Tough Guy
-    db $43+$08
+    db $67
     db !EnemyPal1
-    db $43+$08
+    db $67
     db (!EnemyPal1)+$40
 
 EnemyHealthTable:
@@ -5054,6 +5100,21 @@ EnemyRowPos:
     for x = 0..!EnemyCols+1
         db (!x*24)-4
     endfor
+
+EnemyVramOff:
+    dw $0000
+    dw $0400
+    dw $0800
+    dw $0C00
+
+EnemyFrameOffset:
+    db $00
+    db $02
+    db $04
+    db $06
+    db $06
+    db $04
+    db $02
 
 PlayerExplosionSpeedX:
     db $00

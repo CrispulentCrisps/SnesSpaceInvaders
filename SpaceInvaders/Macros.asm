@@ -93,21 +93,21 @@ EnemyType =         $0528   ;Array of current enemy types
 EnemyHurtTable =    $0550   ;Array of hurt timers
 
 UFOXPos =           $06B0
-UFOActive =         $06B1   ;Flag for if the UFO is active or not
-UFOTimer =          $06B2   ;Frames to wait before UFO appears
-UFOFrame =          $06B4
-UFOFrameTimer =     $06B5
-UFODeleteFlag =     $06B6   ;flag to delete UFO when position overflow is hit
+UFOActive =         $06B2   ;Flag for if the UFO is active or not
+UFOTimer =          $06B3   ;Frames to wait before UFO appears
+UFOFrame =          $06B5
+UFOFrameTimer =     $06B6
+UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOScore =         $0100   ;Score to give to the player when shooting down the UFO
 !UFOSpeed =         $02     ;How fast the UFO moves
 !UFOResetTime =     $5DC    ;Timer to wait to make UFO active, (30 seconds on PAL, 25 for NTSC)
 !UFOYPos =          $00     ;Y Position of the UFO
 !UFOYPosB =         $08     ;Y Position of the UFO
 !UFOStartX =        $FF
-!UFOTile0 =         $53
-!UFOTile1 =         $54
-!UFOTile2 =         $5B
-!UFOTile3 =         $5C
+!UFOTile0 =         $32
+!UFOTile1 =         $33
+!UFOTile2 =         $3A
+!UFOTile3 =         $3B
 !UFOAttr =          %00101000
 !UFOAttrMir =       %01101000
 !UFOXBit1 =         $05
@@ -143,7 +143,7 @@ ExplosionFineXVal = $0580+(!MaxEplW*8)
 ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
-!ExplosionTile =    $5F
+!ExplosionTile =    $3E
 !ExplosionAttr =    %00111100
 
 EnemyTileBuffer =   $7E8000
@@ -215,13 +215,13 @@ SPRTextPosX =       $0F00   ;\  array of 128 position entries
 SPRTextPosY =       $1000   ;/
 
 !PlayerDieReset =   50
-!WaveInit =         $0A
+!WaveInit =         $01
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
 !EnemyCols =        $08
 !EnemyStructWr =    $28
-!EnemyHurtTimer =   $08
+!EnemyHurtTimer =   $10
 
 !EnemyPal0 =        $04<<2
 !EnemyPal1 =        $05<<2
@@ -250,17 +250,20 @@ OAMCopy =           $0800
 LaserOAM =          $0810
 !PlayerSpeed =      $02
 !PlayerY =          $C8
-!PlayerTileB =      $57
-!PlayerTileT =      $4F
+!PlayerTileB =      $36
+!PlayerTileT =      $2E
 !PlayerAttr =       %00111010
 !BulletAttr =       %00101110
 !EBullAttr =        %00101110
-!BulletF1 =         $51
-!BulletF2 =         $52
-!EBulletF1 =        $59
-!EBulletF2 =        $5A
+!BulletF1 =         $30
+!BulletF2 =         $31
+!EBulletF1 =        $38
+!EBulletF2 =        $39
 
 !EnemyGfx =         $2D
+
+!EnemyTileDest =    $0500
+!BGTileDest =       $0700
 
 EnemyMax =          $04E7   ;R boundaries
 EnemyMin =          $04E8   ;L boundaries
@@ -285,7 +288,7 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !SurfboardT0 =      $B9
 !SurfboardT1 =      $BA
-!SurfboardAttr =    $38
+!SurfboardAttr =    $32
 
 !SprFont1Attr =     $30
 
