@@ -1038,8 +1038,7 @@ GameScene:
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w HW_BGMODE
-    lda.b #$00
-    sta.w BGCount
+    stz.w BGCount
     ;Reset Player
     lda.b #$70
     sta.w Player.X
@@ -3216,8 +3215,7 @@ BG_City:
     stz.w HDMAMirror2+1
     stz.w HDMAMirror2+2
     stz.w HDMAMirror2+3
-    lda.w HW_BGMODE
-    and #$F7
+    lda.b #$01
     sta.w HW_BGMODE
     lda.b #$1F
     sta.w TMMirror
@@ -3345,8 +3343,7 @@ BG_City:
 BG_Mountains:
     ;Setup Video info
     tdc
-    lda.w HW_BGMODE
-    ora #$08            ;Set BG3 to hi priority
+    lda.b #$09
     sta.w HW_BGMODE
     lda.b #$FB
     sta.w TMMirror
@@ -3495,8 +3492,7 @@ BG_Computer:
     stz.w HDMAMirror2+2
     stz.w HDMAMirror2+3
     ;Setup video display
-    lda.w HW_BGMODE
-    and #$F7
+    lda.b #$01
     sta.w HW_BGMODE
     lda.b #$1F
     sta.w TMMirror
@@ -3630,8 +3626,7 @@ BG_Surfboard:
     stz.w HDMAMirror2+2
     stz.w HDMAMirror2+3
     ;Setup video display
-    lda.w HW_BGMODE
-    and #$F7
+    lda.b #$01
     sta.w HW_BGMODE
     lda.b #$1F
     sta.w TMMirror
@@ -4691,7 +4686,7 @@ EnemyTypesPal:
     db !EnemyPal2       ;Boxy Greenback
     db $05<<2           ;Mind Cake
     db $00<<2           ;Sophisticated mimic
-    db $05<<2           ;Purple Shooter
+    db $05<<2           ;Purple Mook
     db !EnemyPal3       ;Multi Arm
     db !EnemyPal2       ;Tough Guy
 
@@ -4702,7 +4697,7 @@ EnemyTypesTile:
     db $31              ;Boxy Greenback
     db $33              ;Mind Cake
     db $3D              ;Sophisticated mimic
-    db $3F              ;Purple Shooter
+    db $3F              ;Purple Mook
     db $41              ;MultiArm
     db $43              ;Tough Guy
 
@@ -4741,7 +4736,7 @@ EnemyDrawTop:
     db $54
     db (!EnemyPal4)+$40
 
-    ;Purple shooter
+    ;Purple Mook
     db $55
     db !EnemyPal3
     db $55
@@ -4796,7 +4791,7 @@ EnemyDrawBot:
     db $64
     db (!EnemyPal4)+$40
 
-    ;Purple shooter
+    ;Purple Mook
     db $65
     db !EnemyPal3
     db $65
@@ -4821,7 +4816,7 @@ EnemyHealthTable:
     db $01              ;Boxy Greenback
     db $01              ;Mind Cake
     db $02              ;Sophisticated mimic
-    db $02              ;Purple Shooter
+    db $02              ;Purple Mook
     db $02              ;MultiArm
     db $03              ;Tough Guy
     
@@ -4832,7 +4827,7 @@ EnemyScoreTable:
     db $01              ;Boxy Greenback
     db $01              ;Mind Cake
     db $02              ;Sophisticated mimic
-    db $02              ;Purple Shooter
+    db $02              ;Purple Mook
     db $04              ;MultiArm
     db $08              ;Tough Guy
     
@@ -5151,7 +5146,7 @@ EnemyShootTypes:
     db $00              ;Boxy Greenback
     db $01              ;Mind Cake
     db $00              ;Sophisticated mimic
-    db $01              ;Purple Shooter
+    db $01              ;Purple Mook
     db $01              ;MultiArm
     db $01              ;Tough Guy
 
