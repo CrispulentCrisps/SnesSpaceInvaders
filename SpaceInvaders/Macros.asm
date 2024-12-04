@@ -70,7 +70,7 @@ struct Bullet $0405
 .Dir        skip 1  ;H dir
 endstruct
 
-;At most 4 eemy bullets on screen at once
+;At most 4 enemy bullets on screen at once
 !EnemyBulletSpeed = $02
 EnemyShootDebug =   $040D   ;Current position display for debug purposes
 EnemyShootIndex =   $040F   ;Wich enemy is to fire said bullet
@@ -100,18 +100,16 @@ UFOFrameTimer =     $06B6
 UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOScore =         $0100   ;Score to give to the player when shooting down the UFO
 !UFOSpeed =         $02     ;How fast the UFO moves
-!UFOResetTime =     $5DC    ;Timer to wait to make UFO active, (30 seconds on PAL, 25 for NTSC)
+!UFOResetTime =     $00DC   ;Timer to wait to make UFO active
 !UFOYPos =          $00     ;Y Position of the UFO
 !UFOYPosB =         $08     ;Y Position of the UFO
-!UFOStartX =        $FF
+!UFOStartX =        $0100
 !UFOTile0 =         $32
 !UFOTile1 =         $33
 !UFOTile2 =         $3A
 !UFOTile3 =         $3B
 !UFOAttr =          %00101000
 !UFOAttrMir =       %01101000
-!UFOXBit1 =         $05
-!UFOXBit2 =         $50
 OBJTimers =         $0700   ;16 byte array of timers for general OBJ use
 OBJFrame =          $0710   ;16 byte array of general object frame counts, used for animating less important objects
 OBJXPos =           $0720   ;16 byte array of object types XPositions
@@ -215,7 +213,7 @@ SPRTextPosX =       $0F00   ;\  array of 128 position entries
 SPRTextPosY =       $1000   ;/
 
 !PlayerDieReset =   50
-!WaveInit =         $01
+!WaveInit =         $0A
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05

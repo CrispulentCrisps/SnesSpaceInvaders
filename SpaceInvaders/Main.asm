@@ -723,8 +723,8 @@ NMIHandler:
 SelectScene:
     dw TitleScene
     dw GameScene
-    dw OptionsScene
     dw HighscoreScene
+    dw OptionsScene
     dw ContinueScene
 
 TitleScene:
@@ -1088,8 +1088,10 @@ GameScene:
     stx.b ZP.Score
 
     ;Setup UFO
+    rep #$20
     lda.w #!UFOResetTime
     sta.w UFOTimer
+    sep #$20
     stz.w UFOActive
 
     ;Reset explosion sprites
@@ -1291,7 +1293,8 @@ GameScene:
     bcs .SkipDisable0
     stz.w Bullet.Enabled
     lda.b #$FF
-    sta.w Bullet[0].X
+    sta.w Bullet.X
+    sta.w Bullet.Y
     stz.w Bullet.Dir
     .SkipDisable0:
     sta.w Bullet.Y
@@ -1303,11 +1306,11 @@ GameScene:
     ;Collision code
     lda.b #$FF
     sta.b ZP.BulletColTile      ;Reset collided tile index
-    lda.w Bullet[0].X
+    lda.w Bullet.X
     clc
     adc.b #!BulletColOff
     sta.b ZP.R0
-    lda.w Bullet[0].Y
+    lda.w Bullet.Y
     clc
     adc.b #!BulletColOff
     sta.b ZP.R1
@@ -2907,33 +2910,109 @@ SpawnExplosive:
     rts
 
 GameLoop_HandleUFO:
+    rep #$20
     lda.w UFOTimer
     dec
     sta.w UFOTimer
+    sep #$20
     bne +
     lda.w UFOActive
     bne .SkipUFOInit
     ;Activate UFO if we've reached the timer and it's not currently active
-    lda.b #!UFOStartX
+    rep #$20
+    lda.w #!UFOStartX
     sta.w UFOXPos
+    sep #$20
     lda.b #$01
     sta.w UFOActive
     stz.w UFODeleteFlag
     .SkipUFOInit:
     +
+    ;Check UFO bounds 
+    sep #$20
+    lda.w Bullet.Y
+    cmp.b #$10          ;BulletY < 16
+    bcs .SkipUFOCol
+    lda.w UFOXPos
+    sec
+    sbc.b #$08          ;Adjust to occasional bullet misses
+    cmp.w Bullet.X
+    bcs .SkipUFOCol     ;BulletX > UFOX
+    lda.w UFOXPos
+    adc.b #$20
+    cmp.w Bullet.X      ;&& BulletX < UFOX+32
+    bcc .SkipUFOCol
+    
+    rep #$20
+    lda.b ZP.Score
+    sed
+    clc
+    adc.w #!UFOScore
+    bcc ++
+    pha
+    sep #$20
+    clc
+    lda.b ZP.Score+1
+    clc
+    adc.b #$01
+    sta.b ZP.Score+1
+        bcc +++
+        clc
+        lda.b ZP.Score+2
+        clc
+        adc.b #$01
+        sta.b ZP.Score+2
+        +++
+    rep #$20
+    pla
+    ++
+    sta.b ZP.Score
+    cld
+    rep #$20
+    lda.w #!UFOResetTime
+    sta.w UFOTimer
+    sep #$20
+    stz.w UFOActive
+    stz.w Bullet.Enabled
+    lda.b #$FF
+    sta.w Bullet.X
+    sta.w Bullet.Y
+    lda.w UFOXPos
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsr SpawnExplosive
+    lda.w UFOXPos
+    clc
+    adc.b #$10
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsr SpawnExplosive
+
+    jsr GameLoop_DrawScore
+    .SkipUFOCol:
+
     ;Update if UFO active
     lda.w UFOActive
     beq .InactiveUFO
-    dec UFOXPos
+    rep #$20
+    
     lda.w UFOXPos
-    cmp #$7F
-    bpl +
+    sec
+    sbc.w #$0001
+    sta.w UFOXPos
+    bcs +
+    sep #$20
     lda.b #$01
     sta.w UFODeleteFlag
+    rep #$20
+    lda.w UFOXPos
+    and.w #$01E8
+    sta.w UFOXPos
     +
     lda.w UFOXPos
     ;make UFO inactive if we've went too far over
-    bcc +
+    cmp.w #$1D0
+    bne +
     lda.w UFODeleteFlag
     beq +
     rep #$20
@@ -2959,7 +3038,73 @@ GameLoop_HandleUFO:
     rts
 
 GameLoop_DrawUFO:
+    stz.w OAMCopy+$0202
+    stz.w OAMCopy+$0203
+    stz.w OAMCopy+$0204
+    stz.w OAMCopy+$0205
+    rep #$20
+    lda.w UFOXPos
+    and.w #$01FF
+    sta.b ZP.R0
+    lda.b ZP.R0
+    and.w #$FF00
+    beq +
+    sep #$20
+    lda.w OAMCopy+$0202
+    ora.b #$04
+    sta.w OAMCopy+$0202
+    lda.w OAMCopy+$0203
+    ora.b #$04
+    sta.w OAMCopy+$0203
+    +
+    ;mid 1
+    rep #$20
+    lda.b ZP.R0
+    clc
+    adc.w #$0008
+    and.w #$FF00
+    beq +
+    sep #$20
+    lda.w OAMCopy+$0202
+    ora.b #$10
+    sta.w OAMCopy+$0202
+    lda.w OAMCopy+$0203
+    ora.b #$10
+    sta.w OAMCopy+$0203
+    +
+    ;mid 2
+    rep #$20
+    lda.b ZP.R0
+    clc
+    adc.w #$0010
+    and.w #$FF00
+    beq +
+    sep #$20
+    lda.w OAMCopy+$0202
+    ora.b #$40
+    sta.w OAMCopy+$0202
+    lda.w OAMCopy+$0203
+    ora.b #$40
+    sta.w OAMCopy+$0203
+    +
+    ;Ass
+    rep #$20
+    lda.b ZP.R0
+    clc
+    adc.w #$0018
+    and.w #$FF00
+    beq +
+    sep #$20
+    lda.w OAMCopy+$0203
+    ora.b #$01
+    sta.w OAMCopy+$0203
+    lda.w OAMCopy+$0204
+    ora.b #$01
+    sta.w OAMCopy+$0204
+    +
+
     ;Top left
+    sep #$20
     lda.w UFOXPos
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
@@ -5110,6 +5255,7 @@ EnemyFrameOffset:
     db $06
     db $04
     db $02
+    db $00
 
 PlayerExplosionSpeedX:
     db $00
