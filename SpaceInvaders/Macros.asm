@@ -210,7 +210,9 @@ GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 
 !OptionsTextAttr =  $20
-!OptionsTMapAddr =  $7906
+!OptionsTMapAddr =  $78C5
+!OptionsMosAddr =   $78C5
+SubOptionIndex2 =   $0EFC   ;Index into whatever option is chosen
 SubOptionIndex =    $0EFD   ;Index into whatever option is chosen
 OptionIndex =       $0EFE   ;Index into what option to pick on a menu
 SinePtr =           $0EFF   ;Index into sine table
@@ -218,7 +220,7 @@ SPRTextPosX =       $0F00   ;\  array of 128 position entries
 SPRTextPosY =       $1000   ;/
 
 !PlayerDieReset =   50
-!WaveInit =         $0A
+!WaveInit =         $0F
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
@@ -297,7 +299,7 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !ArrowX =           $50
 !ArrowChar =        $29
-!ArrowChar2 =       $15
+!ArrowChar2 =       $16
 !Arrow2Attr =       $00
 
 ;Character data

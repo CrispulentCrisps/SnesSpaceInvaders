@@ -1904,13 +1904,17 @@ GameLoop_DrawScore:
     ;Draw said wave amount to screen
     lda.b ZP.EnemyWaveCount
     and #$F0
+    lsr
+    lsr
+    lsr
+    lsr
     inc
     sta.w HW_WMDATA
     lda.b #!EnemyPal4
     sta.w HW_WMDATA
     lda.b ZP.EnemyWaveCount
-    inc
     and #$0F
+    inc
     sta.w HW_WMDATA
     lda.b #!EnemyPal4
     sta.w HW_WMDATA
@@ -2513,7 +2517,7 @@ GameLoop_EBulletLogic:
     +
     lda.b #$FF
     sta.w EnemyBulletXPos, Y
-    lda.b #$00
+    lda.b #$F0
     sta.w EnemyBulletYPos, Y
     lda.b #$00
     sta.w EnemyBulletActive, Y
@@ -2684,16 +2688,16 @@ GameLoop_KillPlayer:
 OptionsScene:
     sep #$20
     lda.b ZP.ChangeScene
-    bne .LoadHighscore
+    bne .LoadOptions
     jmp .SkipOptionsLoad
-    .LoadHighscore:
+    .LoadOptions:
     
     lda.b #$8F                  ;Set master brightness to 15 & forces blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
     lda.b #$09
     sta.w HW_BGMODE
-    ldx.w #$0000
+    ldx.w #$0010
     stx.w HW_VMADDL
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
@@ -2782,8 +2786,9 @@ OptionsScene:
     lda.b #$0F                  ;Set master brightness to 15 & stop blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipOptionsLoad
-    
     sep #$20
+    lda.b #$01
+    sta.w OptionIndex
     lda.w OptionIndex
     bne .SkipSelect
     lda.b ZP.Controller+1   ;Right
@@ -2804,12 +2809,58 @@ OptionsScene:
     +
     .SkipSelect:
 
+    sep #$20
+    lda.w OptionIndex
+    cmp #$01
+    bne .SkipSfxSelect
+    lda.b ZP.Controller+1   ;Right
+    bit #$01
+    beq +
+    lda.w SubOptionIndex2
+    inc
+    and #$FF
+    sta.w SubOptionIndex2
+    +
+    lda.b ZP.Controller+1   ;Left
+    bit #$02
+    beq +
+    lda.w SubOptionIndex2
+    dec
+    and #$FF
+    sta.w SubOptionIndex2
+    +
+    .SkipSfxSelect:
+
     ldx.w #TextDispBuffer&$FFFF
     stx.w HW_WMADDL
     lda.b #(TextDispBuffer>>16)&$FF
     sta.w HW_WMADDH
     ldy.w #$0000
     tdc
+    ;Load Modifiers text
+    ldx.w #ModText
+    stx.b ZP.MemPointer
+    ldy.w #ModTextEnd-ModText
+    -
+    lda.b (ZP.MemPointer)
+    inc
+    inc
+    sta.w HW_WMDATA
+    lda.b #!OptionsTextAttr
+    sta.w HW_WMDATA
+    rep #$20
+    inc.b ZP.MemPointer
+    sep #$20
+    dey
+    bne -
+    ;Spacing between text
+    ldy.w #$0031
+    -
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    dey
+    bpl -
+    
     lda.w SubOptionIndex
     asl
     tay
@@ -2817,12 +2868,14 @@ OptionsScene:
     lda.w GameModifiers, Y
     sta.b ZP.MemPointer
     lda.w GameModSize, Y
-    sta.w ZP.R0                 ;Store away size for later
     tax
     sep #$20
+    ;Load text for current option
     -
     tdc
     lda.b (ZP.MemPointer)
+    inc
+    inc
     sta.w HW_WMDATA
     lda.b #!OptionsTextAttr
     sta.w HW_WMDATA
@@ -2831,18 +2884,80 @@ OptionsScene:
     sep #$20
     dex
     dex
+    bne -
+    ;Space between SFX test and mod text
+    ldy.w #$0089
+    -
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    dey
     bpl -
 
+    ;Load SFX test text
+    ldx.w #SFXText
+    stx.b ZP.MemPointer
+    ldy.w #SFXTextEnd-SFXText
+    -
+    lda.b (ZP.MemPointer)
+    inc
+    inc
+    sta.w HW_WMDATA
+    lda.b #!OptionsTextAttr
+    sta.w HW_WMDATA
+    rep #$20
+    inc.b ZP.MemPointer
     sep #$20
-    lda.b #$20
+    dey
+    bne -
+    ;Space between text
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    tdc
+    lda.w SubOptionIndex2
+    and #$F0
+    lsr
+    lsr
+    lsr
+    lsr
+    inc
+    inc
+    inc
+    sta.w HW_WMDATA
+    lda.b #!OptionsTextAttr
+    sta.w HW_WMDATA
+    lda.w SubOptionIndex2
+    and #$0F
+    inc
+    inc
+    inc
+    sta.w HW_WMDATA
+    lda.b #!OptionsTextAttr
+    sta.w HW_WMDATA
+
+    sep #$20
+    ldy.w #$0000
+    lda.w SinePtr
+    clc
+    adc.b #$08
+    sta.w SinePtr
+    tay
+    lda.w UnSineTable, Y
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    sta.b ZP.R2
+
+    lda.b #$1E
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b #$3E
+    lda.b #$3A
+    clc
+    adc.b ZP.R2
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.b #!ArrowChar2
-    clc
-    adc.w UFOFrame
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.b #!Arrow2Attr
@@ -2878,7 +2993,7 @@ OptionsScene:
     iny
     iny
     rep #$20
-    lda.b ZP.R0                     ;Use size we stored previously
+    lda.w #$0200
     sta.b (ZP.VrDmaListPtr), Y
     lda.b ZP.VrDmaListPtr
     clc
@@ -4975,15 +5090,23 @@ OptionsText:
     db "OPTIONS"
 EndOptionsText:
 
+ModText:
+    db "GAME MODIFIERS"
+ModTextEnd:
+
+SFXText:
+    db "SOUND TEST"
+SFXTextEnd:
+
 ;Game modifiers
 DHText:
     db "00: 2X HEALTH ENEMIES "     ;2x enemy health
 DSText:
     db "01: 2X SPEED ENEMIES  "     ;1/2 time to make enemies move
 SBText:
-    db "02: SLOW ENEMY BULLETS"     ;Player bullets move at half speed
+    db "02: SLOW TANK BULLETS "     ;Player bullets move at half speed
 FBText:
-    db "03: FAST PLAYER BULLET"     ;Enemy bullets move at 2x speed
+    db "03: FAST ALIEN BULLETS"     ;Enemy bullets move at 2x speed
 HBText:
     db "04: HOMING BULLETS    "     ;Enemy bullets home in on the player
 RVText:
@@ -4994,6 +5117,12 @@ NLText:
     db "07: NO-LIFER          "     ;1 life for a given session
 RWText:
     db "08: RANDOM WAVES      "     ;Randomize what wave to go to
+CWText:
+    db "09: NO PERSONAL SPACE "     ;Waves start lower
+NSText:
+    db "10: LOST SHIELDS      "     ;No shields
+MSText:
+    db "11: MOVING SHIELDS    "     ;Moving shields
 ModEnd:
 
 GameModifiers:
@@ -5732,6 +5861,34 @@ db $9E,$A0,$A2,$A4,$A6,$A8,$AB,$AD,$AF,$B2
 db $B4,$B7,$B9,$BC,$BF,$C1,$C4,$C7,$CA,$CD
 db $CF,$D2,$D5,$D8,$DB,$DE,$E1,$E4,$E7,$EA
 db $ED,$F0,$F4,$F7,$FA,$FD
+
+UnSineTable:
+db $7F,$82,$85,$88,$8B,$8F,$92,$95,$98,$9B
+db $9E,$A1,$A4,$A7,$AA,$AD,$B0,$B2,$B5,$B8
+db $BB,$BE,$C0,$C3,$C6,$C8,$CB,$CD,$D0,$D2
+db $D4,$D7,$D9,$DB,$DD,$DF,$E1,$E3,$E5,$E7
+db $E9,$EA,$EC,$EE,$EF,$F0,$F2,$F3,$F4,$F5
+db $F7,$F8,$F9,$F9,$FA,$FB,$FC,$FC,$FD,$FD
+db $FD,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FD,$FD
+db $FD,$FC,$FC,$FB,$FA,$F9,$F9,$F8,$F7,$F5
+db $F4,$F3,$F2,$F0,$EF,$EE,$EC,$EA,$E9,$E7
+db $E5,$E3,$E1,$DF,$DD,$DB,$D9,$D7,$D4,$D2
+db $D0,$CD,$CB,$C8,$C6,$C3,$C0,$BE,$BB,$B8
+db $B5,$B2,$B0,$AD,$AA,$A7,$A4,$A1,$9E,$9B
+db $98,$95,$92,$8F,$8B,$88,$85,$82,$7F,$7C
+db $79,$76,$73,$6F,$6C,$69,$66,$63,$60,$5D
+db $5A,$57,$54,$51,$4E,$4C,$49,$46,$43,$40
+db $3E,$3B,$38,$36,$33,$31,$2E,$2C,$2A,$27
+db $25,$23,$21,$1F,$1D,$1B,$19,$17,$15,$14
+db $12,$10,$0F,$0E,$0C,$0B,$0A,$09,$07,$06
+db $05,$05,$04,$03,$02,$02,$01,$01,$01,$00
+db $00,$00,$00,$00,$00,$00,$01,$01,$01,$02
+db $02,$03,$04,$05,$05,$06,$07,$09,$0A,$0B
+db $0C,$0E,$0F,$10,$12,$14,$15,$17,$19,$1B
+db $1D,$1F,$21,$23,$25,$27,$2A,$2C,$2E,$31
+db $33,$36,$38,$3B,$3E,$40,$43,$46,$49,$4C
+db $4E,$51,$54,$57,$5A,$5D,$60,$63,$66,$69
+db $6C,$6F,$73,$76,$79,$7C
 
 Sin16:
 dw $0000,$0003,$0006,$0009,$000D,$0010,$0013
