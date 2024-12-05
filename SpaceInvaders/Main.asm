@@ -83,7 +83,25 @@ SPRFont:
     incbin "bin/gfx/SprFont.bin"
 SPRFont_End:
 
-org !Mode7Bank
+;   Sprite font 2    ;  5x5
+SPRFont2BPP:
+    incbin "bin/gfx/SprFont2BPP.bin"
+SPRFont2BPP_End:
+
+;   Arrow sprite for pointing
+ArrowSpr:
+    incbin "bin/gfx/Arrow.bin"
+ArrowSpr_End:
+
+org !GfxBank2
+
+;   Options screen graphics
+OptionsBG:
+    incbin "bin/gfx/OptionsBG.bin"
+OptionsBG_End:
+
+org !GfxBank3
+
 ;   highscore mode7 BG    ;
 HScoreBGM7:
     incbin "bin/gfx/Mode7TestOut.bin"
@@ -131,6 +149,10 @@ Title_L2_TM:
     incbin "bin/gfx/tilemap/Title-BG-L2.bin"
 Title_L2_TM_End:
 
+Options_TM:
+    incbin "bin/gfx/tilemap/OptionsBG.bin"
+Options_TM_End:
+
 org !CodeBank
 
 ;---------------;
@@ -149,6 +171,10 @@ GameSprPalEnd:
 SPRFont_Pal:
     incbin "bin/gfx/pal/SprFont-Pal.bin"
 SPRFont_Pal_End:
+
+SPRFont2BPP_Pal:
+    incbin "bin/gfx/pal/SprFont2BPP-Pal.bin"
+SPRFont2BPP_Pal_End:
 
 InvadersPal:
     incbin "bin/gfx/pal/InvadersPal.bin"
@@ -203,10 +229,21 @@ OceanRocks_Pal:
     incbin "bin/gfx/pal/OceanRocks-Pal.bin"
 OceanRocks_Pal_End:
 
+;   Options screen graphics
+OptionsBG_Pal:
+    incbin "bin/gfx/pal/OptionsBG.bin"
+OptionsBG_Pal_End:
+
+;   Arrow Sprite Palette
+ArrowSpr_Pal:
+    incbin "bin/gfx/pal/Arrow.bin"
+ArrowSpr_Pal_End:
+
 ;   highscore mode7 BG    ;
 HScoreBGM7_Pal:
     incbin "bin/gfx/pal/Mode7Test-Pal.bin"
 HScoreBGM7_Pal_End:
+
 ZVal:
     dw $0000
 
@@ -342,13 +379,13 @@ Reset:
     bne -
 
     sep #%00100000              ;Enter Memory mode
-    lda.b #$F0
+    lda.b #$70
     sta.w HW_BG1SC              ;Set Layer 1 values
-    lda.b #$F4
+    lda.b #$74
     sta.w HW_BG2SC              ;Set Layer 2 values
-    lda.b #$F8
+    lda.b #$78
     sta.w HW_BG3SC              ;Set Layer 3 values
-    lda.b #$FC
+    lda.b #$7C
     sta.w HW_BG4SC              ;Set Layer 4 values
     stz.w HW_MOSAIC             ;Reset BG mosaic
     lda.b #$00                  ;Load BG Mode
@@ -1476,14 +1513,20 @@ GameScene:
     lda.b #!BulletAttr
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    
+
+    sep #$20
+    inc.w BulletFCount
+    lda.w BulletFCount
+    bit #$04
+    beq .SkipBulletChange
+    stz.w BulletFCount
     ;Player bullet pal cycle
     sep #$20
+    inc Bullet.Frame
     lda.w Bullet.Frame
-    inc
-    sta.w Bullet.Frame
     bit #$04
     beq +
+    stz.w Bullet.Frame
     ldy.w #$0162
     tdc
     lda.b #$02
@@ -1496,7 +1539,10 @@ GameScene:
     sta.b ZP.R4
     jsr PalCycle
     +
-
+    lda.w EnemyBulletFrame
+    eor.b #$01
+    sta.w EnemyBulletFrame
+    .SkipBulletChange:
     ;-----------------------;
     ;   Enemy Bullet logic  ;
     ;-----------------------;
@@ -1801,11 +1847,11 @@ GameLoop_DrawScore:
     ;Set up WRAM addr
     tdc
     sep #$20
-    lda.b #(ScoreDispBuffer>>16)&$FF
+    lda.b #(TextDispBuffer>>16)&$FF
     sta.w HW_WMADDH
-    lda.b #(ScoreDispBuffer>>8)&$FF
+    lda.b #(TextDispBuffer>>8)&$FF
     sta.w HW_WMADDM
-    lda.b #(ScoreDispBuffer)&$FF
+    lda.b #(TextDispBuffer)&$FF
     sta.w HW_WMADDL
     ldy #$0000
     ;Draw initial text characters
@@ -1904,13 +1950,13 @@ GameLoop_DrawScore:
 
     ;Finally, set up DMA pointer to render to screen
     ldy.w #$0000
-    lda.b #(ScoreDispBuffer)&$FF
+    lda.b #(TextDispBuffer)&$FF
     sta.b (ZP.VrDmaListPtr), Y
     iny
-    lda.b #(ScoreDispBuffer>>8)&$FF
+    lda.b #(TextDispBuffer>>8)&$FF
     sta.b (ZP.VrDmaListPtr), Y
     iny
-    lda.b #(ScoreDispBuffer>>16)&$FF
+    lda.b #(TextDispBuffer>>16)&$FF
     sta.b (ZP.VrDmaListPtr), Y
     iny
     lda.b #$01
@@ -2494,6 +2540,8 @@ GameLoop_EBulletDraw:
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.b #!EBulletF1
+    clc
+    adc.w EnemyBulletFrame
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.b #!BulletAttr
@@ -2634,6 +2682,212 @@ GameLoop_KillPlayer:
     rts
 
 OptionsScene:
+    sep #$20
+    lda.b ZP.ChangeScene
+    bne .LoadHighscore
+    jmp .SkipOptionsLoad
+    .LoadHighscore:
+    
+    lda.b #$8F                  ;Set master brightness to 15 & forces blanking
+    sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
+    stz.b ZP.ChangeScene        ;Reset flag
+    lda.b #$09
+    sta.w HW_BGMODE
+    ldx.w #$0000
+    stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #SPRFont2BPP&$FFFF       ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #SPRFont2BPP>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #SPRFont2BPP_End-SPRFont2BPP
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #ArrowSpr&$FFFF       ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #ArrowSpr>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #ArrowSpr_End-ArrowSpr
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #OptionsBG&$FFFF       ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #OptionsBG>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #OptionsBG_End-OptionsBG
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
+    ;Transfer tilemap data
+    ldx.w #L1Ram
+    stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #Options_TM&$FFFF    ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #Options_TM>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #Options_TM_End-Options_TM
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
+    ldy.w #OptionsBG_Pal_End-OptionsBG_Pal
+    -
+    lda.w OptionsBG_Pal, Y
+    sta.w PalMirror+32, Y
+    dey
+    bpl -
+
+    ldy.w #SPRFont2BPP_Pal_End-SPRFont2BPP_Pal
+    -
+    lda.w SPRFont2BPP_Pal, Y
+    sta.w PalMirror, Y
+    dey
+    bpl -
+
+    ldy.w #ArrowSpr_Pal_End-ArrowSpr_Pal
+    -
+    lda.w ArrowSpr_Pal, Y
+    sta.w PalMirror+$0100, Y
+    dey
+    bpl -
+
+    sep #$20
+    ldy.w #HDMAMirror2-HDMAMirror
+    lda.b #$00
+    -
+    sta.w HDMAMirror, Y
+    dey
+    bpl -
+    stz.w OptionIndex
+    lda.b #$0F                  ;Set master brightness to 15 & stop blanking
+    sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
+    .SkipOptionsLoad
+    
+    sep #$20
+    lda.w OptionIndex
+    bne .SkipSelect
+    lda.b ZP.Controller+1   ;Right
+    bit #$01
+    beq +
+    lda.w SubOptionIndex
+    inc
+    and #$07
+    sta.w SubOptionIndex
+    +
+    lda.b ZP.Controller+1   ;Left
+    bit #$02
+    beq +
+    lda.w SubOptionIndex
+    dec
+    and #$07
+    sta.w SubOptionIndex
+    +
+    .SkipSelect:
+
+    ldx.w #TextDispBuffer&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(TextDispBuffer>>16)&$FF
+    sta.w HW_WMADDH
+    ldy.w #$0000
+    tdc
+    lda.w SubOptionIndex
+    asl
+    tay
+    rep #$20
+    lda.w GameModifiers, Y
+    sta.b ZP.MemPointer
+    lda.w GameModSize, Y
+    sta.w ZP.R0                 ;Store away size for later
+    tax
+    sep #$20
+    -
+    tdc
+    lda.b (ZP.MemPointer)
+    sta.w HW_WMDATA
+    lda.b #!OptionsTextAttr
+    sta.w HW_WMDATA
+    rep #$20
+    inc.b ZP.MemPointer
+    sep #$20
+    dex
+    dex
+    bpl -
+
+    sep #$20
+    lda.b #$20
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #$3E
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!ArrowChar2
+    clc
+    adc.w UFOFrame
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!Arrow2Attr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+
+    inc.w BGScrollOff
+    lda.w BGScrollOff
+    bit #$10
+    beq +
+    stz.w BGScrollOff
+    inc.w !BG1HOffMirror
+    +
+
+    sep #$20
+    ldy.w #$0000
+    lda.b #(TextDispBuffer)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(TextDispBuffer>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(TextDispBuffer>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #!OptionsTMapAddr
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.b ZP.R0                     ;Use size we stored previously
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc.w #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
 
     rep #$20
     rts
@@ -2987,7 +3241,10 @@ GameLoop_HandleUFO:
     sta.b ZP.R0
     stz.b ZP.R1
     jsr SpawnExplosive
-
+    rep #$20
+    lda.w #$01FF
+    sta.w UFOXPos
+    sep #$20
     jsr GameLoop_DrawScore
     .SkipUFOCol:
 
@@ -4539,7 +4796,6 @@ BG3:
     lda.w BGScrollVal+3 ;\
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/    
-
     stz.w HW_WMDATA     ;End
 
     sep #$20
@@ -4679,6 +4935,9 @@ DrawSpriteText:
     pla
     rts
 
+;|------------------|
+;|   IN GAME TEXT   |
+;|------------------|
 HighscoreText:
     dw "01      CRIS      100000"
     dw "02      TOAS      090000"
@@ -4718,36 +4977,47 @@ EndOptionsText:
 
 ;Game modifiers
 DHText:
-    db "DOUBLE HEALTH ENEMIES"      ;2x enemy health
+    db "00: 2X HEALTH ENEMIES "     ;2x enemy health
 DSText:
-    db "DOUBLE SPEED ENEMIES"       ;1/2 time to make enemies move
+    db "01: 2X SPEED ENEMIES  "     ;1/2 time to make enemies move
 SBText:
-    db "SLOW BULLETS"               ;Player bullets move at half speed
+    db "02: SLOW ENEMY BULLETS"     ;Player bullets move at half speed
 FBText:
-    db "FAST BULLETS"               ;Enemy bullets move at 2x speed
+    db "03: FAST PLAYER BULLET"     ;Enemy bullets move at 2x speed
 HBText:
-    db "HOMING BULLETS"             ;Enemy bullets home in on the player
+    db "04: HOMING BULLETS    "     ;Enemy bullets home in on the player
 RVText:
-    db "RETRO VISION"               ;Mosaic applied to layer 1
+    db "05: RETRO VISION      "     ;Mosaic applied to layer 1
 SSText:
-    db "SLOW SHIP"                  ;Ship moves half as fast
+    db "06: SLOW SHIP         "     ;Ship moves half as fast
 NLText:
-    db "NO-LIFER"                   ;1 life for a given session
+    db "07: NO-LIFER          "     ;1 life for a given session
 RWText:
-    db "RANDOM WAVES"               ;Randomize what wave to go to
+    db "08: RANDOM WAVES      "     ;Randomize what wave to go to
 ModEnd:
 
 GameModifiers:
-    dw DHText
-    dw DSText
-    dw SBText
-    dw FBText
-    dw HBText
-    dw RVText
-    dw SSText
-    dw NLText
-    dw ModEnd
+    dw DHText                       ;$0000
+    dw DSText                       ;$0001
+    dw SBText                       ;$0002
+    dw FBText                       ;$0004
+    dw HBText                       ;$0008
+    dw RVText                       ;$0010
+    dw SSText                       ;$0020
+    dw NLText                       ;$0040
+    dw RWText                       ;$0080
 EndGameModifiers:
+
+GameModSize:
+    dw (DSText-DHText)*2
+    dw (SBText-DSText)*2
+    dw (FBText-SBText)*2
+    dw (HBText-FBText)*2
+    dw (RVText-HBText)*2
+    dw (SSText-RVText)*2
+    dw (NLText-SSText)*2
+    dw (RWText-NLText)*2
+GameModSizeEnd:
 
 TitleTextPosX:
     ;Start Game
@@ -4827,7 +5097,7 @@ ArrowTitleYPos:
 EnemyTypesPal:
     db $00<<2           ;Empty
     db !EnemyPal2       ;Basic Squelcher
-    db !EnemyPal3       ;Slow Shooter
+    db !EnemyPal3       ;Metal Rocketeer
     db !EnemyPal2       ;Boxy Greenback
     db $05<<2           ;Mind Cake
     db $00<<2           ;Sophisticated mimic
@@ -4838,7 +5108,7 @@ EnemyTypesPal:
 EnemyTypesTile:
     db $00              ;Empty
     db $2D              ;Basic Squelcher
-    db $2F              ;Slow Shooter
+    db $2F              ;Metal Rocketeer
     db $31              ;Boxy Greenback
     db $33              ;Mind Cake
     db $3D              ;Sophisticated mimic
@@ -4857,7 +5127,7 @@ EnemyDrawTop:
     db $50
     db (!EnemyPal1)+$40
 
-    ;Slow Shooter
+    ;Metal Rocketeer
     db $51
     db !EnemyPal2
     db $51
@@ -4912,7 +5182,7 @@ EnemyDrawBot:
     db $60
     db (!EnemyPal1)+$40
 
-    ;Slow Shooter
+    ;Metal Rocketeer
     db $61
     db !EnemyPal2
     db $61
@@ -4957,7 +5227,7 @@ EnemyDrawBot:
 EnemyHealthTable:
     db $00              ;Empty
     db $01              ;Basic Squelcher
-    db $02              ;Slow Shooter
+    db $02              ;Metal Rocketeer
     db $01              ;Boxy Greenback
     db $01              ;Mind Cake
     db $02              ;Sophisticated mimic
@@ -4968,7 +5238,7 @@ EnemyHealthTable:
 EnemyScoreTable:
     db $00              ;Empty
     db $01              ;Basic Squelcher
-    db $02              ;Slow Shooter
+    db $02              ;Metal Rocketeer
     db $01              ;Boxy Greenback
     db $01              ;Mind Cake
     db $02              ;Sophisticated mimic
@@ -5288,7 +5558,7 @@ PlayerExplosionSpeedFineY:
 EnemyShootTypes:
     db $00              ;Empty
     db $00              ;Basic Squelcher
-    db $01              ;Slow Shooter
+    db $01              ;Metal Rocketeer
     db $00              ;Boxy Greenback
     db $01              ;Mind Cake
     db $00              ;Sophisticated mimic

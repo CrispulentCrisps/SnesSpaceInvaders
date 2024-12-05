@@ -14,12 +14,17 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG3-Grad.png -p bin\gfx\pal\BG3-Grad.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG4-Grad.png -p bin\gfx\pal\BG4-Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\Title-BG-L2.png -t bin\gfx\Title-BG-L2.bin -p bin\gfx\pal\Title-BG-L2-Pal.bin -m bin\gfx\tilemap\Title-BG-L2.bin --tile-base-offset 48 --palette-base-offset 1
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\OptionsBG.png -t bin\gfx\OptionsBG.bin -p bin\gfx\pal\OptionsBG.bin -m bin\gfx\tilemap\OptionsBG.bin --tile-base-offset 22 --palette-base-offset 1
+
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -S -i res\img\ArrowSprite.png -t bin\gfx\Arrow.bin -p bin\gfx\pal\Arrow.bin
+
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\TitleGrad.png -p bin\gfx\pal\TitleGrad.bin --no-remap
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -B 4 -i res\img\Misc\Surfboard.png -t bin\gfx\Surfboard.bin -p bin\gfx\pal\Surfboard-Pal.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -B 4 -i res\img\Misc\OceanRocks.png -t bin\gfx\OceanRocks.bin -p bin\gfx\pal\OceanRocks-Pal.bin
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -B 4 -i res\img\fonts\SprFont.png -t bin\gfx\SprFont.bin -p bin\gfx\pal\SprFont-Pal.bin
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\fonts\SprFont2BPP.png -t bin\gfx\SprFont2BPP.bin -p bin\gfx\pal\SprFont2BPP-Pal.bin
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -W 16 -H 16 -i res\img\Invaders.png -t bin\gfx\Invaders.bin -p bin\gfx\pal\InvadersPal.bin --no-remap
 

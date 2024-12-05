@@ -39,9 +39,10 @@ endstruct
 !CodeBank =     $008000 ;Hold game code + palette's
 !GFXBank =      $018000 ;Holds character data
 !TilemapBank =  $028000 ;Holds tilemap
-!Mode7Bank =    $038000 ;Holds Mode7 data
-!MusicBank =    $048000 ;Holds music data
-!MusicBank2 =   $058000 ;Holds music data
+!GfxBank2 =     $038000 ;Holds GFX data
+!GfxBank3 =     $048000 ;Holds GFX data
+!MusicBank =    $058000 ;Holds music data
+!MusicBank2 =   $068000 ;Holds music data
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -78,6 +79,8 @@ EnemyShootTimer =   $0410   ;Frames to wait until firing bullet
 EnemyBulletXPos =   $0414
 EnemyBulletYPos =   $0418
 EnemyBulletActive = $041C
+EnemyBulletFrame =  $0420
+BulletFCount =      $0421
 
 !StartMaxBGCount =  $06
 !MaxBG =            $04
@@ -100,7 +103,7 @@ UFOFrameTimer =     $06B6
 UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOScore =         $0100   ;Score to give to the player when shooting down the UFO
 !UFOSpeed =         $02     ;How fast the UFO moves
-!UFOResetTime =     $00DC   ;Timer to wait to make UFO active
+!UFOResetTime =     $03E8   ;Timer to wait to make UFO active [20 seconds on PAL, 16 on NTSC]
 !UFOYPos =          $00     ;Y Position of the UFO
 !UFOYPosB =         $08     ;Y Position of the UFO
 !UFOStartX =        $0100
@@ -145,10 +148,9 @@ ExplosionFineYVal = $0580+(!MaxEplW*9)
 !ExplosionAttr =    %00111100
 
 EnemyTileBuffer =   $7E8000
-ScoreDispBuffer =   $7E8400   ;Takes up [score text] + 6 bytes for score display
+TextDispBuffer =    $7E8400   ;Takes up [score text] + 6 bytes for score display
 HDMAScrollBuffer =  $7E8500
 HDMAScrollBuffer2 = $7E8800
-PalFadeAimBuffer =  $7E9000
 
 BGScrollOff =       $06C0     ;Scrolling offsets for background elements
 BGScrollVal =       $06D0
@@ -207,6 +209,9 @@ GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 
+!OptionsTextAttr =  $20
+!OptionsTMapAddr =  $7906
+SubOptionIndex =    $0EFD   ;Index into whatever option is chosen
 OptionIndex =       $0EFE   ;Index into what option to pick on a menu
 SinePtr =           $0EFF   ;Index into sine table
 SPRTextPosX =       $0F00   ;\  array of 128 position entries
@@ -284,14 +289,16 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !BG_L3_OFF =        $65
 
-!SurfboardT0 =      $B9
-!SurfboardT1 =      $BA
+!SurfboardT0 =      $BF
+!SurfboardT1 =      $C0
 !SurfboardAttr =    $32
 
 !SprFont1Attr =     $30
 
 !ArrowX =           $50
 !ArrowChar =        $29
+!ArrowChar2 =       $15
+!Arrow2Attr =       $00
 
 ;Character data
 ' ' = $00
