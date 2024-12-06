@@ -19,6 +19,7 @@ struct ZP $00
 .SceneIndex     skip 1  ;Current scene we are in
 .ChangeScene    skip 1  ;Tell the scene's to load/deload data
 .Controller     skip 2  ;Controller input
+.InputFlag      skip 1  ;Controller input pressed flag
 .OAMPtr         skip 2  ;Pointer to the last object in OAM
 .EnemyTimer     skip 1  ;Enemy Movement Timer
 .EnemyCount     skip 1  ;Amount of enemies on screen
@@ -149,8 +150,8 @@ ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 EnemyTileBuffer =   $7E8000
 TextDispBuffer =    $7E8400   ;Takes up [score text] + 6 bytes for score display
-HDMAScrollBuffer =  $7E8500
-HDMAScrollBuffer2 = $7E8800
+HDMAScrollBuffer =  $7E8800
+HDMAScrollBuffer2 = $7E8A00
 
 BGScrollOff =       $06C0     ;Scrolling offsets for background elements
 BGScrollVal =       $06D0
@@ -212,6 +213,7 @@ PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 !OptionsTextAttr =  $20
 !OptionsTMapAddr =  $78C5
 !OptionsMosAddr =   $78C5
+SinePtr2 =           $0EFB   ;Index into sine table
 SubOptionIndex2 =   $0EFC   ;Index into whatever option is chosen
 SubOptionIndex =    $0EFD   ;Index into whatever option is chosen
 OptionIndex =       $0EFE   ;Index into what option to pick on a menu
@@ -219,6 +221,9 @@ SinePtr =           $0EFF   ;Index into sine table
 SPRTextPosX =       $0F00   ;\  array of 128 position entries
 SPRTextPosY =       $1000   ;/
 
+ShieldHealth =      $1100   ;Health of shields
+ShieldBlinkTimer =  $1104   ;
+!ShieldStartHP =    $04
 !PlayerDieReset =   50
 !WaveInit =         $0F
 
@@ -300,7 +305,9 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !ArrowX =           $50
 !ArrowChar =        $29
 !ArrowChar2 =       $16
-!Arrow2Attr =       $00
+!Arrow2Attr =       $30
+!ShieldAttr1 =      $2E
+!ShieldAttr2 =      $6E
 
 ;Character data
 ' ' = $00
@@ -345,4 +352,3 @@ EnemyFloor =        $04E9   ;Floor boundaries
 ''' = $26+1
 ':' = $27+1
 '>' = $28+1
-'|' = $29+1

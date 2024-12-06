@@ -94,7 +94,6 @@ ArrowSpr:
 ArrowSpr_End:
 
 org !GfxBank2
-
 ;   Options screen graphics
 OptionsBG:
     incbin "bin/gfx/OptionsBG.bin"
@@ -233,6 +232,11 @@ OceanRocks_Pal_End:
 OptionsBG_Pal:
     incbin "bin/gfx/pal/OptionsBG.bin"
 OptionsBG_Pal_End:
+
+;   Options screen Gradient
+OptionsGrad:
+    incbin "bin/gfx/pal/OptionsBGGalaxyGrad.bin"
+OptionsGrad_End:
 
 ;   Arrow Sprite Palette
 ArrowSpr_Pal:
@@ -738,9 +742,12 @@ NMIHandler:
     ;----------------------;
     ;   Controller Input   ;
     ;----------------------;
-    rep #%00100000                              ;Exit 8bit mode for A
+    rep #$20                              ;Exit 8bit mode for A
     lda.w HW_JOY1L
     sta.b ZP.Controller
+    bne +
+    stz.b ZP.InputFlag
+    +
 
     sep #$20
     lda.w INIDSPMirror
@@ -786,7 +793,7 @@ TitleScene:
     sta.w HW_A1B0               ;Store bank
     ldx.w #SPRFont_End-SPRFont
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #HW_VMDATAL&$FF
+    lda.b #(HW_VMDATAL)&$FF
     sta.w HW_BBAD0
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
@@ -850,8 +857,10 @@ TitleScene:
     .SkipTitleLoad:
     ;Controls
     lda.b ZP.Controller+1
-    and #$10                    ;Check Left START
+    and #$10                    ;Check START
     beq .SkipChange
+    lda.b ZP.InputFlag
+    bne .SkipChange
     tdc
     sep #$20
     lda.w OptionIndex
@@ -867,11 +876,19 @@ TitleScene:
     lda.b ZP.Controller+1
     and #$04                    ;Check UP
     beq .SkipUp
+    lda.b ZP.InputFlag
+    bne .SkipUp
+    lda.b #$01
+    sta.b ZP.InputFlag
     inc.w OptionIndex
     .SkipUp:
     lda.b ZP.Controller+1
     and #$08                    ;Check DOWN
     beq .SkipDown
+    lda.b ZP.InputFlag
+    bne .SkipDown
+    lda.b #$01
+    sta.b ZP.InputFlag
     dec.w OptionIndex
     .SkipDown:
     ldy.w #$0000
@@ -1143,6 +1160,23 @@ GameScene:
     dey
     bpl -
 
+    ;Setup Shields
+    ldy.w #$0003
+    -
+    lda.b #!ShieldStartHP
+    sta.w ShieldHealth, Y
+    lda.b #$00
+    sta.w ShieldBlinkTimer, Y    
+    dey
+    bpl -
+    lda.b #$04
+    sta.w ShieldHealth
+    dec
+    sta.w ShieldHealth+1
+    dec
+    sta.w ShieldHealth+2
+    dec
+    sta.w ShieldHealth+3
     ;-------------------;
     ;   Load tilemaps   ;
     ;-------------------;
@@ -1806,6 +1840,31 @@ GameScene:
     dey
     bpl -
     
+    ;-----------------------;
+    ;    Handle Shields     ;
+    ;-----------------------;
+
+    ldy.w #$0003
+    -
+    lda.w ShieldHealth, Y
+    bit #$04
+    bne +
+    lda.b #$04
+    sec
+    sbc.w ShieldHealth, Y
+    asl
+    asl
+    clc
+    sta.b ZP.R0
+    lda.w ShieldBlinkTimer, Y
+    clc
+    adc.b ZP.R0
+    sta.w ShieldBlinkTimer, Y
+    +
+    dey
+    bpl -
+
+    jsr Gameloop_DrawShields
     ;------------------------;
     ;    Handle Game State   ;
     ;------------------------;
@@ -1987,6 +2046,115 @@ GameLoop_DrawScore:
     pla
     rts
     
+Gameloop_DrawShields:
+    pha
+    phx
+    phy
+    php
+
+    ldy.w #$0003
+    ldx.w #ShieldPosTable
+    stx.b ZP.MemPointer
+    tdc
+    .ShieldDrawLoop
+    ldx.w #$0000
+    lda.w ShieldHealth, Y
+    asl
+    asl
+    tax
+    sep #$20
+    lda.b #!ShieldAttr1
+    sta.b ZP.R0
+    lda.b #!ShieldAttr2
+    sta.b ZP.R1
+    lda.w ShieldBlinkTimer, Y
+    bit #$40
+    beq +
+    lda.b #$00
+    sta.w ShieldBlinkTimer, Y
+    stz.b ZP.R0
+    stz.b ZP.R1
+    +
+
+    lda.b (ZP.MemPointer)
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #$B0
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.w ShieldTileTable, X
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b ZP.R0
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    inx
+    rep #$20
+    inc.b ZP.MemPointer
+    sep #$20
+    
+    lda.b (ZP.MemPointer)
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #$B0
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.w ShieldTileTable, X
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b ZP.R0
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    inx
+    rep #$20
+    inc.b ZP.MemPointer
+    sep #$20
+    
+    lda.b (ZP.MemPointer)
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #$B0
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.w ShieldTileTable, X
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b ZP.R1
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    inx
+    rep #$20
+    inc.b ZP.MemPointer
+    sep #$20
+    
+    lda.b (ZP.MemPointer)
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #$B0
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.w ShieldTileTable, X
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b ZP.R1
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    inx
+    rep #$20
+    inc.b ZP.MemPointer
+    sep #$20
+
+    dey
+    bmi +
+    jmp .ShieldDrawLoop
+    +
+
+    plp
+    ply
+    plx
+    pla
+    rts
+
     ;---------------------------------;
     ;   Updating enemy array table    ;
     ;---------------------------------;
@@ -2136,11 +2304,15 @@ GameLoop_SendWave:
     lda.b #!EnemyPlaneStartX
     sta.b ZP.EnemyPlanePosX
     sta.b !BG1HOffMirror
+    sta.w HW_BG1HOFS
     stz.b !BG1HOffMirror+1
+    stz.w HW_BG1HOFS+1
     lda.b #!EnemyPlaneStartY
     sta.b ZP.EnemyPlanePosY
     sta.b !BG1VOffMirror
+    sta.w HW_BG1VOFS
     stz.b !BG1VOffMirror+1
+    stz.w HW_BG1VOFS+1
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
     lda.b #!GameState_Play
@@ -2697,8 +2869,18 @@ OptionsScene:
     stz.b ZP.ChangeScene        ;Reset flag
     lda.b #$09
     sta.w HW_BGMODE
+
+    sep #$20
+    ldy.w #HDMAMirror2-HDMAMirror
+    lda.b #$00
+    -
+    sta.w HDMAMirror, Y
+    dey
+    bpl -
+
     ldx.w #$0010
     stx.w HW_VMADDL
+    stz.w HW_HDMAEN
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
     ldx.w #SPRFont2BPP&$FFFF       ;Grab graphics addr
@@ -2727,9 +2909,9 @@ OptionsScene:
 
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #OptionsBG&$FFFF       ;Grab graphics addr
+    ldx.w #(OptionsBG)&$FFFF       ;Grab graphics addr
     stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #OptionsBG>>16&$FF
+    lda.b #(OptionsBG>>16)&$FF
     sta.w HW_A1B0               ;Store bank
     ldx.w #OptionsBG_End-OptionsBG
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
@@ -2741,11 +2923,13 @@ OptionsScene:
     ;Transfer tilemap data
     ldx.w #L1Ram
     stx.w HW_VMADDL
+    tdc
+    sep #$20
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #Options_TM&$FFFF    ;Grab graphics addr
+    ldx.w #(Options_TM)&$FFFF   ;Grab graphics addr
     stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #Options_TM>>16&$FF
+    lda.b #(Options_TM>>16)&$FF
     sta.w HW_A1B0               ;Store bank
     ldx.w #Options_TM_End-Options_TM
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
@@ -2774,26 +2958,35 @@ OptionsScene:
     sta.w PalMirror+$0100, Y
     dey
     bpl -
-
-    sep #$20
-    ldy.w #HDMAMirror2-HDMAMirror
-    lda.b #$00
+    
+    ldy.w #(HDMAScrollBuffer2-HDMAScrollBuffer)*2
+    ldx.w #(HDMAScrollBuffer)&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HW_WMADDH
     -
-    sta.w HDMAMirror, Y
+    stz.w HW_WMDATA
     dey
     bpl -
+
+    sep #$20
     stz.w OptionIndex
+    stz.w SubOptionIndex
+    stz.w SubOptionIndex2
     lda.b #$0F                  ;Set master brightness to 15 & stop blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipOptionsLoad
+
     sep #$20
-    lda.b #$01
-    sta.w OptionIndex
     lda.w OptionIndex
+    bne .SkipSelect
+    lda.b ZP.InputFlag
     bne .SkipSelect
     lda.b ZP.Controller+1   ;Right
     bit #$01
     beq +
+    lda.b #$01
+    sta.b ZP.InputFlag
     lda.w SubOptionIndex
     inc
     and #$07
@@ -2802,20 +2995,45 @@ OptionsScene:
     lda.b ZP.Controller+1   ;Left
     bit #$02
     beq +
+    lda.b #$01
+    sta.b ZP.InputFlag
     lda.w SubOptionIndex
     dec
     and #$07
     sta.w SubOptionIndex
     +
     .SkipSelect:
+    
+    lda.b ZP.Controller+1
+    and #$04                    ;Check UP
+    beq .SkipUpOpt
+    lda.b ZP.InputFlag
+    bne .SkipUpOpt
+    lda.b #$01
+    sta.b ZP.InputFlag
+    inc.w OptionIndex
+    .SkipUpOpt:
+    lda.b ZP.Controller+1
+    and #$08                    ;Check DOWN
+    beq .SkipDownOpt
+    lda.b ZP.InputFlag
+    bne .SkipDownOpt
+    lda.b #$01
+    sta.b ZP.InputFlag
+    dec.w OptionIndex
+    .SkipDownOpt:
 
     sep #$20
     lda.w OptionIndex
     cmp #$01
     bne .SkipSfxSelect
+    lda.b ZP.InputFlag
+    bne .SkipSfxSelect
     lda.b ZP.Controller+1   ;Right
     bit #$01
     beq +
+    lda.b #$01
+    sta.b ZP.InputFlag
     lda.w SubOptionIndex2
     inc
     and #$FF
@@ -2824,12 +3042,34 @@ OptionsScene:
     lda.b ZP.Controller+1   ;Left
     bit #$02
     beq +
+    lda.b #$01
+    sta.b ZP.InputFlag
     lda.w SubOptionIndex2
     dec
     and #$FF
     sta.w SubOptionIndex2
     +
     .SkipSfxSelect:
+
+    lda.w OptionIndex
+    cmp #$03
+    bcc +
+    stz.w OptionIndex
+    +
+
+
+    lda.b ZP.Controller+1
+    and #$10                    ;Check START
+    beq .SkipExit
+    lda.w OptionIndex
+    cmp #$02
+    bne .SkipExit
+    lda.b #$01
+    sta.b ZP.InputFlag
+    sta.b ZP.ChangeScene
+    stz.b ZP.SceneIndex
+    .SkipExit:
+    
 
     ldx.w #TextDispBuffer&$FFFF
     stx.w HW_WMADDL
@@ -2860,15 +3100,14 @@ OptionsScene:
     stz.w HW_WMDATA
     dey
     bpl -
-    
+
     lda.w SubOptionIndex
     asl
     tay
     rep #$20
     lda.w GameModifiers, Y
     sta.b ZP.MemPointer
-    lda.w GameModSize, Y
-    tax
+    ldx.w #$002C
     sep #$20
     ;Load text for current option
     -
@@ -2934,6 +3173,31 @@ OptionsScene:
     lda.b #!OptionsTextAttr
     sta.w HW_WMDATA
 
+    ;Spacing between text
+    ldy.w #$0092
+    -
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    dey
+    bpl -
+
+    ;Load Exit text
+    ldx.w #ExitText
+    stx.b ZP.MemPointer
+    ldy.w #ExitTextEnd-ExitText
+    -
+    lda.b (ZP.MemPointer)
+    inc
+    inc
+    sta.w HW_WMDATA
+    lda.b #!OptionsTextAttr
+    sta.w HW_WMDATA
+    rep #$20
+    inc.b ZP.MemPointer
+    sep #$20
+    dey
+    bne -
+
     sep #$20
     ldy.w #$0000
     lda.w SinePtr
@@ -2947,12 +3211,17 @@ OptionsScene:
     lsr
     lsr
     lsr
+    lsr
     sta.b ZP.R2
 
+    ldy.w #$0000
+    sep #$10
+    ldy.w OptionIndex
     lda.b #$1E
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b #$3A
+    lda.w OptionsArrowPos, Y
+    rep #$10
     clc
     adc.b ZP.R2
     sta.b (ZP.OAMPtr)
@@ -2964,13 +3233,125 @@ OptionsScene:
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
 
-    inc.w BGScrollOff
-    lda.w BGScrollOff
+    inc.w BGScrollOff+0
+    lda.w BGScrollOff+0
+    bit #$04
+    beq +
+    stz.w BGScrollOff+0
+    inc.w BGScrollVal+0
+    +
+    inc.w BGScrollOff+1
+    lda.w BGScrollOff+1
+    bit #$08
+    beq +
+    stz.w BGScrollOff+1
+    inc.w BGScrollVal+1
+    +
+    inc.w BGScrollOff+2
+    lda.w BGScrollOff+2
     bit #$10
     beq +
-    stz.w BGScrollOff
-    inc.w !BG1HOffMirror
+    stz.w BGScrollOff+2
+    inc.w BGScrollVal+2
     +
+    inc.w BGScrollOff+3
+    lda.w BGScrollOff+3
+    bit #$20
+    beq +
+    stz.w BGScrollOff+3
+    inc.w BGScrollVal+3
+    +
+    inc.w BGScrollOff+4
+    lda.w BGScrollOff+4
+    bit #$40
+    beq +
+    stz.w BGScrollOff+4
+    inc.w BGScrollVal+4
+    +
+    inc.w BGScrollOff+5
+    lda.w BGScrollOff+5
+    bit #$80
+    beq +
+    stz.w BGScrollOff+5
+    inc.w BGScrollVal+5
+    +
+    ;Construct HDMA table in WRAM
+    ldx.w #(HDMAScrollBuffer)&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HW_WMADDH
+    lda.b #$12          ;Scanline
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    lda.b #$6D          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+5 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$12          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+4 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$0E          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+3 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$0C          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+2 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$15          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+1 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$01          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+0 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    
+    stz.w HW_WMDATA     ;\  End flag
+    
+    sep #$20
+    lda.b #$02
+    sta.w HDMAMirror
+    lda.b #(HW_BG1HOFS)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HDMAMirror+2
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HDMAMirror+4
+
+    inc.w BGScrollOff+6
+    lda.w BGScrollOff+6
+    bit #$08
+    beq +
+    stz.w BGScrollOff+6
+    inc.w BGScrollVal+6
+    +
+
+    ldx.w #$0000
+    lda.w BGScrollVal+6
+    and.b #$0F
+    tax
+    lda.w OptionGradOff, X
+    tax
+    rep #$20
+    ldy.w #$003A
+    -
+    lda.w OptionGrad1, X
+    sta.w PalMirror, Y
+    inx
+    inx
+    dey
+    dey
+    cpy.w #$002C
+    bne -
 
     sep #$20
     ldy.w #$0000
@@ -2993,7 +3374,7 @@ OptionsScene:
     iny
     iny
     rep #$20
-    lda.w #$0200
+    lda.w #$0308
     sta.b (ZP.VrDmaListPtr), Y
     lda.b ZP.VrDmaListPtr
     clc
@@ -5098,6 +5479,10 @@ SFXText:
     db "SOUND TEST"
 SFXTextEnd:
 
+ExitText:
+    db "EXIT"
+ExitTextEnd:
+
 ;Game modifiers
 DHText:
     db "00: 2X HEALTH ENEMIES "     ;2x enemy health
@@ -5120,7 +5505,7 @@ RWText:
 CWText:
     db "09: NO PERSONAL SPACE "     ;Waves start lower
 NSText:
-    db "10: LOST SHIELDS      "     ;No shields
+    db "10: WHO NEEDS SHIELDS?"     ;No shields
 MSText:
     db "11: MOVING SHIELDS    "     ;Moving shields
 ModEnd:
@@ -5137,16 +5522,22 @@ GameModifiers:
     dw RWText                       ;$0080
 EndGameModifiers:
 
-GameModSize:
-    dw (DSText-DHText)*2
-    dw (SBText-DSText)*2
-    dw (FBText-SBText)*2
-    dw (HBText-FBText)*2
-    dw (RVText-HBText)*2
-    dw (SSText-RVText)*2
-    dw (NLText-SSText)*2
-    dw (RWText-NLText)*2
-GameModSizeEnd:
+MSXNormal:
+    db "NORMAL PLAYBACK     "
+MSXTheme:
+    db "THEME FOR EACH STAGE"
+MSXRand:
+    db "NO MUSIC D:         "
+
+StageNormal:
+    db "LINEAR STAGES       "
+StageRandom:
+    db "RANDOM STAGES       "
+
+OptionsArrowPos:
+    db $3C
+    db $64
+    db $8C
 
 TitleTextPosX:
     ;Start Game
@@ -5833,6 +6224,142 @@ BG4ColTable:
     dw $0000        ;Address
     dw $0000
     db $00
+
+OptionGradOff:
+    db $00
+    db $10
+    db $20
+    db $30
+    db $40
+    db $50
+    db $60
+    db $70
+    db $70
+    db $70
+    db $60
+    db $50
+    db $40
+    db $30
+    db $20
+    db $10
+
+OptionGrad1:
+    dw $7FBF
+    dw $7F1F
+    dw $7E9E
+    dw $69F9
+    dw $5995
+    dw $4911
+    dw $0000
+    dw $0000
+
+OptionGrad2:
+    dw $771D
+    dw $769D
+    dw $761D
+    dw $5D97
+    dw $5133
+    dw $40D0
+    dw $0000
+    dw $0000
+
+OptionGrad3:
+    dw $6A9A
+    dw $6A1A
+    dw $69BA
+    dw $5135
+    dw $40D1
+    dw $348D
+    dw $0000
+    dw $0000
+
+OptionGrad4:
+    dw $5E18
+    dw $5998
+    dw $5938
+    dw $40D2
+    dw $348F
+    dw $284B
+    dw $0000
+    dw $0000
+
+OptionGrad5:
+    dw $51B5
+    dw $4D35
+    dw $48F5
+    dw $3490
+    dw $284C
+    dw $1C28
+    dw $0000
+    dw $0000
+
+OptionGrad6:
+    dw $4153
+    dw $3CD3
+    dw $3C93
+    dw $284D
+    dw $1C2A
+    dw $1006
+    dw $0000
+    dw $0000
+
+OptionGrad7:
+    dw $34F0
+    dw $30B0
+    dw $2C70
+    dw $1C2B
+    dw $1007
+    dw $0803
+    dw $0000
+    dw $0000
+
+OptionGrad8:
+    dw $28AE
+    dw $246E
+    dw $202E
+    dw $1008
+    dw $0805
+    dw $0001
+    dw $0000
+    dw $0000
+
+    ;Only for X pos, Y pos is constant
+ShieldPosTable:
+    dw $1018
+    dw $2028
+    dw $5058
+    dw $6068
+    dw $9098
+    dw $A0A8
+    dw $D0D8
+    dw $E0E8
+
+ShieldTileTable:
+    ;Dead
+    db $00
+    db $00
+    db $00
+    db $00
+    ;Severely damaged
+    db $4D
+    db $4C
+    db $4C
+    db $4D
+    ;Moderately damaged
+    db $4B
+    db $4A
+    db $4A
+    db $4B
+    ;Partially damaged
+    db $49
+    db $48
+    db $48
+    db $49
+    ;Full health
+    db $47
+    db $46
+    db $46
+    db $47
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
