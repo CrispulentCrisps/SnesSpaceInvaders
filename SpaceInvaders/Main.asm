@@ -83,6 +83,13 @@ SPRFont:
     incbin "bin/gfx/SprFont.bin"
 SPRFont_End:
 
+org !GfxBank2
+;   Options screen graphics
+OptionsBG:
+    incbin "bin/gfx/OptionsBG.bin"
+    incbin "bin/gfx/OptionsBG2.bin"
+OptionsBG_End:
+
 ;   Sprite font 2    ;  5x5
 SPRFont2BPP:
     incbin "bin/gfx/SprFont2BPP.bin"
@@ -92,12 +99,6 @@ SPRFont2BPP_End:
 ArrowSpr:
     incbin "bin/gfx/Arrow.bin"
 ArrowSpr_End:
-
-org !GfxBank2
-;   Options screen graphics
-OptionsBG:
-    incbin "bin/gfx/OptionsBG.bin"
-OptionsBG_End:
 
 org !GfxBank3
 
@@ -150,6 +151,7 @@ Title_L2_TM_End:
 
 Options_TM:
     incbin "bin/gfx/tilemap/OptionsBG.bin"
+    incbin "bin/gfx/tilemap/OptionsBG2.bin"
 Options_TM_End:
 
 org !CodeBank
@@ -231,6 +233,7 @@ OceanRocks_Pal_End:
 ;   Options screen graphics
 OptionsBG_Pal:
     incbin "bin/gfx/pal/OptionsBG.bin"
+    incbin "bin/gfx/pal/OptionsBG2.bin"
 OptionsBG_Pal_End:
 
 ;   Options screen Gradient
@@ -1846,12 +1849,15 @@ GameScene:
 
     ldy.w #$0003
     -
-    lda.w ShieldHealth, Y
+    ;Handle shield blinks
+    jsr Gameloop_ShieldCollision
     bit #$04
     bne +
+    lda.w ShieldHealth, Y
     lda.b #$04
     sec
     sbc.w ShieldHealth, Y
+    asl
     asl
     asl
     clc
@@ -2046,14 +2052,64 @@ GameLoop_DrawScore:
     pla
     rts
     
+Gameloop_ShieldCollision:
+    pha
+    phx
+    phy
+    php
+    ldy.w #$0003
+    ldx.w #$0000
+    -
+    lda.w ShieldHealth, Y
+    beq .SkipPlayerBulletCheck
+    tya
+    asl
+    asl
+    tax
+    ;Check player bullet
+    ;(ShieldY - BulletX) <= 8
+    lda.b #!ShieldYPos
+    sec
+    sbc.w Bullet.Y
+    clc
+    adc.b #$07
+    cmp.b #$09                  ;Check if bullet calculation <= 8
+    bcs .SkipPlayerBulletCheck
+    lda.w ShieldPosTable, X
+    sec
+    sbc.b #$08
+    cmp Bullet.X
+    bcs .SkipPlayerBulletCheck
+    lda.w ShieldPosTable+3, X
+    clc
+    adc.b #$08
+    cmp Bullet.X
+    bcc .SkipPlayerBulletCheck
+    ;Assume the bullet has hit the shield
+    lda.w ShieldHealth, Y
+    dec
+    sta.w ShieldHealth, Y
+    stz.w Bullet.Enabled
+    lda.b #$FF
+    sta.w Bullet.X
+    lda.b #$F0
+    sta.w Bullet.Y
+    .SkipPlayerBulletCheck:
+    dey
+    bpl -
+    plp
+    ply
+    plx
+    pla
+    rts
+
 Gameloop_DrawShields:
     pha
     phx
     phy
     php
-
     ldy.w #$0003
-    ldx.w #ShieldPosTable
+    ldx.w #ShieldPosTableEnd-1
     stx.b ZP.MemPointer
     tdc
     .ShieldDrawLoop
@@ -2079,7 +2135,7 @@ Gameloop_DrawShields:
     lda.b (ZP.MemPointer)
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b #$B0
+    lda.b #!ShieldYPos
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.w ShieldTileTable, X
@@ -2090,13 +2146,30 @@ Gameloop_DrawShields:
     inc.b ZP.OAMPtr
     inx
     rep #$20
-    inc.b ZP.MemPointer
+    dec.b ZP.MemPointer
     sep #$20
     
     lda.b (ZP.MemPointer)
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b #$B0
+    lda.b #!ShieldYPos
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.w ShieldTileTable, X
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b ZP.R1
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    inx
+    rep #$20
+    dec.b ZP.MemPointer
+    sep #$20
+    
+    lda.b (ZP.MemPointer)
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!ShieldYPos
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.w ShieldTileTable, X
@@ -2107,13 +2180,13 @@ Gameloop_DrawShields:
     inc.b ZP.OAMPtr
     inx
     rep #$20
-    inc.b ZP.MemPointer
+    dec.b ZP.MemPointer
     sep #$20
     
     lda.b (ZP.MemPointer)
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b #$B0
+    lda.b #!ShieldYPos
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.w ShieldTileTable, X
@@ -2124,24 +2197,7 @@ Gameloop_DrawShields:
     inc.b ZP.OAMPtr
     inx
     rep #$20
-    inc.b ZP.MemPointer
-    sep #$20
-    
-    lda.b (ZP.MemPointer)
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    lda.b #$B0
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    lda.w ShieldTileTable, X
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    lda.b ZP.R1
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    inx
-    rep #$20
-    inc.b ZP.MemPointer
+    dec.b ZP.MemPointer
     sep #$20
 
     dey
@@ -2920,7 +2976,21 @@ OptionsScene:
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
 
-    ;Transfer tilemap data
+    ;Clear tilemap 1
+    ldx.w #L1Ram
+    stx.w HW_VMADDL             ;Set VRAM address to L1RAM
+    lda.b #$09
+    sta.w HW_DMAP7              ;Setup DMAP0
+    lda.b #$18                  ;Grab Video mem data lo addr
+    sta.w HW_BBAD7              ;Set bus addr
+    
+    ldx.w #ZVal                 ;Grab 0 val data to clear vram
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    ldx.w #$0800                ;Set to fill 400 words
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM [0 just means all of vram]
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+    ;Transfer tilemap data, holds the data for layer 1 and 2 respectively
     ldx.w #L1Ram
     stx.w HW_VMADDL
     tdc
@@ -2989,7 +3059,7 @@ OptionsScene:
     sta.b ZP.InputFlag
     lda.w SubOptionIndex
     inc
-    and #$07
+    and #$0F
     sta.w SubOptionIndex
     +
     lda.b ZP.Controller+1   ;Left
@@ -2999,7 +3069,7 @@ OptionsScene:
     sta.b ZP.InputFlag
     lda.w SubOptionIndex
     dec
-    and #$07
+    and #$0F
     sta.w SubOptionIndex
     +
     .SkipSelect:
@@ -3125,7 +3195,7 @@ OptionsScene:
     dex
     bne -
     ;Space between SFX test and mod text
-    ldy.w #$0089
+    ldy.w #$0049
     -
     stz.w HW_WMDATA
     stz.w HW_WMDATA
@@ -3173,8 +3243,24 @@ OptionsScene:
     lda.b #!OptionsTextAttr
     sta.w HW_WMDATA
 
+    ;Load Music options text
+    ldx.w #MSXMod
+    stx.b ZP.MemPointer
+    ldy.w #$0014
+    -
+    lda.b (ZP.MemPointer)
+    inc
+    inc
+    sta.w HW_WMDATA
+    lda.b #!OptionsTextAttr
+    sta.w HW_WMDATA
+    rep #$20
+    inc.b ZP.MemPointer
+    sep #$20
+    dey
+    bne -
     ;Spacing between text
-    ldy.w #$0092
+    ldy.w #$0072
     -
     stz.w HW_WMDATA
     stz.w HW_WMDATA
@@ -3342,7 +3428,7 @@ OptionsScene:
     lda.w OptionGradOff, X
     tax
     rep #$20
-    ldy.w #$003A
+    ldy.w #$0038
     -
     lda.w OptionGrad1, X
     sta.w PalMirror, Y
@@ -3759,7 +3845,7 @@ GameLoop_HandleUFO:
     sta.w UFODeleteFlag
     rep #$20
     lda.w UFOXPos
-    and.w #$01E8
+    and.w #$01FF
     sta.w UFOXPos
     +
     lda.w UFOXPos
@@ -3800,7 +3886,7 @@ GameLoop_DrawUFO:
     and.w #$01FF
     sta.b ZP.R0
     lda.b ZP.R0
-    and.w #$FF00
+    and.w #$0100
     beq +
     sep #$20
     lda.w OAMCopy+$0202
@@ -3815,7 +3901,7 @@ GameLoop_DrawUFO:
     lda.b ZP.R0
     clc
     adc.w #$0008
-    and.w #$FF00
+    and.w #$0100
     beq +
     sep #$20
     lda.w OAMCopy+$0202
@@ -3830,7 +3916,7 @@ GameLoop_DrawUFO:
     lda.b ZP.R0
     clc
     adc.w #$0010
-    and.w #$FF00
+    and.w #$0100
     beq +
     sep #$20
     lda.w OAMCopy+$0202
@@ -3845,7 +3931,7 @@ GameLoop_DrawUFO:
     lda.b ZP.R0
     clc
     adc.w #$0018
-    and.w #$FF00
+    and.w #$0100
     beq +
     sep #$20
     lda.w OAMCopy+$0203
@@ -5484,50 +5570,74 @@ ExitText:
 ExitTextEnd:
 
 ;Game modifiers
-DHText:
+Op0Text:
     db "00: 2X HEALTH ENEMIES "     ;2x enemy health
-DSText:
+Op1Text:
     db "01: 2X SPEED ENEMIES  "     ;1/2 time to make enemies move
-SBText:
+Op2Text:
     db "02: SLOW TANK BULLETS "     ;Player bullets move at half speed
-FBText:
+Op3Text:
     db "03: FAST ALIEN BULLETS"     ;Enemy bullets move at 2x speed
-HBText:
+Op4Text:
     db "04: HOMING BULLETS    "     ;Enemy bullets home in on the player
-RVText:
+Op5Text:
     db "05: RETRO VISION      "     ;Mosaic applied to layer 1
-SSText:
+Op6Text:
     db "06: SLOW SHIP         "     ;Ship moves half as fast
-NLText:
+Op7Text:
     db "07: NO-LIFER          "     ;1 life for a given session
-RWText:
+Op8Text:
     db "08: RANDOM WAVES      "     ;Randomize what wave to go to
-CWText:
+Op9Text:
     db "09: NO PERSONAL SPACE "     ;Waves start lower
-NSText:
+OpAText:
     db "10: WHO NEEDS SHIELDS?"     ;No shields
-MSText:
+OpBText:
     db "11: MOVING SHIELDS    "     ;Moving shields
+OpCText:
+    db "12: WEAK SHIELDS      "     ;Shields have half health
+OpDText:
+    db "13: BROKEN CANNON     "     ;Bullets have random direction
+OpEText:
+    db "14: CONFUSED ENEMIES  "     ;Enemy Bullets have a random direction
+OpFText:
+    db "15: NAN               "     ;Bullets have random direction
 ModEnd:
 
 GameModifiers:
-    dw DHText                       ;$0000
-    dw DSText                       ;$0001
-    dw SBText                       ;$0002
-    dw FBText                       ;$0004
-    dw HBText                       ;$0008
-    dw RVText                       ;$0010
-    dw SSText                       ;$0020
-    dw NLText                       ;$0040
-    dw RWText                       ;$0080
+    dw Op0Text                       ;$0000
+    dw Op1Text                       ;$0001
+    dw Op2Text                       ;$0002
+    dw Op3Text                       ;$0004
+    dw Op4Text                       ;$0008
+    dw Op5Text                       ;$0010
+    dw Op6Text                       ;$0020
+    dw Op7Text                       ;$0040
+    dw Op8Text                       ;$0080
+    dw Op9Text                       ;$0100
+    dw OpAText                       ;$0200
+    dw OpBText                       ;$0400
+    dw OpCText                       ;$0800
+    dw OpDText                       ;$1000
+    dw OpEText                       ;$2000
+    dw OpFText                       ;$4000
 EndGameModifiers:
 
 MSXNormal:
-    db "NORMAL PLAYBACK     "
+    db "LINEAR SELECTION    "
 MSXTheme:
     db "THEME FOR EACH STAGE"
 MSXRand:
+    db "RANDOMIZE TRACKS    "
+MSXSad:
     db "NO MUSIC D:         "
+
+MSXMod:
+    dw MSXNormal
+    dw MSXTheme
+    dw MSXRand
+    dw MSXSad
+MSXModEnd:
 
 StageNormal:
     db "LINEAR STAGES       "
@@ -5642,51 +5752,51 @@ EnemyDrawTop:
     dw $0000
 
     ;Basic Squelcher
-    db $50
+    db $60
     db !EnemyPal1
-    db $50
+    db $60
     db (!EnemyPal1)+$40
 
     ;Metal Rocketeer
-    db $51
+    db $61
     db !EnemyPal2
-    db $51
+    db $61
     db (!EnemyPal2)+$40
 
     ;Boxy Greenback
-    db $52
+    db $62
     db !EnemyPal1
-    db $52
+    db $62
     db (!EnemyPal1)+$40
 
     ;Mind Cake
-    db $53
+    db $63
     db !EnemyPal3
-    db $53
+    db $63
     db (!EnemyPal3)+$40
 
     ;Sophisticated mimic
-    db $54
+    db $64
     db !EnemyPal4
-    db $54
+    db $64
     db (!EnemyPal4)+$40
 
     ;Purple Mook
-    db $55
+    db $65
     db !EnemyPal3
-    db $55
+    db $65
     db (!EnemyPal3)+$40
 
     ;MultiArm
-    db $56
+    db $66
     db !EnemyPal2
-    db $56
+    db $66
     db (!EnemyPal2)+$40
 
     ;Tough Guy
-    db $57
+    db $67
     db !EnemyPal1
-    db $57
+    db $67
     db (!EnemyPal1)+$40
 
 EnemyDrawBot:
@@ -5697,51 +5807,51 @@ EnemyDrawBot:
     db $00<<2
 
     ;Basic Squelcher
-    db $60
+    db $70
     db !EnemyPal1
-    db $60
+    db $70
     db (!EnemyPal1)+$40
 
     ;Metal Rocketeer
-    db $61
+    db $71
     db !EnemyPal2
-    db $61
+    db $71
     db (!EnemyPal2)+$40
 
     ;Boxy Greenback
-    db $62
+    db $72
     db !EnemyPal1
-    db $62
+    db $72
     db (!EnemyPal1)+$40
 
     ;Mind Cake
-    db $63
+    db $73
     db !EnemyPal3
-    db $63
+    db $73
     db (!EnemyPal3)+$40
 
     ;Sophisticated mimic
-    db $64
+    db $74
     db !EnemyPal4
-    db $64
+    db $74
     db (!EnemyPal4)+$40
 
     ;Purple Mook
-    db $65
+    db $75
     db !EnemyPal3
-    db $65
+    db $75
     db (!EnemyPal3)+$40
 
     ;MultiArm
-    db $66
+    db $76
     db !EnemyPal2
-    db $66
+    db $76
     db (!EnemyPal2)+$40
 
     ;Tough Guy
-    db $67
+    db $77
     db !EnemyPal1
-    db $67
+    db $77
     db (!EnemyPal1)+$40
 
 EnemyHealthTable:
@@ -6333,6 +6443,7 @@ ShieldPosTable:
     dw $A0A8
     dw $D0D8
     dw $E0E8
+ShieldPosTableEnd:
 
 ShieldTileTable:
     ;Dead
@@ -6360,6 +6471,16 @@ ShieldTileTable:
     db $46
     db $46
     db $47
+
+ShieldExplosionTileTable:
+    db $55
+    db $54
+    db $53
+    db $52
+    db $51
+    db $50
+    db $4F
+    db $4E
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C

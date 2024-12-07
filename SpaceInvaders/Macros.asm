@@ -222,10 +222,13 @@ SPRTextPosX =       $0F00   ;\  array of 128 position entries
 SPRTextPosY =       $1000   ;/
 
 ShieldHealth =      $1100   ;Health of shields
-ShieldBlinkTimer =  $1104   ;
+ShieldBlinkTimer =  $1104   ;Timer for shields to blink
 !ShieldStartHP =    $04
 !PlayerDieReset =   50
 !WaveInit =         $0F
+
+SParticleX =        $1108
+SParticleFrame =    $1110
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
@@ -272,8 +275,8 @@ LaserOAM =          $0810
 
 !EnemyGfx =         $2D
 
-!EnemyTileDest =    $0500
-!BGTileDest =       $0700
+!EnemyTileDest =    $0600
+!BGTileDest =       $0800
 
 EnemyMax =          $04E7   ;R boundaries
 EnemyMin =          $04E8   ;L boundaries
@@ -308,7 +311,7 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !Arrow2Attr =       $30
 !ShieldAttr1 =      $2E
 !ShieldAttr2 =      $6E
-
+!ShieldYPos =       $A8
 ;Character data
 ' ' = $00
 '0' = $00+1

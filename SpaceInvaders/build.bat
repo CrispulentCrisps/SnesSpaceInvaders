@@ -1,12 +1,12 @@
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\GameGFX.png -t bin\gfx\GameGFX.bin -p bin\gfx\pal\GamePal.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\GameSprites.png -t bin\gfx\GameSprites.bin -p bin\gfx\pal\GameSpritesPal.bin --no-remap
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-1-L2.png -t bin\gfx\BG-1-L2.bin -p bin\gfx\pal\BG-1-L2-Pal.bin -m bin\gfx\tilemap\BG-1-L2.bin --tile-base-offset 112 --palette-base-offset 1
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-1-L3.png -t bin\gfx\BG-1-L3.bin -p bin\gfx\pal\BG-1-L3-Pal.bin -m bin\gfx\tilemap\BG-1-L3.bin --tile-base-offset 282
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-2-L2.png -t bin\gfx\BG-2-L2.bin -p bin\gfx\pal\BG-2-L2-Pal.bin -m bin\gfx\tilemap\BG-2-L2.bin --tile-base-offset 112 --palette-base-offset 1
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-1-L2.png -t bin\gfx\BG-1-L2.bin -p bin\gfx\pal\BG-1-L2-Pal.bin -m bin\gfx\tilemap\BG-1-L2.bin --tile-base-offset 128 --palette-base-offset 1
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-1-L3.png -t bin\gfx\BG-1-L3.bin -p bin\gfx\pal\BG-1-L3-Pal.bin -m bin\gfx\tilemap\BG-1-L3.bin --tile-base-offset 314
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-2-L2.png -t bin\gfx\BG-2-L2.bin -p bin\gfx\pal\BG-2-L2-Pal.bin -m bin\gfx\tilemap\BG-2-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-2-L3.png -t bin\gfx\BG-2-L3.bin -p bin\gfx\pal\BG-2-L3-Pal.bin -m bin\gfx\tilemap\BG-2-L3.bin --tile-base-offset 964
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-3-L2.png -t bin\gfx\BG-3-L2.bin -p bin\gfx\pal\BG-3-L2-Pal.bin -m bin\gfx\tilemap\BG-3-L2.bin --tile-base-offset 112 --palette-base-offset 1
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-3-L2.png -t bin\gfx\BG-3-L2.bin -p bin\gfx\pal\BG-3-L2-Pal.bin -m bin\gfx\tilemap\BG-3-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-3-L3.png -t bin\gfx\BG-3-L3.bin -p bin\gfx\pal\BG-3-L3-Pal.bin -m bin\gfx\tilemap\BG-3-L3.bin --tile-base-offset 274
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-4-L2.png -t bin\gfx\BG-4-L2.bin -p bin\gfx\pal\BG-4-L2-Pal.bin -m bin\gfx\tilemap\BG-4-L2.bin --tile-base-offset 112 --palette-base-offset 1
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-4-L2.png -t bin\gfx\BG-4-L2.bin -p bin\gfx\pal\BG-4-L2-Pal.bin -m bin\gfx\tilemap\BG-4-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-4-L3.png -t bin\gfx\BG-4-L3.bin -p bin\gfx\pal\BG-4-L3-Pal.bin -m bin\gfx\tilemap\BG-4-L3.bin --tile-base-offset 422
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG1-Grad.png -p bin\gfx\pal\BG-1-L3-Grad.bin
@@ -15,6 +15,7 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG4-Grad.png -p bin\gfx\pal\BG4-Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\Title-BG-L2.png -t bin\gfx\Title-BG-L2.bin -p bin\gfx\pal\Title-BG-L2-Pal.bin -m bin\gfx\tilemap\Title-BG-L2.bin --tile-base-offset 48 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\OptionsBG.png -t bin\gfx\OptionsBG.bin -p bin\gfx\pal\OptionsBG.bin -m bin\gfx\tilemap\OptionsBG.bin --tile-base-offset 23 --palette-base-offset 1
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\OptionsBG2.png -t bin\gfx\OptionsBG2.bin -p bin\gfx\pal\OptionsBG2.bin -m bin\gfx\tilemap\OptionsBG2.bin --tile-base-offset 297 --palette-base-offset 2
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\OptionsBGGalaxyGrad.png -t bin\gfx\Bgs\OptionsBGGalaxyGrad.bin -p bin\gfx\pal\OptionsBGGalaxyGrad.bin --no-remap
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -S -i res\img\ArrowSprite.png -t bin\gfx\Arrow.bin -p bin\gfx\pal\Arrow.bin
