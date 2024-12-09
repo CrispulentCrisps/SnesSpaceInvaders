@@ -1,8 +1,8 @@
-﻿MinBound = 0x0407
-MaxBound = 0x0408
-FloorBound = 0x0409
-PlanePosX = 0x1F 
-PlanePosY = 0x20 
+﻿MinBound = 0x04E7
+MaxBound = 0x04E8
+FloorBound = 0x04E9
+PlanePosX = 0x20 
+PlanePosY = 0x21 
 BSize = 2
 function ShowBounds()
 	mx = emu.read(MaxBound, emu.memType.snesMemory, false)

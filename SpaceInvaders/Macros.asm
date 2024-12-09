@@ -150,8 +150,8 @@ ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 EnemyTileBuffer =   $7E8000
 TextDispBuffer =    $7E8400   ;Takes up [score text] + 6 bytes for score display
-HDMAScrollBuffer =  $7E8800
-HDMAScrollBuffer2 = $7E8A00
+HDMAScrollBuffer =  $7E8A00
+HDMAScrollBuffer2 = $7E8E00
 
 BGScrollOff =       $06C0     ;Scrolling offsets for background elements
 BGScrollVal =       $06D0
@@ -213,7 +213,11 @@ PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
 !OptionsTextAttr =  $20
 !OptionsTMapAddr =  $78C5
 !OptionsMosAddr =   $78C5
-SinePtr2 =           $0EFB   ;Index into sine table
+
+StageSettings =     $0EF8
+MusicSettings =     $0EF9
+SinePtr2 =          $0EFA   ;Index into sine table
+SubOptionIndex3 =   $0EFB   ;Index into whatever option is chosen
 SubOptionIndex2 =   $0EFC   ;Index into whatever option is chosen
 SubOptionIndex =    $0EFD   ;Index into whatever option is chosen
 OptionIndex =       $0EFE   ;Index into what option to pick on a menu
@@ -225,7 +229,7 @@ ShieldHealth =      $1100   ;Health of shields
 ShieldBlinkTimer =  $1104   ;Timer for shields to blink
 !ShieldStartHP =    $04
 !PlayerDieReset =   50
-!WaveInit =         $0F
+!WaveInit =         $02
 
 SParticleX =        $1108
 SParticleFrame =    $1110
@@ -287,7 +291,7 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !EnemyRBounds =     $80
 !EnemyLBounds =     $40
-!EnemyFloor =       $9F
+!EnemyFloor =       $40
 !EnemyDownLoop =    $09
 
 !EnemyMoveL =       $00
@@ -299,8 +303,8 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !BG_L3_OFF =        $65
 
-!SurfboardT0 =      $BF
-!SurfboardT1 =      $C0
+!SurfboardT0 =      $CF
+!SurfboardT1 =      $D0
 !SurfboardAttr =    $32
 
 !SprFont1Attr =     $30
@@ -312,6 +316,8 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !ShieldAttr1 =      $2E
 !ShieldAttr2 =      $6E
 !ShieldYPos =       $A8
+!Tick =             $17
+!Cross =            $18
 ;Character data
 ' ' = $00
 '0' = $00+1

@@ -397,8 +397,8 @@ Reset:
     stz.w HW_MOSAIC             ;Reset BG mosaic
     lda.b #$00                  ;Load BG Mode
     sta.w HW_BGMODE             ;Set BG mode
-    lda.b #$00
-    sta.w HW_BG12NBA            ;Reset bg character DAD
+    stz.w HW_BG12NBA            ;Reset bg character DAD
+    stz.w HW_BG34NBA            ;Reset bg character DAD
     lda.b #$FF
     sta.w HW_TM
     lda.b #$00
@@ -1535,6 +1535,7 @@ GameScene:
     .SkipEnemyHurt:
 
     .SkipBullet0Logic:
+
     ;---------------------;
     ;   Bullet Drawing    ;
     ;---------------------;
@@ -1847,10 +1848,43 @@ GameScene:
     ;    Handle Shields     ;
     ;-----------------------;
 
+    ;Handle shield blinks
+    lda.w Bullet.X
+    sta.b ZP.R0
+    lda.w Bullet.Y
+    sta.b ZP.R1
+    jsr Gameloop_ShieldCollision
+    lda.b ZP.R2
+    beq +
+    stz.w Bullet.Enabled
+    lda.b #$FF
+    sta.w Bullet.X
+    lda.b #$F0
+    sta.w Bullet.Y
+    +
+    tdc
+    ldy.w #$03
+    -
+    lda.w EnemyBulletXPos, Y
+    sta.b ZP.R0
+    lda.w EnemyBulletYPos, Y
+    sta.b ZP.R1
+    jsr Gameloop_ShieldCollision
+    
+    lda.b ZP.R2
+    beq +
+    lda.b #$00
+    sta.w EnemyBulletActive, Y
+    lda.b #$FF
+    sta.w EnemyBulletXPos, Y
+    lda.b #$F0
+    sta.w EnemyBulletYPos, Y
+    +
+    dey
+    bpl -
+
     ldy.w #$0003
     -
-    ;Handle shield blinks
-    jsr Gameloop_ShieldCollision
     bit #$04
     bne +
     lda.w ShieldHealth, Y
@@ -2052,6 +2086,11 @@ GameLoop_DrawScore:
     pla
     rts
     
+    ;
+    ;   ZP.R0 for X
+    ;   ZP.R1 for Y
+    ;   ZP.R2 enable flag
+    ;
 Gameloop_ShieldCollision:
     pha
     phx
@@ -2070,30 +2109,28 @@ Gameloop_ShieldCollision:
     ;(ShieldY - BulletX) <= 8
     lda.b #!ShieldYPos
     sec
-    sbc.w Bullet.Y
+    sbc.b ZP.R1
     clc
-    adc.b #$07
-    cmp.b #$09                  ;Check if bullet calculation <= 8
+    adc.b #$04
+    cmp.b #$08                  ;Check if bullet calculation <= 8
     bcs .SkipPlayerBulletCheck
     lda.w ShieldPosTable, X
     sec
-    sbc.b #$08
-    cmp Bullet.X
+    sbc.b #$0C
+    cmp.b ZP.R0
     bcs .SkipPlayerBulletCheck
     lda.w ShieldPosTable+3, X
     clc
-    adc.b #$08
-    cmp Bullet.X
+    adc.b #$0C
+    cmp.b ZP.R0
     bcc .SkipPlayerBulletCheck
     ;Assume the bullet has hit the shield
     lda.w ShieldHealth, Y
     dec
     sta.w ShieldHealth, Y
-    stz.w Bullet.Enabled
-    lda.b #$FF
-    sta.w Bullet.X
-    lda.b #$F0
-    sta.w Bullet.Y
+    ;enable disable flag
+    lda.b #$01
+    sta.w ZP.R2
     .SkipPlayerBulletCheck:
     dey
     bpl -
@@ -2267,6 +2304,7 @@ GameLoop_UpdateEnemyArray:
     ;       ZP.R1
     ;       ZP.R2
     ;       ZP.R3
+    ;       ZP.R4
     ;       X
     ;       Y
     ;
@@ -2281,6 +2319,7 @@ GameLoop_FindMaxRowBounds:
     lda.b #$00
     sta.b ZP.R2     ;Lowest alive enemy
     stz.b ZP.R3     ;Inc lowest flag
+    stz.b ZP.R4     ;Lowest counter
     sep #$30
     .RowLoop:
     ;Min/Max find
@@ -2303,9 +2342,11 @@ GameLoop_FindMaxRowBounds:
     and.b #$07
     pha
     bne .SkipInc
+    inc.b ZP.R4
     lda.b ZP.R3
     beq .SkipInc
-    inc.b ZP.R2
+    lda.b ZP.R4
+    sta.b ZP.R2
     stz.b ZP.R3
     .SkipInc:
     pla
@@ -2317,12 +2358,10 @@ GameLoop_FindMaxRowBounds:
     ;Set boundaries
     ldy.b ZP.R0
     lda.w EnemyRowPos, Y
-    ;lda.b #!EnemyRBounds
     sta.w EnemyMin
     ldy.b ZP.R1
     iny
     lda.w EnemyRowPos, Y
-    ;lda.b #!EnemyLBounds
     sta.w EnemyMax
     ldy.b ZP.R2
     iny
@@ -3043,6 +3082,9 @@ OptionsScene:
     stz.w OptionIndex
     stz.w SubOptionIndex
     stz.w SubOptionIndex2
+    stz.w SubOptionIndex3
+
+    jsr OptionsScreen_DrawUI
     lda.b #$0F                  ;Set master brightness to 15 & stop blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipOptionsLoad
@@ -3071,6 +3113,22 @@ OptionsScene:
     dec
     and #$0F
     sta.w SubOptionIndex
+    +
+    
+    lda.b ZP.Controller     ;A
+    bit #$80
+    beq +
+    lda.b #$01
+    sta.b ZP.InputFlag
+    ldy.w #$0000
+    lda.w SubOptionIndex
+    asl
+    tay
+    rep #$20
+    lda.b ZP.Modifiers
+    eor.w WBitmask, Y
+    sta.b ZP.Modifiers
+    sep #$20
     +
     .SkipSelect:
     
@@ -3122,17 +3180,37 @@ OptionsScene:
     .SkipSfxSelect:
 
     lda.w OptionIndex
-    cmp #$03
-    bcc +
-    stz.w OptionIndex
+    cmp #$02
+    bne .SkipMSXOptions
+    lda.b ZP.InputFlag
+    bne .SkipMSXOptions
+    lda.b ZP.Controller+1   ;Right
+    bit #$01
+    beq +
+    lda.b #$01
+    sta.b ZP.InputFlag
+    lda.w MusicSettings
+    inc
+    and #$03
+    sta.w MusicSettings
     +
-
+    lda.b ZP.Controller+1   ;Left
+    bit #$02
+    beq +
+    lda.b #$01
+    sta.b ZP.InputFlag
+    lda.w MusicSettings
+    dec
+    and #$03
+    sta.w MusicSettings
+    +
+    .SkipMSXOptions:
 
     lda.b ZP.Controller+1
     and #$10                    ;Check START
     beq .SkipExit
     lda.w OptionIndex
-    cmp #$02
+    cmp #$04
     bne .SkipExit
     lda.b #$01
     sta.b ZP.InputFlag
@@ -3140,7 +3218,200 @@ OptionsScene:
     stz.b ZP.SceneIndex
     .SkipExit:
     
+    lda.w OptionIndex
+    cmp #$05
+    bcc +
+    stz.w OptionIndex
+    +
 
+    rep #$10
+    ldy.w #$0000
+    sep #$10
+    ldy.w OptionIndex
+    lda.b #$1E
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.w OptionsArrowPos, Y
+    rep #$10
+    clc
+    adc.b ZP.R2
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!ArrowChar2
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!Arrow2Attr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+
+    lda.b #!Cross
+    sta.b ZP.R5
+    rep #$10
+    ldy.w #$0000
+    sep #$10
+    lda.w SubOptionIndex
+    asl
+    tay
+    rep #$20
+    lda.w WBitmask, Y
+    sta.b ZP.R3
+    lda.b ZP.Modifiers
+    bit.b ZP.R3
+    beq +
+    sep #$20
+    lda.b #!Tick
+    sta.b ZP.R5
+    +
+
+    sep #$20
+    lda.b #$D8
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #$3E
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b ZP.R5
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b #!Arrow2Attr
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+
+    rep #$10
+    inc.w BGScrollOff+0
+    lda.w BGScrollOff+0
+    bit #$04
+    beq +
+    stz.w BGScrollOff+0
+    inc.w BGScrollVal+0
+    +
+    inc.w BGScrollOff+1
+    lda.w BGScrollOff+1
+    bit #$08
+    beq +
+    stz.w BGScrollOff+1
+    inc.w BGScrollVal+1
+    +
+    inc.w BGScrollOff+2
+    lda.w BGScrollOff+2
+    bit #$10
+    beq +
+    stz.w BGScrollOff+2
+    inc.w BGScrollVal+2
+    +
+    inc.w BGScrollOff+3
+    lda.w BGScrollOff+3
+    bit #$20
+    beq +
+    stz.w BGScrollOff+3
+    inc.w BGScrollVal+3
+    +
+    inc.w BGScrollOff+4
+    lda.w BGScrollOff+4
+    bit #$40
+    beq +
+    stz.w BGScrollOff+4
+    inc.w BGScrollVal+4
+    +
+    inc.w BGScrollOff+5
+    lda.w BGScrollOff+5
+    bit #$80
+    beq +
+    stz.w BGScrollOff+5
+    inc.w BGScrollVal+5
+    +
+    ;Construct HDMA table in WRAM
+    ldx.w #(HDMAScrollBuffer)&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HW_WMADDH
+    lda.b #$48          ;Scanline
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    lda.b #$42          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+5 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$06          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+4 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$0E          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+3 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$0D          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+2 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$15          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+1 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$01          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+0 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    
+    stz.w HW_WMDATA     ;\  End flag
+    
+    sep #$20
+    lda.b #$02
+    sta.w HDMAMirror
+    lda.b #(HW_BG1HOFS)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HDMAMirror+2
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HDMAMirror+4
+
+    inc.w BGScrollOff+6
+    lda.w BGScrollOff+6
+    bit #$08
+    beq +
+    stz.w BGScrollOff+6
+    inc.w BGScrollVal+6
+    +
+
+    ldy.w #$0000
+    ldx.w #$0000
+    tdc
+    sep #$20
+    lda.w BGScrollVal+6
+    and.b #$0F
+    tax
+    lda.w OptionGradOff, X
+    tax
+    rep #$20
+    ldy.w #$0036
+    -
+    lda.w OptionGrad1, X
+    sta.w PalMirror, Y
+    inx
+    inx
+    dey
+    dey
+    cpy.w #$002A
+    bne -
+    
+    jsr OptionsScreen_DrawUI
+
+    rep #$20
+    rts
+
+OptionsScreen_DrawUI:
+    pha
+    phx
+    phy
+    php
+    sep #$20
     ldx.w #TextDispBuffer&$FFFF
     stx.w HW_WMADDL
     lda.b #(TextDispBuffer>>16)&$FF
@@ -3243,8 +3514,15 @@ OptionsScene:
     lda.b #!OptionsTextAttr
     sta.w HW_WMDATA
 
-    ;Load Music options text
-    ldx.w #MSXMod
+    ldy.w #$0052
+    -
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    dey
+    bpl -
+
+    ;Load Exit text
+    ldx.w #MusicOptionsText
     stx.b ZP.MemPointer
     ldy.w #$0014
     -
@@ -3259,8 +3537,64 @@ OptionsScene:
     sep #$20
     dey
     bne -
+
+    ldy.w #$002C
+    -
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    dey
+    bne -
+
+    ;Load Music options text
+    ldy.w #$0000
+    lda.w MusicSettings
+    asl
+    tay
+    rep #$20
+    lda.w MSXMod, Y
+    sta.b ZP.MemPointer
+    sep #$20
+    ldy.w #$0014
+    tdc
+    -
+    lda.b (ZP.MemPointer)
+    inc
+    inc
+    sta.w HW_WMDATA
+    lda.b #!OptionsTextAttr
+    sta.w HW_WMDATA
+    rep #$20
+    inc.b ZP.MemPointer
+    sep #$20
+    dey
+    bne -
+    
+    ldy.w #$004B
+    -
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    dey
+    bpl -
+
+    ;Load Exit text
+    ldx.w #StageRandomText
+    stx.b ZP.MemPointer
+    ldy.w #$0013
+    -
+    lda.b (ZP.MemPointer)
+    inc
+    inc
+    sta.w HW_WMDATA
+    lda.b #!OptionsTextAttr
+    sta.w HW_WMDATA
+    rep #$20
+    inc.b ZP.MemPointer
+    sep #$20
+    dey
+    bne -
+
     ;Spacing between text
-    ldy.w #$0072
+    ldy.w #$004C
     -
     stz.w HW_WMDATA
     stz.w HW_WMDATA
@@ -3300,145 +3634,6 @@ OptionsScene:
     lsr
     sta.b ZP.R2
 
-    ldy.w #$0000
-    sep #$10
-    ldy.w OptionIndex
-    lda.b #$1E
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    lda.w OptionsArrowPos, Y
-    rep #$10
-    clc
-    adc.b ZP.R2
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    lda.b #!ArrowChar2
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    lda.b #!Arrow2Attr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-
-    inc.w BGScrollOff+0
-    lda.w BGScrollOff+0
-    bit #$04
-    beq +
-    stz.w BGScrollOff+0
-    inc.w BGScrollVal+0
-    +
-    inc.w BGScrollOff+1
-    lda.w BGScrollOff+1
-    bit #$08
-    beq +
-    stz.w BGScrollOff+1
-    inc.w BGScrollVal+1
-    +
-    inc.w BGScrollOff+2
-    lda.w BGScrollOff+2
-    bit #$10
-    beq +
-    stz.w BGScrollOff+2
-    inc.w BGScrollVal+2
-    +
-    inc.w BGScrollOff+3
-    lda.w BGScrollOff+3
-    bit #$20
-    beq +
-    stz.w BGScrollOff+3
-    inc.w BGScrollVal+3
-    +
-    inc.w BGScrollOff+4
-    lda.w BGScrollOff+4
-    bit #$40
-    beq +
-    stz.w BGScrollOff+4
-    inc.w BGScrollVal+4
-    +
-    inc.w BGScrollOff+5
-    lda.w BGScrollOff+5
-    bit #$80
-    beq +
-    stz.w BGScrollOff+5
-    inc.w BGScrollVal+5
-    +
-    ;Construct HDMA table in WRAM
-    ldx.w #(HDMAScrollBuffer)&$FFFF
-    stx.w HW_WMADDL
-    lda.b #(HDMAScrollBuffer>>16)&$FF
-    sta.w HW_WMADDH
-    lda.b #$12          ;Scanline
-    sta.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    lda.b #$6D          ;Scanline
-    sta.w HW_WMDATA
-    lda.w BGScrollVal+5 ;\
-    sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    lda.b #$12          ;Scanline
-    sta.w HW_WMDATA
-    lda.w BGScrollVal+4 ;\
-    sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    lda.b #$0E          ;Scanline
-    sta.w HW_WMDATA
-    lda.w BGScrollVal+3 ;\
-    sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    lda.b #$0C          ;Scanline
-    sta.w HW_WMDATA
-    lda.w BGScrollVal+2 ;\
-    sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    lda.b #$15          ;Scanline
-    sta.w HW_WMDATA
-    lda.w BGScrollVal+1 ;\
-    sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    lda.b #$01          ;Scanline
-    sta.w HW_WMDATA
-    lda.w BGScrollVal+0 ;\
-    sta.w HW_WMDATA     ;|  Offsets
-    stz.w HW_WMDATA     ;/
-    
-    stz.w HW_WMDATA     ;\  End flag
-    
-    sep #$20
-    lda.b #$02
-    sta.w HDMAMirror
-    lda.b #(HW_BG1HOFS)&$FF
-    sta.w HDMAMirror+1
-    ldx.w #HDMAScrollBuffer&$FFFF
-    stx.w HDMAMirror+2
-    lda.b #(HDMAScrollBuffer>>16)&$FF
-    sta.w HDMAMirror+4
-
-    inc.w BGScrollOff+6
-    lda.w BGScrollOff+6
-    bit #$08
-    beq +
-    stz.w BGScrollOff+6
-    inc.w BGScrollVal+6
-    +
-
-    ldx.w #$0000
-    lda.w BGScrollVal+6
-    and.b #$0F
-    tax
-    lda.w OptionGradOff, X
-    tax
-    rep #$20
-    ldy.w #$0038
-    -
-    lda.w OptionGrad1, X
-    sta.w PalMirror, Y
-    inx
-    inx
-    dey
-    dey
-    cpy.w #$002C
-    bne -
-
     sep #$20
     ldy.w #$0000
     lda.b #(TextDispBuffer)&$FF
@@ -3460,7 +3655,7 @@ OptionsScene:
     iny
     iny
     rep #$20
-    lda.w #$0308
+    lda.w #$0410
     sta.b (ZP.VrDmaListPtr), Y
     lda.b ZP.VrDmaListPtr
     clc
@@ -3470,8 +3665,10 @@ OptionsScene:
     ldy #$0003
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
-
-    rep #$20
+    plp
+    ply
+    plx
+    pla
     rts
 
 ContinueScene:
@@ -4212,7 +4409,10 @@ BG_City:
     stz.w COLDATAMirror+1
     stz.w WH0Mirror
     stz.w WH1Mirror
-    
+
+    stz.w HW_BG12NBA
+    stz.w HW_BG34NBA
+
     ;Load Graphics
     ldy.w #$0000
     lda.b #(BG1_L2)&$FF
@@ -4355,6 +4555,10 @@ BG_Mountains:
     sta.w TMWMirror
     lda.b #$04
     sta.w TSWMirror
+
+    stz.w HW_BG12NBA
+    lda.b #$01
+    sta.w HW_BG34NBA
 
     ;Load Graphics
     ldy.w #$0000
@@ -4521,6 +4725,9 @@ BG_Computer:
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
 
+    stz.w HW_BG12NBA
+    stz.w HW_BG34NBA
+
     ;Load Tilemaps
     ldy.w #$0000
     lda.b #(BG3_L2_TM)&$FF
@@ -4623,6 +4830,10 @@ BG_Surfboard:
     stz.w COLDATAMirror+1
     stz.w WH0Mirror
     stz.w WH1Mirror
+    
+    stz.w HW_BG12NBA
+    stz.w HW_BG34NBA
+
     ;Load Graphics
     ldy.w #$0000
     lda.b #(BG4_L2)&$FF
@@ -5623,6 +5834,8 @@ GameModifiers:
     dw OpFText                       ;$4000
 EndGameModifiers:
 
+MusicOptionsText:
+    db "MUSIC OPTIONS       "
 MSXNormal:
     db "LINEAR SELECTION    "
 MSXTheme:
@@ -5639,15 +5852,15 @@ MSXMod:
     dw MSXSad
 MSXModEnd:
 
-StageNormal:
-    db "LINEAR STAGES       "
-StageRandom:
-    db "RANDOM STAGES       "
+StageRandomText:
+    db "RANDOMIZE STAGES: "
 
 OptionsArrowPos:
     db $3C
-    db $64
-    db $8C
+    db $54
+    db $7C
+    db $94
+    db $AC
 
 TitleTextPosX:
     ;Start Game
@@ -6481,6 +6694,24 @@ ShieldExplosionTileTable:
     db $50
     db $4F
     db $4E
+
+WBitmask:
+    dw $0001
+    dw $0002
+    dw $0004
+    dw $0008
+    dw $0010
+    dw $0020
+    dw $0040
+    dw $0080
+    dw $0100
+    dw $0200
+    dw $0400
+    dw $0800
+    dw $1000
+    dw $2000
+    dw $4000
+    dw $8000
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
