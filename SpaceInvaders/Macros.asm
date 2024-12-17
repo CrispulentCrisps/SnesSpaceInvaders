@@ -17,6 +17,7 @@ struct ZP $00
 .NMIDone        skip 2  ;NMI Flag for graphics/logic control
 .VrDmaListPtr   skip 2  ;Pointer to current position in list
 .SceneIndex     skip 1  ;Current scene we are in
+.SceneGoto      skip 1  ;Byte to hold which scene to go to while transitioning
 .ChangeScene    skip 1  ;Tell the scene's to load/deload data
 .Controller     skip 2  ;Controller input
 .InputFlag      skip 1  ;Controller input pressed flag
@@ -35,13 +36,14 @@ struct ZP $00
 .Score          skip 3  ;Current score of the player
 .Lives          skip 1  ;Current lives of the player as BCD
 .Modifiers      skip 2  ;Bitfield for current game modifiers
+.ExitScene      skip 1  ;Flag to say to exit the scene
 endstruct
 
 !CodeBank =     $008000 ;Hold game code + palette's
 !GFXBank =      $018000 ;Holds character data
-!TilemapBank =  $028000 ;Holds tilemap
-!GfxBank2 =     $038000 ;Holds GFX data
-!GfxBank3 =     $048000 ;Holds GFX data
+!GfxBank2 =     $028000 ;Holds GFX data
+!GfxBank3 =     $038000 ;Holds GFX data
+!TilemapBank =  $048000 ;Holds tilemap
 !MusicBank =    $058000 ;Holds music data
 !MusicBank2 =   $068000 ;Holds music data
 
@@ -209,13 +211,16 @@ GameState =         $0EF0   ;Current state of the GameScene
 GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
 PlayerDeathTimer =  $0EF2   ;Frames to wait when player dies
-
+TransitionIndex =   $0EF3   ;Index into transition timer
+TransitionFlag =    $0EF4   ;Flag to say transition is in progress
+TransitionState =   $0EF5   ;Value to say which direction we are transitioning [0 for not, 1 for in, 2 for out]
+!TransSpeed =       $08
 !OptionsTextAttr =  $20
 !OptionsTMapAddr =  $78C5
 !OptionsMosAddr =   $78C5
 
-StageSettings =     $0EF8
-MusicSettings =     $0EF9
+StageSettings =     $0EF8   ;Settings byte for stage
+MusicSettings =     $0EF9   ;Settings byte for music options
 SinePtr2 =          $0EFA   ;Index into sine table
 SubOptionIndex3 =   $0EFB   ;Index into whatever option is chosen
 SubOptionIndex2 =   $0EFC   ;Index into whatever option is chosen
@@ -223,13 +228,13 @@ SubOptionIndex =    $0EFD   ;Index into whatever option is chosen
 OptionIndex =       $0EFE   ;Index into what option to pick on a menu
 SinePtr =           $0EFF   ;Index into sine table
 SPRTextPosX =       $0F00   ;\  array of 128 position entries
-SPRTextPosY =       $1000   ;/
+SPRTextPosY =       $0F80   ;/
 
 ShieldHealth =      $1100   ;Health of shields
 ShieldBlinkTimer =  $1104   ;Timer for shields to blink
 !ShieldStartHP =    $04
 !PlayerDieReset =   50
-!WaveInit =         $02
+!WaveInit =         $01
 
 SParticleX =        $1108
 SParticleFrame =    $1110

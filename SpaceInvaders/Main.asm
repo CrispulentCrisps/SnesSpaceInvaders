@@ -311,6 +311,17 @@ Reset:
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.w HW_CGADD              ;Reset CGRAM addr
 
+    ;Setup window to prevent player seeing rubbish
+    lda.b #$CC
+    sta.w WOBJSELMirror
+    sta.w W12SELMirror
+    sta.w W34SELMirror
+    lda.b #$FF
+    sta.w TMWMirror
+    sta.w WH3Mirror
+    stz.w TSWMirror
+    stz.w WH2Mirror
+
     ldx.w #$0000
     stx.w HW_VMADDL             ;Set VRAM address to $0000
     lda.b #$80
@@ -468,6 +479,12 @@ MainLoop:
     rep #%00110000              ;Set CPU to 16 bit mode
     jsr (SelectScene, X)        ;Go to correct subroutine logic in jumptable
     
+    tdc
+    lda.w TransitionFlag
+    and.w #$00FF
+    beq +
+    jsr DrawTransition
+    +
     lda.w #$FFFF
     sta.b ZP.NMIDone
     -                           ;Infinite loop to
@@ -783,8 +800,10 @@ TitleScene:
     lda.b #$8F                  ;Set master brightness to 15 & forces blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
+    jsr TransitionIn
     lda.b #$FF
     sta.w TMMirror
+    stz.w HW_HDMAEN
     ;Transfer Title graphics
     ldx.w #$0000
     stx.w HW_VMADDL
@@ -858,6 +877,18 @@ TitleScene:
     lda.b #$1F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipTitleLoad:
+    
+    tdc
+    sep #$20
+    lda.b ZP.ExitScene
+    beq .SkipTitleChange
+    stz.b ZP.ExitScene
+    lda.w ZP.SceneGoto
+    sta.w ZP.SceneIndex
+    lda.b #$01
+    sta.b ZP.ChangeScene
+    .SkipTitleChange:
+
     ;Controls
     lda.b ZP.Controller+1
     and #$10                    ;Check START
@@ -872,9 +903,9 @@ TitleScene:
     lda.b #$02
     +
     inc
-    sta.b ZP.SceneIndex
-    lda.b #$01
-    sta.b ZP.ChangeScene
+    sta.b ZP.SceneGoto
+    stz.b ZP.ExitScene
+    jsr TransitionOut
     .SkipChange:
     lda.b ZP.Controller+1
     and #$04                    ;Check UP
@@ -1024,6 +1055,8 @@ GameScene:
     stz.w HW_VMADDH
     lda.b #HW_VMDATAL&$FF        ;Grab Video mem data lo addr
     sta.w HW_BBAD0              ;Set bus addr
+    stz.w HW_HDMAEN
+    jsr TransitionIn
 
     ;Load Game BG palettes
     lda.b #$02
@@ -1095,7 +1128,8 @@ GameScene:
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w HW_BGMODE
-    stz.w BGCount
+    lda.b #$05
+    sta.w BGCount
     ;Reset Player
     lda.b #$70
     sta.w Player.X
@@ -1172,14 +1206,6 @@ GameScene:
     sta.w ShieldBlinkTimer, Y    
     dey
     bpl -
-    lda.b #$04
-    sta.w ShieldHealth
-    dec
-    sta.w ShieldHealth+1
-    dec
-    sta.w ShieldHealth+2
-    dec
-    sta.w ShieldHealth+3
     ;-------------------;
     ;   Load tilemaps   ;
     ;-------------------;
@@ -1861,6 +1887,7 @@ GameScene:
     sta.w Bullet.X
     lda.b #$F0
     sta.w Bullet.Y
+    stz.b ZP.R2
     +
     tdc
     ldy.w #$03
@@ -1879,6 +1906,7 @@ GameScene:
     sta.w EnemyBulletXPos, Y
     lda.b #$F0
     sta.w EnemyBulletYPos, Y
+    stz.b ZP.R2
     +
     dey
     bpl -
@@ -2390,6 +2418,12 @@ GameLoop_SendWave:
     lda.b #$00
     sta.w BGIndex
     ++
+    ldy.w #$0003
+    lda.b #!ShieldStartHP
+    -
+    sta.w ShieldHealth, Y
+    dey
+    bpl -
     jsr GameLoop_LoadBG
     +
     lda.b !EnemyMoveR
@@ -2964,7 +2998,10 @@ OptionsScene:
     stz.b ZP.ChangeScene        ;Reset flag
     lda.b #$09
     sta.w HW_BGMODE
+    stz.w HW_HDMAEN
 
+    jsr TransitionIn
+    
     sep #$20
     ldy.w #HDMAMirror2-HDMAMirror
     lda.b #$00
@@ -3089,7 +3126,17 @@ OptionsScene:
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipOptionsLoad
 
+    tdc
     sep #$20
+    lda.b ZP.ExitScene
+    beq .SkipTitleChange
+    stz.b ZP.ExitScene
+    lda.w ZP.SceneGoto
+    sta.w ZP.SceneIndex
+    lda.b #$01
+    sta.b ZP.ChangeScene
+    .SkipTitleChange:
+    
     lda.w OptionIndex
     bne .SkipSelect
     lda.b ZP.InputFlag
@@ -3214,8 +3261,11 @@ OptionsScene:
     bne .SkipExit
     lda.b #$01
     sta.b ZP.InputFlag
+    stz.b ZP.ExitScene
+    lda.b #$00
     sta.b ZP.ChangeScene
-    stz.b ZP.SceneIndex
+    stz.b ZP.SceneGoto
+    jsr TransitionOut
     .SkipExit:
     
     lda.w OptionIndex
@@ -3689,6 +3739,9 @@ HighscoreScene:
     lda.b #$07
     sta.w HW_BGMODE
 
+    stz.w HW_HDMAEN
+    jsr TransitionIn
+
     ldx.w #$0000
     stx.w HW_VMADDL
     ;Load BG characters
@@ -4034,7 +4087,7 @@ GameLoop_HandleUFO:
     
     lda.w UFOXPos
     sec
-    sbc.w #$0001
+    sbc.w #!UFOSpeed
     sta.w UFOXPos
     bcs +
     sep #$20
@@ -4544,12 +4597,15 @@ BG_Mountains:
     sta.w WH0Mirror
     lda.b #$FF
     sta.w WH1Mirror
+
     lda.b #$00
-    sta.w W12SELMirror
-    sta.w W34SELMirror
+    sta.w WH2Mirror
     lda.b #$FF
+    sta.w WH3Mirror
+
+    lda.b #$00
     sta.w WBGLOGMirror
-    lda.b #$FF
+    lda.b #$00
     sta.w WOBJLOGMirror
     lda.b #$1F
     sta.w TMWMirror
@@ -4692,7 +4748,7 @@ BG_Computer:
     stz.w COLDATAMirror
     stz.w COLDATAMirror+1
     stz.w WH0Mirror
-    stz.w WH1Mirror    
+    stz.w WH1Mirror
     ;Load Graphics
     ldy.w #$0000
     lda.b #(BG3_L2)&$FF
@@ -5728,6 +5784,105 @@ DrawSpriteText:
     pla
     rts
 
+DrawTransition:
+    pha
+    phx
+    phy
+    php 
+    sep #$20
+    ;Check if we're actually transitioning
+    lda.w TransitionState
+    bne ++
+    jmp .FinishSubroutine
+    ++
+    cmp.b #$01
+    bne +
+    lda.w TransitionIndex
+    sec
+    sbc.b #!TransSpeed
+    sta.w TransitionIndex
+    bra .SetupWindow
+    +
+    lda.w TransitionState
+    cmp.b #$02
+    bne +
+    lda.w TransitionIndex
+    clc
+    adc.b #!TransSpeed
+    sta.w TransitionIndex
+    bra .SetupWindow
+    +
+    
+    .SetupWindow:
+    ;Set window 2 up
+    lda.b #$CC
+    sta.w WOBJSELMirror
+    sta.w W12SELMirror
+    sta.w W34SELMirror
+    lda.b #$FF
+    sta.w TMWMirror
+    stz.w TSWMirror
+
+    ;Move window positions
+    ldy.w #$0000
+    sep #$10
+    ldy.w TransitionIndex
+    lda.w Sigmoid, Y
+    inc
+    sta.w WH2Mirror
+    lda.b #$FE
+    sec
+    sbc.w Sigmoid, Y
+    sta.w WH3Mirror
+    lda.w TransitionIndex
+    cmp #!TransSpeed-1
+    bne +
+    stz.w TransitionFlag
+    stz.w TransitionState
+    bra .SkipTrans
+    +
+    cmp #(255-!TransSpeed)+2
+    bne +
+    stz.w TransitionFlag
+    stz.w TransitionState
+    lda.b #$01
+    sta.b ZP.ExitScene
+    bra .SkipTrans
+    +
+    bra .FinishSubroutine
+    .SkipTrans:
+    .FinishSubroutine:
+    plp
+    ply
+    plx
+    pla
+    rts
+
+TransitionIn:
+    pha
+    php
+    lda.b #$01
+    sta.w TransitionFlag
+    sta.w TransitionState
+    lda.b #$FF
+    sta.w TransitionIndex
+    plp
+    pla
+    rts
+
+TransitionOut:
+    pha
+    php
+    lda.b #$01
+    sta.w TransitionFlag
+    lda.b #$02
+    sta.w TransitionState
+    lda.b #$01
+    sta.w TransitionIndex
+    plp
+    pla
+    rts
+
 ;|------------------|
 ;|   IN GAME TEXT   |
 ;|------------------|
@@ -5802,17 +5957,17 @@ Op8Text:
 Op9Text:
     db "09: NO PERSONAL SPACE "     ;Waves start lower
 OpAText:
-    db "10: WHO NEEDS SHIELDS?"     ;No shields
+    db "10: WEAK SHIELDS      "     ;Shields have 1 health
 OpBText:
     db "11: MOVING SHIELDS    "     ;Moving shields
 OpCText:
-    db "12: WEAK SHIELDS      "     ;Shields have half health
+    db "12: ??????????????????"     ;NAN
 OpDText:
     db "13: BROKEN CANNON     "     ;Bullets have random direction
 OpEText:
     db "14: CONFUSED ENEMIES  "     ;Enemy Bullets have a random direction
 OpFText:
-    db "15: NAN               "     ;Bullets have random direction
+    db "15: 2-????????????????"     ;NAN
 ModEnd:
 
 GameModifiers:
@@ -6176,11 +6331,11 @@ EnemyWave07:
     db $01,$05,$01,$05,$01,$05,$01,$05
     db $01,$05,$01,$05,$01,$05,$01,$05
 EnemyWave08:
-    db $01,$05,$01,$05,$01,$05,$01,$05
-    db $01,$05,$01,$05,$01,$05,$01,$05
-    db $01,$05,$01,$05,$01,$05,$01,$05
-    db $01,$05,$01,$05,$01,$05,$01,$05
-    db $01,$05,$01,$05,$01,$05,$01,$05
+    db $06,$07,$06,$07,$06,$07,$06,$07
+    db $06,$07,$06,$07,$06,$07,$06,$07
+    db $06,$07,$06,$07,$06,$07,$06,$07
+    db $06,$07,$06,$07,$06,$07,$06,$07
+    db $06,$07,$06,$07,$06,$07,$06,$07
 EnemyWave09:
     db $02,$08,$02,$08,$02,$08,$02,$08
     db $02,$08,$02,$08,$02,$08,$02,$08
@@ -6912,41 +7067,45 @@ db $8D,$71,$90,$6F,$93,$6B,$96,$68,$9A,$64
 db $9E,$60,$A2,$5C,$A6,$58,$AB,$53,$AF,$4E
 db $B4,$49,$B9,$44,$BF,$3F,$C4,$39,$CA,$33
 db $CF,$2E,$D5,$28,$DB,$22,$E1,$1C,$E7,$16
-db $ED,$10,$F4,$09,$FA,$03 
+db $ED,$10,$F4,$09,$FA,$03
 
-M7ByteTest:
-;    for t = 0..64
-;        ;Tile 1
-;        db !t%2
-;        db $01
-;    endfor
-;    for t = 0..64
-;        ;Tile 2
-;        db !t%2
-;        db $02
-;    endfor
-;    for t = 0..34
-;        for u = 0..128
-;            db (!u+1)%2
-;            db $00
-;        endfor
-;        for u = 0..128
-;            db (!u)%2
-;            db $00
-;        endfor
-;    endfor
-;    for u = 0..128
-;        db (!u+1)%2
-;        db $00
-;    endfor
+;Sigmoid curve, 0-127, 1/(1+pow(e,-(t-(T/2))/(T/16)))
+Sigmoid:
+db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+db $01,$01,$01,$01,$01,$01,$01,$01,$01,$01
+db $01,$01,$01,$01,$01,$01,$01,$01,$02,$02
+db $02,$02,$02,$02,$02,$02,$03,$03,$03,$03
+db $03,$04,$04,$04,$04,$04,$05,$05,$05,$06
+db $06,$06,$07,$07,$08,$08,$09,$09,$0A,$0A
+db $0B,$0B,$0C,$0D,$0E,$0E,$0F,$10,$11,$12
+db $13,$14,$15,$16,$17,$18,$1A,$1B,$1C,$1E
+db $1F,$21,$22,$24,$25,$27,$29,$2A,$2C,$2E
+db $30,$32,$34,$36,$38,$3A,$3C,$3E,$3F,$41
+db $43,$45,$47,$49,$4B,$4D,$4F,$51,$53,$55
+db $56,$58,$5A,$5B,$5D,$5E,$60,$61,$63,$64
+db $65,$67,$68,$69,$6A,$6B,$6C,$6D,$6E,$6F
+db $70,$71,$71,$72,$73,$74,$74,$75,$75,$76
+db $76,$77,$77,$78,$78,$79,$79,$79,$7A,$7A
+db $7A,$7B,$7B,$7B,$7B,$7B,$7C,$7C,$7C,$7C
+db $7C,$7D,$7D,$7D,$7D,$7D,$7D,$7D,$7D,$7E
+db $7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E
+db $7E,$7E,$7E,$7E,$7E,$7E,$7E,$7F,$7F,$7F
+db $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F
+db $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F
+db $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F
+db $7F,$7F,$7F,$7F,$7F,$7F
+
                                 ;First half of the header
 org $FFB0                       ;Goto FFB0
 db "00"                         ;ROM data Region
-db "SPNV"                       ;Unique code for identification
+db "BANS"                       ;Unique code for identification
 fill 6                          ;Fill 6 bytes
 db 0,0,0,0
                                 ;Second half of header
-db "Space invaders clone "      ;Program name [21 characters long]
+db "BORED ALIENS IN SPACE"      ;Program name [21 characters long]
 db $31                          ;Set ROM identification and speed
 db 0                            ;Set what we have available [in this case ROM]
 db 8                            ;Set ROM size [256k]
