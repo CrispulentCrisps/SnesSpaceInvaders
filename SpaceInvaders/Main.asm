@@ -322,6 +322,11 @@ Reset:
     stz.w TSWMirror
     stz.w WH2Mirror
 
+    lda.b #$00
+    sta.w WBGLOGMirror
+    lda.b #$0A
+    sta.w WOBJLOGMirror
+    
     ldx.w #$0000
     stx.w HW_VMADDL             ;Set VRAM address to $0000
     lda.b #$80
@@ -953,6 +958,14 @@ TitleScene:
     ;Draw sprite text
     jsr DrawSpriteText
 
+    ;ldx.w #$6040
+    ;stx.b ZP.R0
+    ;ldx.w #$0C42
+    ;stx.b ZP.R2
+    ;lda.b #$01
+    ;sta.b ZP.R4
+    ;jsr AddSprite
+
     sep #$10
     ldy.w SinePtr
     rep #$10
@@ -1056,6 +1069,7 @@ GameScene:
     lda.b #HW_VMDATAL&$FF        ;Grab Video mem data lo addr
     sta.w HW_BBAD0              ;Set bus addr
     stz.w HW_HDMAEN
+    stz.w HW_MDMAEN
     jsr TransitionIn
 
     ;Load Game BG palettes
@@ -1095,8 +1109,8 @@ GameScene:
     sta.w HW_A1B0               ;Store bank
     ldx.w #GameSprEnd-GameSpr
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #$03
-    sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
 
     ldy.w #$0000
     -
@@ -1128,8 +1142,7 @@ GameScene:
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w HW_BGMODE
-    lda.b #$05
-    sta.w BGCount
+    stz.w BGCount
     ;Reset Player
     lda.b #$70
     sta.w Player.X
@@ -1309,73 +1322,65 @@ GameScene:
     ora.b #%01010101
     sta.w OAMCopy+512             ;Player X 9th bit
     +
-    ;BL tile
+    ;BL tile    
     lda.w Player.X
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R0
     lda.b #!PlayerY
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R1
     lda.b #!PlayerTileB
     clc
     adc.w Player.Frame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R2
     lda.b #!PlayerAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    
+    sta.b ZP.R3
+    stz.b ZP.R4
+    jsr AddSprite
+
     ;BR tile
     lda.w Player.X
     clc
     adc.b #$08
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R0
     lda.b #!PlayerY
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R1
     lda.b #!PlayerTileB
     clc
     adc.w Player.Frame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R2
     lda.b #!PlayerAttr+$40
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R3
+    stz.b ZP.R4
+    jsr AddSprite
 
     ;TL tile
     lda.w Player.X
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R0
     lda.b #!PlayerY
     sec
     sbc.b #$08
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R1
     lda.b #!PlayerTileT
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R2
     lda.b #!PlayerAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    
+    sta.b ZP.R3
+    stz.b ZP.R4
+    jsr AddSprite
+
     ;TR tile
     lda.w Player.X
     clc
     adc.b #$08
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R0
     lda.b #!PlayerY
     sec
     sbc.b #$08
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R1
     lda.b #!PlayerTileT
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R2
     lda.b #!PlayerAttr+$40
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R3
+    stz.b ZP.R4
+    jsr AddSprite
 
     ;-------------------;
     ;   Bullet Logic    ;
@@ -1566,17 +1571,15 @@ GameScene:
     ;   Bullet Drawing    ;
     ;---------------------;
     lda.w Bullet.X
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R0
     lda.w Bullet.Y
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R1
     lda.b #!BulletF1
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R2
     lda.b #!BulletAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.R3
+    stz.b ZP.R4
+    jsr AddSprite
 
     sep #$20
     inc.w BulletFCount
@@ -4419,6 +4422,7 @@ GameLoop_LoadBG:
     phx
     phy
     sep #$20
+    stz.w HW_HDMAEN
     ldy.w #$0020
     lda.b #$00
     -
@@ -4603,10 +4607,6 @@ BG_Mountains:
     lda.b #$FF
     sta.w WH3Mirror
 
-    lda.b #$00
-    sta.w WBGLOGMirror
-    lda.b #$00
-    sta.w WOBJLOGMirror
     lda.b #$1F
     sta.w TMWMirror
     lda.b #$04
@@ -5816,9 +5816,9 @@ DrawTransition:
     .SetupWindow:
     ;Set window 2 up
     lda.b #$CC
-    sta.w WOBJSELMirror
     sta.w W12SELMirror
     sta.w W34SELMirror
+    sta.w WOBJSELMirror
     lda.b #$FF
     sta.w TMWMirror
     stz.w TSWMirror
@@ -5828,9 +5828,8 @@ DrawTransition:
     sep #$10
     ldy.w TransitionIndex
     lda.w Sigmoid, Y
-    inc
     sta.w WH2Mirror
-    lda.b #$FE
+    lda.b #$FF
     sec
     sbc.w Sigmoid, Y
     sta.w WH3Mirror
@@ -5880,6 +5879,61 @@ TransitionOut:
     lda.b #$01
     sta.w TransitionIndex
     plp
+    pla
+    rts
+
+    ; ZP.R0             |   X
+    ; ZP.R1             |   Y
+    ; ZP.R2             |   Tile
+    ; ZP.R3             |   Attr
+    ; ZP.R4             |   Big/Small
+    ; ZP.MemPointer     |   Bullshit second table
+AddSprite:
+    pha
+    phx
+    phy
+    php
+    rep #$20
+    lda.b ZP.OAMPtr
+    sec
+    sbc.w #OAMCopy
+    lsr
+    lsr
+    and.w #$0003
+    tay
+    ;Find second table position
+    lda.b ZP.OAMPtr
+    sec
+    sbc.w #OAMCopy
+    lsr
+    lsr
+    lsr
+    lsr
+    clc
+    adc.w #OAMCopy+$0200
+    sta.b ZP.MemPointer
+    sep #$20
+    lda.b ZP.R0
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b ZP.R1
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b ZP.R2
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b ZP.R3
+    sta.b (ZP.OAMPtr)
+    inc.b ZP.OAMPtr
+    lda.b ZP.R4
+    beq +
+    lda.b (ZP.MemPointer)
+    ora.w SpriteTableMask, Y
+    sta.b (ZP.MemPointer)
+    +
+    plp
+    ply
+    plx
     pla
     rts
 
@@ -5961,7 +6015,7 @@ OpAText:
 OpBText:
     db "11: MOVING SHIELDS    "     ;Moving shields
 OpCText:
-    db "12: ??????????????????"     ;NAN
+    db "12: SHADOW ALIENS     "     ;Alien palette is set to black so only outlines are seen
 OpDText:
     db "13: BROKEN CANNON     "     ;Bullets have random direction
 OpEText:
@@ -6868,6 +6922,12 @@ WBitmask:
     dw $4000
     dw $8000
 
+SpriteTableMask:
+    db $02
+    db $08
+    db $20
+    db $80
+
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
 db $1F,$22,$25,$28,$2B,$2E,$31,$33,$36,$39
@@ -7095,8 +7155,8 @@ db $7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E
 db $7E,$7E,$7E,$7E,$7E,$7E,$7E,$7F,$7F,$7F
 db $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F
 db $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F
-db $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F
-db $7F,$7F,$7F,$7F,$7F,$7F
+db $80,$80,$80,$80,$80,$80,$80,$80,$80,$80
+db $80,$80,$80,$80,$80,$80
 
                                 ;First half of the header
 org $FFB0                       ;Goto FFB0

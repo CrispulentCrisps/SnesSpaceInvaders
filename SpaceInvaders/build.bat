@@ -13,12 +13,14 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG2-Grad.png -p bin\gfx\pal\BG2-Grad.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG3-Grad.png -p bin\gfx\pal\BG3-Grad.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG4-Grad.png -p bin\gfx\pal\BG4-Grad.bin --no-remap
+
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\Title-BG-L2.png -t bin\gfx\Title-BG-L2.bin -p bin\gfx\pal\Title-BG-L2-Pal.bin -m bin\gfx\tilemap\Title-BG-L2.bin --tile-base-offset 48 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\OptionsBG.png -t bin\gfx\OptionsBG.bin -p bin\gfx\pal\OptionsBG.bin -m bin\gfx\tilemap\OptionsBG.bin --tile-base-offset 25 --palette-base-offset 1
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\OptionsBG2.png -t bin\gfx\OptionsBG2.bin -p bin\gfx\pal\OptionsBG2.bin -m bin\gfx\tilemap\OptionsBG2.bin --tile-base-offset 219 --palette-base-offset 2
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\OptionsBG2.png -t bin\gfx\OptionsBG2.bin -p bin\gfx\pal\OptionsBG2.bin -m bin\gfx\tilemap\OptionsBG2.bin --tile-base-offset 220 --palette-base-offset 2
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\OptionsBGGalaxyGrad.png -t bin\gfx\Bgs\OptionsBGGalaxyGrad.bin -p bin\gfx\pal\OptionsBGGalaxyGrad.bin --no-remap
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -S -i res\img\ArrowSprite.png -t bin\gfx\Arrow.bin -p bin\gfx\pal\Arrow.bin
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -S -i res\img\Stars.png -t bin\gfx\Stars.bin -p bin\gfx\pal\Stars.bin
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\TitleGrad.png -p bin\gfx\pal\TitleGrad.bin --no-remap
 
