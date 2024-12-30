@@ -32,11 +32,6 @@ Invaders:
     incbin "bin/gfx/Invaders.bin"
 EndInvaders:
 
-;       Title       ;
-Title_L2:
-    incbin "bin/gfx/Title-BG-L2.bin"
-Title_L2_End:
-
 ;   Background 1    ;
 BG1_L2:
     incbin "bin/gfx/BG-1-L2.bin"
@@ -74,6 +69,16 @@ BG4_OBJ:
     incbin "bin/gfx/OceanRocks.bin"
 BG4_OBJ_End:
 
+org !GfxBank2
+
+;       Title       ;
+Title_L1:
+    incbin "bin/gfx/Title-BG-L1.bin"
+Title_L1_End:
+Title_L2:
+    incbin "bin/gfx/Title-BG-L2.bin"
+Title_L2_End:
+
 BG4_L3:
     incbin "bin/gfx/BG-4-L3.bin"
 BG4_L3_End:
@@ -82,8 +87,6 @@ BG4_L3_End:
 SPRFont:
     incbin "bin/gfx/SprFont.bin"
 SPRFont_End:
-
-org !GfxBank2
 ;   Options screen graphics
 OptionsBG:
     incbin "bin/gfx/OptionsBG.bin"
@@ -99,6 +102,11 @@ SPRFont2BPP_End:
 ArrowSpr:
     incbin "bin/gfx/Arrow.bin"
 ArrowSpr_End:
+
+OptionsSpr:
+    incbin "bin/gfx/Stars.bin"
+    incbin "bin/gfx/SmallUFO.bin"
+OptionsSprEnd:
 
 org !GfxBank3
 
@@ -145,9 +153,10 @@ BG4_L3_TM:
     incbin "bin/gfx/tilemap/BG-4-L3.bin"
 BG4_L3_TM_End:
 
-Title_L2_TM:
+Title_TM:
+    incbin "bin/gfx/tilemap/Title-BG-L1.bin"
     incbin "bin/gfx/tilemap/Title-BG-L2.bin"
-Title_L2_TM_End:
+Title_TM_End:
 
 Options_TM:
     incbin "bin/gfx/tilemap/OptionsBG.bin"
@@ -181,7 +190,18 @@ InvadersPal:
     incbin "bin/gfx/pal/InvadersPal.bin"
 InvadersPalEnd:
 
+StarsPal:
+    incbin "bin/gfx/pal/StarsPal.bin"
+StarsPalEnd:
+
+SmallUFOPal:
+    incbin "bin/gfx/pal/SmallUFO-Pal.bin"
+SmallUFOPalEnd:
 ;       Title       ;
+Title_L1_Pal:
+    incbin "bin/gfx/pal/Title-BG-L1-Pal.bin"
+Title_L1_Pal_End:
+
 Title_L2_Pal:
     incbin "bin/gfx/pal/Title-BG-L2-Pal.bin"
 Title_L2_Pal_End:
@@ -809,6 +829,7 @@ TitleScene:
     lda.b #$FF
     sta.w TMMirror
     stz.w HW_HDMAEN
+    stz.w HW_OBSEL
     ;Transfer Title graphics
     ldx.w #$0000
     stx.w HW_VMADDL
@@ -821,6 +842,19 @@ TitleScene:
     ldx.w #SPRFont_End-SPRFont
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
     lda.b #(HW_VMDATAL)&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #Title_L1&$FFFF       ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #Title_L1>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #Title_L1_End-Title_L1
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
     sta.w HW_BBAD0
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
@@ -843,11 +877,11 @@ TitleScene:
     stx.w HW_VMADDL
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #Title_L2_TM&$FFFF    ;Grab graphics addr
+    ldx.w #Title_TM&$FFFF    ;Grab graphics addr
     stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #Title_L2_TM>>16&$FF
+    lda.b #Title_TM>>16&$FF
     sta.w HW_A1B0               ;Store bank
-    ldx.w #Title_L2_TM_End-Title_L2_TM
+    ldx.w #Title_TM_End-Title_TM
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
     lda.b #HW_VMDATAL&$FF
     sta.w HW_BBAD0
@@ -864,7 +898,14 @@ TitleScene:
     ldy.w #Title_L2_Pal_End-Title_L2_Pal
     -
     lda.w Title_L2_Pal, Y
-    sta.w PalMirror+32, Y
+    sta.w PalMirror, Y
+    dey
+    bpl -
+
+    ldy.w #Title_L1_Pal_End-Title_L1_Pal
+    -
+    lda.w Title_L1_Pal, Y
+    sta.w PalMirror+$20, Y
     dey
     bpl -
 
@@ -937,18 +978,17 @@ TitleScene:
     sta.w OptionIndex
     ldy.w OptionIndex
     rep #$10
+
     lda.b #!ArrowX
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
     lda.w ArrowTitleYPos, Y
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!ArrowChar
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!SprFont1Attr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
 
     rep #$10
     ldx.w #StartText
@@ -957,14 +997,6 @@ TitleScene:
     stx.b ZP.R1
     ;Draw sprite text
     jsr DrawSpriteText
-
-    ;ldx.w #$6040
-    ;stx.b ZP.R0
-    ;ldx.w #$0C42
-    ;stx.b ZP.R2
-    ;lda.b #$01
-    ;sta.b ZP.R4
-    ;jsr AddSprite
 
     sep #$10
     ldy.w SinePtr
@@ -975,14 +1007,16 @@ TitleScene:
     and #$04
     beq +
     stz.w BGScrollOff+2
+    ;Text
     ldy.w #$0102
     tdc
     lda.b #$05
     sta.b ZP.R4
     jsr PalCycle
-    ldy.w #$0022
+    ;BG
+    ldy.w #$0024
     tdc
-    lda.b #$07
+    lda.b #$0C
     sta.b ZP.R4
     jsr PalCycle
     +
@@ -993,6 +1027,7 @@ TitleScene:
     lda.b #$7E
     sta.w HW_WMADDH
     inc.w SinePtr
+    inc.w SinePtr
 
     ldx.w #$0000
     ldy.w #$0000
@@ -1002,22 +1037,24 @@ TitleScene:
     -
     lda.b #$01
     sta.w HW_WMDATA
-    lda.w SineTable, Y
+    lda.w UnSineTable, Y
     lsr
     lsr
-    clc
-    adc.w BGScrollVal
+    lsr
+    lsr
+    lsr
     sta.w HW_WMDATA
     stz.w HW_WMDATA
     iny
     lda.b #$01
     sta.w HW_WMDATA
-    lda.w SineTable, Y
+    lda.w UnSineTable, Y
+    lsr
+    lsr
+    lsr
     lsr
     lsr
     eor.b #$FF
-    sec
-    sbc.w BGScrollVal
     sta.w HW_WMDATA
     stz.w HW_WMDATA
     iny
@@ -1037,21 +1074,22 @@ TitleScene:
     sta.w BGScrollOff
     rep #$10
     lda.b #$02
-    sta.w HDMAMirror
-    lda.b #(HW_BG1HOFS)&$FF
-    sta.w HDMAMirror+1
-    ldx.w #HDMAScrollBuffer2
-    stx.w HDMAMirror+2
-    lda.b #$7E
-    sta.w HDMAMirror+4
+    ;sta.w HDMAMirror
+    ;lda.b #(HW_BG1HOFS)&$FF
+    ;sta.w HDMAMirror+1
+    ;ldx.w #HDMAScrollBuffer2
+    ;stx.w HDMAMirror+2
+    ;lda.b #$7E
+    ;sta.w HDMAMirror+4
     lda.b #$02
     sta.w HDMAMirror1
-    lda.b #(HW_BG1VOFS)&$FF
+    lda.b #(HW_BG1HOFS)&$FF
     sta.w HDMAMirror1+1
     ldx.w #HDMAScrollBuffer2
     stx.w HDMAMirror1+2
     lda.b #$7E
     sta.w HDMAMirror1+4
+    
     rep #$20
     rts
 
@@ -1148,6 +1186,16 @@ GameScene:
     sta.w Player.X
     lda.b #$03
     sta.w ZP.Lives
+
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!Mod7
+    sep #$20
+    beq +
+    lda.b #$01
+    sta.w ZP.Lives
+    +
+
     ;Reset Bullets
     lda.b #$F0
     sta.w Bullet[0].X
@@ -1169,6 +1217,15 @@ GameScene:
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
     
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!Mod5
+    sep #$20
+    beq +
+    lda.b #$61
+    sta.w HW_MOSAIC
+    +
+
     ;Set RNG up for enemy timers
     ldy.w #$0003
     -
@@ -1212,6 +1269,20 @@ GameScene:
 
     ;Setup Shields
     ldy.w #$0003
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!ModA
+    sep #$20
+    beq +
+    --
+    lda.b #$01
+    sta.w ShieldHealth, Y
+    lda.b #$00
+    sta.w ShieldBlinkTimer, Y
+    dey
+    bpl --
+    bra .LoadTilemaps
+    +
     -
     lda.b #!ShieldStartHP
     sta.w ShieldHealth, Y
@@ -1219,6 +1290,7 @@ GameScene:
     sta.w ShieldBlinkTimer, Y    
     dey
     bpl -
+    .LoadTilemaps:
     ;-------------------;
     ;   Load tilemaps   ;
     ;-------------------;
@@ -1324,62 +1396,62 @@ GameScene:
     +
     ;BL tile    
     lda.w Player.X
-    sta.b ZP.R0
+    sta.b ZP.AddSprX
     lda.b #!PlayerY
-    sta.b ZP.R1
+    sta.b ZP.AddSprY
     lda.b #!PlayerTileB
     clc
     adc.w Player.Frame
-    sta.b ZP.R2
+    sta.b ZP.AddSprTile
     lda.b #!PlayerAttr
-    sta.b ZP.R3
-    stz.b ZP.R4
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
     jsr AddSprite
 
     ;BR tile
     lda.w Player.X
     clc
     adc.b #$08
-    sta.b ZP.R0
+    sta.b ZP.AddSprX
     lda.b #!PlayerY
-    sta.b ZP.R1
+    sta.b ZP.AddSprY
     lda.b #!PlayerTileB
     clc
     adc.w Player.Frame
-    sta.b ZP.R2
+    sta.b ZP.AddSprTile
     lda.b #!PlayerAttr+$40
-    sta.b ZP.R3
-    stz.b ZP.R4
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
     jsr AddSprite
 
     ;TL tile
     lda.w Player.X
-    sta.b ZP.R0
+    sta.b ZP.AddSprX
     lda.b #!PlayerY
     sec
     sbc.b #$08
-    sta.b ZP.R1
+    sta.b ZP.AddSprY
     lda.b #!PlayerTileT
-    sta.b ZP.R2
+    sta.b ZP.AddSprTile
     lda.b #!PlayerAttr
-    sta.b ZP.R3
-    stz.b ZP.R4
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
     jsr AddSprite
 
     ;TR tile
     lda.w Player.X
     clc
     adc.b #$08
-    sta.b ZP.R0
+    sta.b ZP.AddSprX
     lda.b #!PlayerY
     sec
     sbc.b #$08
-    sta.b ZP.R1
+    sta.b ZP.AddSprY
     lda.b #!PlayerTileT
-    sta.b ZP.R2
+    sta.b ZP.AddSprTile
     lda.b #!PlayerAttr+$40
-    sta.b ZP.R3
-    stz.b ZP.R4
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
     jsr AddSprite
 
     ;-------------------;
@@ -1571,14 +1643,14 @@ GameScene:
     ;   Bullet Drawing    ;
     ;---------------------;
     lda.w Bullet.X
-    sta.b ZP.R0
+    sta.b ZP.AddSprX
     lda.w Bullet.Y
-    sta.b ZP.R1
+    sta.b ZP.AddSprY
     lda.b #!BulletF1
-    sta.b ZP.R2
+    sta.b ZP.AddSprTile
     lda.b #!BulletAttr
-    sta.b ZP.R3
-    stz.b ZP.R4
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
     jsr AddSprite
 
     sep #$20
@@ -1704,6 +1776,17 @@ GameScene:
     iny
     cpy.w #$0028
     bne -
+    
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!Mod1
+    sep #$20
+    beq +
+    lda.b ZP.EnemyWait
+    lsr
+    beq +
+    sta.b ZP.EnemyWait
+    +
     ;Adjust speed and then apply
     tdc
     lda.b ZP.EnemyWait
@@ -2182,6 +2265,7 @@ Gameloop_DrawShields:
     tdc
     .ShieldDrawLoop
     ldx.w #$0000
+    tdc
     lda.w ShieldHealth, Y
     asl
     asl
@@ -2201,68 +2285,60 @@ Gameloop_DrawShields:
     +
 
     lda.b (ZP.MemPointer)
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
     lda.b #!ShieldYPos
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.w ShieldTileTable, X
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b ZP.R0
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
     inx
     rep #$20
     dec.b ZP.MemPointer
     sep #$20
     
     lda.b (ZP.MemPointer)
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
     lda.b #!ShieldYPos
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.w ShieldTileTable, X
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b ZP.R1
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
     inx
     rep #$20
     dec.b ZP.MemPointer
     sep #$20
     
     lda.b (ZP.MemPointer)
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
     lda.b #!ShieldYPos
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.w ShieldTileTable, X
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b ZP.R0
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
     inx
     rep #$20
     dec.b ZP.MemPointer
     sep #$20
     
     lda.b (ZP.MemPointer)
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
     lda.b #!ShieldYPos
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.w ShieldTileTable, X
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b ZP.R1
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
     inx
     rep #$20
     dec.b ZP.MemPointer
@@ -2309,8 +2385,19 @@ GameLoop_UpdateEnemyArray:
     sta.w EnemyType, Y
     phx
     tax
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!Mod0
+    sep #$20
+    beq +
     lda.w EnemyHealthTable, X
+    asl
+    bra .SetEHealth
+    +
+    lda.w EnemyHealthTable, X
+    .SetEHealth:
     sta.w EnemyHealth, Y
+    tdc
     plx
     inx
     iny
@@ -2840,21 +2927,18 @@ GameLoop_EBulletDraw:
     phy
     php
     ldy.w #$0003
-    .EBDrawLoop:
+    .EBDrawLoop:    
     lda.w EnemyBulletXPos, Y
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
     lda.w EnemyBulletYPos, Y
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!EBulletF1
     clc
     adc.w EnemyBulletFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!BulletAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    jsr AddSprite
     dey
     bpl .EBDrawLoop
 
@@ -3018,24 +3102,11 @@ OptionsScene:
     stz.w HW_HDMAEN
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #SPRFont2BPP&$FFFF       ;Grab graphics addr
+    ldx.w #SPRFont2BPP&$FFFF    ;Grab graphics addr
     stx.w HW_A1T0L              ;Shove lo+mid addr byte
     lda.b #SPRFont2BPP>>16&$FF
     sta.w HW_A1B0               ;Store bank
     ldx.w #SPRFont2BPP_End-SPRFont2BPP
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #HW_VMDATAL&$FF
-    sta.w HW_BBAD0
-    lda.b #$01
-    sta.w HW_MDMAEN             ;Enable DMA channel 0
-
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #ArrowSpr&$FFFF       ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #ArrowSpr>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #ArrowSpr_End-ArrowSpr
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
     lda.b #HW_VMDATAL&$FF
     sta.w HW_BBAD0
@@ -3049,6 +3120,38 @@ OptionsScene:
     lda.b #(OptionsBG>>16)&$FF
     sta.w HW_A1B0               ;Store bank
     ldx.w #OptionsBG_End-OptionsBG
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+    
+    lda.b #$02
+    sta.w HW_OBSEL
+
+    ldx.w #$4010
+    stx.w HW_VMADDL             ;Set VRAM address to Sprite VRAM
+    
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #ArrowSpr&$FFFF       ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #ArrowSpr>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #ArrowSpr_End-ArrowSpr
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+    
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #(OptionsSpr)&$FFFF        ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #(OptionsSpr>>16)&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #OptionsSprEnd-OptionsSpr
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
     lda.b #HW_VMDATAL&$FF
     sta.w HW_BBAD0
@@ -3108,6 +3211,16 @@ OptionsScene:
     dey
     bpl -
     
+    ldy.w #StarsPalEnd-StarsPal
+    -
+    lda.w StarsPal, Y
+    sta.w PalMirror+$0120, Y
+    
+    lda.w SmallUFOPal, Y
+    sta.w PalMirror+$0140, Y
+    dey
+    bpl -
+    
     ldy.w #(HDMAScrollBuffer2-HDMAScrollBuffer)*2
     ldx.w #(HDMAScrollBuffer)&$FFFF
     stx.w HW_WMADDL
@@ -3123,6 +3236,29 @@ OptionsScene:
     stz.w SubOptionIndex
     stz.w SubOptionIndex2
     stz.w SubOptionIndex3
+
+    ldy.w #$001F
+    ldx.w #$003E
+    -
+    jsr Rand
+    and.b #$07
+    sta.w SParticleState, Y
+    
+    tya
+    asl
+    asl
+    sta.w SParticleY, Y
+
+    jsr Rand
+    rep #$20
+    xba
+    and.w #$01FF
+    sta.w SParticleX, X
+    sep #$20
+    dex
+    dex
+    dey
+    bpl -
 
     jsr OptionsScreen_DrawUI
     lda.b #$0F                  ;Set master brightness to 15 & stop blanking
@@ -3140,6 +3276,7 @@ OptionsScene:
     sta.b ZP.ChangeScene
     .SkipTitleChange:
     
+    rep #$10
     lda.w OptionIndex
     bne .SkipSelect
     lda.b ZP.InputFlag
@@ -3282,20 +3419,18 @@ OptionsScene:
     sep #$10
     ldy.w OptionIndex
     lda.b #$1E
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
     lda.w OptionsArrowPos, Y
     rep #$10
     clc
     adc.b ZP.R2
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!ArrowChar2
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!Arrow2Attr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
 
     lda.b #!Cross
     sta.b ZP.R5
@@ -3318,17 +3453,85 @@ OptionsScene:
 
     sep #$20
     lda.b #$D8
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
     lda.b #$3E
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b ZP.R5
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!Arrow2Attr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    sep #$20
+    inc.w OBJTimers
+    lda.w OBJTimers
+    bit #$04
+    beq +
+    lda.w OBJFrame
+    eor.b #$01
+    sta.w OBJFrame
+    stz.w OBJTimers
+    +
+    tdc
+    rep #$20
+    lda.w OBJXPos
+    inc
+    sta.w OBJXPos
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.b #$08
+    sta.b ZP.AddSprY
+    lda.b #$24
+    clc
+    adc.w OBJFrame
+    sta.b ZP.AddSprTile
+    lda.b #$04
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    rep #$10
+    ldy.w #$001F
+    ldx.w #SParticleX
+    stx.b ZP.MemPointer
+    sep #$10
+    -
+    lda.w SParticleState, Y
+    tax
+    lda.w SParticleVelX, Y
+    clc
+    adc.w StarParticleSpeed, X
+    bcc +
+    rep #$20
+    lda.b (ZP.MemPointer)
+    dec
+    sta.b (ZP.MemPointer)
+    sep #$20
+    lda.b #$00
+    sta.w SParticleVelX, Y
+    +
+    sta.w SParticleVelX, Y
+    rep #$20
+    lda.b (ZP.MemPointer)
+    and.w #$01FF
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w SParticleY, Y
+    sta.b ZP.AddSprY
+    lda.w StarParticleSize, X
+    sta.b ZP.AddSprTile
+    lda.b #$02
+    ora.w StarPrio, X
+    sta.b ZP.AddSprAttr
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    rep #$20
+    inc.b ZP.MemPointer
+    inc.b ZP.MemPointer
+    sep #$20
+    dey
+    bpl -
 
     rep #$10
     inc.w BGScrollOff+0
@@ -4130,205 +4333,146 @@ GameLoop_HandleUFO:
     rts
 
 GameLoop_DrawUFO:
-    stz.w OAMCopy+$0202
-    stz.w OAMCopy+$0203
-    stz.w OAMCopy+$0204
-    stz.w OAMCopy+$0205
-    rep #$20
-    lda.w UFOXPos
-    and.w #$01FF
-    sta.b ZP.R0
-    lda.b ZP.R0
-    and.w #$0100
-    beq +
-    sep #$20
-    lda.w OAMCopy+$0202
-    ora.b #$04
-    sta.w OAMCopy+$0202
-    lda.w OAMCopy+$0203
-    ora.b #$04
-    sta.w OAMCopy+$0203
-    +
-    ;mid 1
-    rep #$20
-    lda.b ZP.R0
-    clc
-    adc.w #$0008
-    and.w #$0100
-    beq +
-    sep #$20
-    lda.w OAMCopy+$0202
-    ora.b #$10
-    sta.w OAMCopy+$0202
-    lda.w OAMCopy+$0203
-    ora.b #$10
-    sta.w OAMCopy+$0203
-    +
-    ;mid 2
-    rep #$20
-    lda.b ZP.R0
-    clc
-    adc.w #$0010
-    and.w #$0100
-    beq +
-    sep #$20
-    lda.w OAMCopy+$0202
-    ora.b #$40
-    sta.w OAMCopy+$0202
-    lda.w OAMCopy+$0203
-    ora.b #$40
-    sta.w OAMCopy+$0203
-    +
-    ;Ass
-    rep #$20
-    lda.b ZP.R0
-    clc
-    adc.w #$0018
-    and.w #$0100
-    beq +
-    sep #$20
-    lda.w OAMCopy+$0203
-    ora.b #$01
-    sta.w OAMCopy+$0203
-    lda.w OAMCopy+$0204
-    ora.b #$01
-    sta.w OAMCopy+$0204
-    +
-
     ;Top left
     sep #$20
-    lda.w UFOXPos
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    ldx.w #$0000
+    ldx.w UFOXPos
+    stx.b ZP.AddSprX
     lda.b #!UFOYPos
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!UFOTile0
     clc
     adc.w UFOFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!UFOAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+    
     ;Top mid
+    tdc
+    rep #$20
     lda.w UFOXPos
-    clc
-    adc.b #$08
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    adc.w #$0008
+    sta.b ZP.AddSprX
+    sep #$20
     lda.b #!UFOYPos
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!UFOTile1
     clc
     adc.w UFOFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!UFOAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
     ;Top mid
+    tdc
+    rep #$20
     lda.w UFOXPos
-    clc
-    adc.b #$10
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    adc.w #$0010
+    sta.b ZP.AddSprX
+    sep #$20
     lda.b #!UFOYPos
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!UFOTile1
     clc
     adc.w UFOFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!UFOAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
     ;Top right
+    tdc
+    rep #$20
     lda.w UFOXPos
-    clc
-    adc.b #$18
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    adc.w #$0018
+    sta.b ZP.AddSprX
+    sep #$20
     lda.b #!UFOYPos
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!UFOTile0
     clc
     adc.w UFOFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!UFOAttrMir
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
 
     ;Bottom left
+    tdc
+    rep #$20
     lda.w UFOXPos
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
+    sep #$20
     lda.b #!UFOYPosB
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!UFOTile2
     clc
     adc.w UFOFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!UFOAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
     ;Bottom mid
+    tdc
+    rep #$20
     lda.w UFOXPos
-    clc
-    adc.b #$08
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    adc.w #$0008
+    sta.b ZP.AddSprX
+    sep #$20
     lda.b #!UFOYPosB
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!UFOTile3
     clc
     adc.w UFOFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!UFOAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
     ;Bottom mid
+    tdc
+    rep #$20
     lda.w UFOXPos
-    clc
-    adc.b #$10
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    adc.w #$0010
+    sta.b ZP.AddSprX
+    sep #$20
     lda.b #!UFOYPosB
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!UFOTile3
     clc
     adc.w UFOFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!UFOAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
     ;Bottom right
+    tdc
+    rep #$20
     lda.w UFOXPos
-    clc
-    adc.b #$18
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    adc.w #$0018
+    sta.b ZP.AddSprX
+    sep #$20
     lda.b #!UFOYPosB
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!UFOTile2
     clc
     adc.w UFOFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!UFOAttrMir
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
     rts
 
 UpdateExplosives:
@@ -5882,12 +6026,12 @@ TransitionOut:
     pla
     rts
 
-    ; ZP.R0             |   X
-    ; ZP.R1             |   Y
-    ; ZP.R2             |   Tile
-    ; ZP.R3             |   Attr
-    ; ZP.R4             |   Big/Small
-    ; ZP.MemPointer     |   Bullshit second table
+    ; ZP.AddSprX       |   X
+    ; ZP.AddSprY       |   Y
+    ; ZP.AddSprTile    |   Tile
+    ; ZP.AddSprAttr    |   Attr
+    ; ZP.AddSprBigFlag |   Big/Small
+    ; ZP.AddSprPtr     |   Bullshit second table
 AddSprite:
     pha
     phx
@@ -5911,25 +6055,35 @@ AddSprite:
     lsr
     clc
     adc.w #OAMCopy+$0200
-    sta.b ZP.MemPointer
+    sta.b ZP.AddSprPtr
     sep #$20
-    lda.b ZP.R0
+    lda.b ZP.AddSprX
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b ZP.R1
+    lda.b ZP.AddSprY
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b ZP.R2
+    lda.b ZP.AddSprTile
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b ZP.R3
+    lda.b ZP.AddSprAttr
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
-    lda.b ZP.R4
+    lda.b ZP.AddSprBigFlag
     beq +
-    lda.b (ZP.MemPointer)
+    lda.b (ZP.AddSprPtr)
     ora.w SpriteTableMask, Y
-    sta.b (ZP.MemPointer)
+    sta.b (ZP.AddSprPtr)
+    +
+    rep #$20
+    lda.b ZP.AddSprX
+    and.w #$0100
+    beq +
+    stz.b ZP.AddSprX
+    sep #$20
+    lda.b (ZP.AddSprPtr)
+    ora.w SpriteTablePosMask, Y
+    sta.b (ZP.AddSprPtr)
     +
     plp
     ply
@@ -6922,11 +7076,54 @@ WBitmask:
     dw $4000
     dw $8000
 
+    ;Big flag lookup for table
 SpriteTableMask:
     db $02
     db $08
     db $20
     db $80
+
+    ;9th X bit lookup
+SpriteTablePosMask:
+    db $01
+    db $04
+    db $10
+    db $40
+
+StarParticleSize:
+    db $04
+    db $06
+    db $08
+    db $0A
+    db $0C
+    db $0E
+    db $10
+    db $12
+
+StarParticleSpeed:
+    db $0A
+    db $12
+    db $17
+    db $21
+    db $26
+    db $2C
+    db $38
+    db $44
+
+StarPrio:
+    db $00
+    db $00
+    db $00
+    db $00
+    db $10
+    db $10
+    db $10
+    db $10
+
+PalFadeMask:
+    for x = 0..31
+        dw $7FFF-($3FF*!x)
+    endfor
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C

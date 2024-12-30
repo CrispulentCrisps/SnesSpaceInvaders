@@ -14,6 +14,12 @@ struct ZP $00
 .R5             skip 1  ;General purpose scratch memory
 .R6             skip 1  ;General purpose scratch memory
 .R7             skip 1  ;General purpose scratch memory
+.AddSprPtr      skip 2  ;Pointer for second OAM table
+.AddSprX        skip 2  ;XPos for add spr
+.AddSprY        skip 1  ;YPos for add spr
+.AddSprTile     skip 1  ;Tile Index for add spr
+.AddSprAttr     skip 1  ;Attribute for add spr
+.AddSprBigFlag  skip 1  ;XPos for add spr
 .NMIDone        skip 2  ;NMI Flag for graphics/logic control
 .VrDmaListPtr   skip 2  ;Pointer to current position in list
 .SceneIndex     skip 1  ;Current scene we are in
@@ -118,9 +124,9 @@ UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOAttrMir =       %01101000
 OBJTimers =         $0700   ;16 byte array of timers for general OBJ use
 OBJFrame =          $0710   ;16 byte array of general object frame counts, used for animating less important objects
-OBJXPos =           $0720   ;16 byte array of object types XPositions
-OBJYPos =           $0730   ;16 byte array of object types YPositions
-OBJActive =         $0740   ;16 byte array of object active states
+OBJXPos =           $0720   ;32 byte array of object types XPositions
+OBJYPos =           $0740   ;16 byte array of object types YPositions
+OBJActive =         $0750   ;16 byte array of object active states
 ;Explosions each carry a
 ;   Timer   [Byte]  How many frames left the explosion has
 ;   Frame   [Byte]  What tile it is currently to display
@@ -234,10 +240,15 @@ ShieldHealth =      $1100   ;Health of shields
 ShieldBlinkTimer =  $1104   ;Timer for shields to blink
 !ShieldStartHP =    $04
 !PlayerDieReset =   50
-!WaveInit =         $01
+!WaveInit =         $02
 
-SParticleX =        $1108
-SParticleFrame =    $1110
+;32 particles at once
+SParticleX =        $0200   ;32 word X positions
+SParticleY =        $0240   ;32 byte Y positions
+SParticleVelX =     $0260   ;32 byte X velocities
+SParticleVelY =     $0280   ;32 byte Y velocities
+SParticleState =    $02A0   ;32 state's
+SParticleTimer =    $02C0   ;32 particle timers
 
 !EnemyOffset =      $0084
 !EnemyRows =        $05
@@ -316,13 +327,30 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !ArrowX =           $50
 !ArrowChar =        $29
-!ArrowChar2 =       $16
+!ArrowChar2 =       $01
 !Arrow2Attr =       $30
 !ShieldAttr1 =      $2E
 !ShieldAttr2 =      $6E
 !ShieldYPos =       $A8
-!Tick =             $17
-!Cross =            $18
+!Tick =             $02
+!Cross =            $03
+
+!Mod0 =             $0001       ;2x enemy health
+!Mod1 =             $0002       ;1/2 time to make enemies move
+!Mod2 =             $0004       ;Player bullets move at half speed
+!Mod3 =             $0008       ;Enemy bullets move at 2x speed
+!Mod4 =             $0010       ;Enemy bullets home in on the player
+!Mod5 =             $0020       ;Mosaic applied to layer 1
+!Mod6 =             $0040       ;Ship moves half as fast
+!Mod7 =             $0080       ;1 life for a given session
+!Mod8 =             $0100       ;Randomize what wave to go to
+!Mod9 =             $0200       ;Waves start lower
+!ModA =             $0400       ;Shields have 1 health
+!ModB =             $0800       ;Moving shields
+!ModC =             $1000       ;Alien palette is set to black so only outlines are seen
+!ModD =             $2000       ;Bullets have random direction
+!ModE =             $4000       ;Enemy Bullets have a random direction
+!ModF =             $8000       ;NAN
 ;Character data
 ' ' = $00
 '0' = $00+1
