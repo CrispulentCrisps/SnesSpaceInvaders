@@ -43,6 +43,10 @@ struct ZP $00
 .Lives          skip 1  ;Current lives of the player as BCD
 .Modifiers      skip 2  ;Bitfield for current game modifiers
 .ExitScene      skip 1  ;Flag to say to exit the scene
+.PalFadeInd     skip 1  ;Index into palette fade, 0-31
+.PalFadeStart   skip 2  ;Pointer to start of palette fade
+.PalFadeEnd     skip 2  ;Pointer to end of palette fade
+.PalFadeTimer   skip 1  ;Timer to wait for palette index
 endstruct
 
 !CodeBank =     $008000 ;Hold game code + palette's
@@ -64,7 +68,7 @@ endstruct               ;Aligned in 8 byte entries
 ;   Zero = END transfer loop
 ;   NonZero = Execute said transfer
 
-RNGSeed =           $0300       ;16 byte section of memory
+RNGSeed =           $02FE       ;word section of memory
 struct Player $0400
 .X      skip 1
 .Frame  skip 1          ;Current player frame
@@ -116,10 +120,10 @@ UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOYPos =          $00     ;Y Position of the UFO
 !UFOYPosB =         $08     ;Y Position of the UFO
 !UFOStartX =        $0100
-!UFOTile0 =         $32
-!UFOTile1 =         $33
-!UFOTile2 =         $3A
-!UFOTile3 =         $3B
+!UFOTile0 =         $05
+!UFOTile1 =         $06
+!UFOTile2 =         $0D
+!UFOTile3 =         $0E
 !UFOAttr =          %00101000
 !UFOAttrMir =       %01101000
 OBJTimers =         $0700   ;16 byte array of timers for general OBJ use
@@ -153,13 +157,15 @@ ExplosionFineXVal = $0580+(!MaxEplW*8)
 ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
-!ExplosionTile =    $3E
+!ExplosionTile =    $11
 !ExplosionAttr =    %00111100
 
 EnemyTileBuffer =   $7E8000
 TextDispBuffer =    $7E8400   ;Takes up [score text] + 6 bytes for score display
 HDMAScrollBuffer =  $7E8A00
 HDMAScrollBuffer2 = $7E8E00
+HDMAMode7Buffer =   $7E9280
+HDMAMode7Buffer2 =  $7E9480
 
 BGScrollOff =       $06C0     ;Scrolling offsets for background elements
 BGScrollVal =       $06D0
@@ -238,9 +244,13 @@ SPRTextPosY =       $0F80   ;/
 
 ShieldHealth =      $1100   ;Health of shields
 ShieldBlinkTimer =  $1104   ;Timer for shields to blink
+ShieldXPos =        $1108   ;Health of shields
+
+GalaxyRot =         $1110
+
 !ShieldStartHP =    $04
 !PlayerDieReset =   50
-!WaveInit =         $02
+!WaveInit =         $00
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions
@@ -283,15 +293,15 @@ OAMCopy =           $0800
 LaserOAM =          $0810
 !PlayerSpeed =      $02
 !PlayerY =          $C8
-!PlayerTileB =      $36
-!PlayerTileT =      $2E
+!PlayerTileB =      $09
+!PlayerTileT =      $01
 !PlayerAttr =       %00111010
 !BulletAttr =       %00101110
 !EBullAttr =        %00101110
-!BulletF1 =         $30
-!BulletF2 =         $31
-!EBulletF1 =        $38
-!EBulletF2 =        $39
+!BulletF1 =         $03
+!BulletF2 =         $04
+!EBulletF1 =        $0B
+!EBulletF2 =        $0C
 
 !EnemyGfx =         $2D
 
@@ -319,8 +329,8 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !BG_L3_OFF =        $65
 
-!SurfboardT0 =      $CF
-!SurfboardT1 =      $D0
+!SurfboardT0 =      $29
+!SurfboardT1 =      $2A
 !SurfboardAttr =    $32
 
 !SprFont1Attr =     $30
@@ -334,6 +344,15 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !ShieldYPos =       $A8
 !Tick =             $02
 !Cross =            $03
+
+!Planet0 =          $26
+!Planet1 =          $28
+!Planet2 =          $2A
+!PlanetsAttr =      $06
+!PlanetsHiAttr =    $36
+
+!SprVram =          $4000
+!BGVram =           $0000
 
 !Mod0 =             $0001       ;2x enemy health
 !Mod1 =             $0002       ;1/2 time to make enemies move

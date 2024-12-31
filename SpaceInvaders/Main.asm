@@ -64,6 +64,10 @@ BG4_L2:
     incbin "bin/gfx/BG-4-L2.bin"
 BG4_L2_End:
 
+BG4_L3:
+    incbin "bin/gfx/BG-4-L3.bin"
+BG4_L3_End:
+
 BG4_OBJ:
     incbin "bin/gfx/Surfboard.bin"
     incbin "bin/gfx/OceanRocks.bin"
@@ -78,10 +82,6 @@ Title_L1_End:
 Title_L2:
     incbin "bin/gfx/Title-BG-L2.bin"
 Title_L2_End:
-
-BG4_L3:
-    incbin "bin/gfx/BG-4-L3.bin"
-BG4_L3_End:
 
 ;   Sprite font 1    ;  5x5
 SPRFont:
@@ -106,13 +106,14 @@ ArrowSpr_End:
 OptionsSpr:
     incbin "bin/gfx/Stars.bin"
     incbin "bin/gfx/SmallUFO.bin"
+    incbin "bin/gfx/PlanetSprites.bin"
 OptionsSprEnd:
 
 org !GfxBank3
 
 ;   highscore mode7 BG    ;
 HScoreBGM7:
-    incbin "bin/gfx/Mode7TestOut.bin"
+    incbin "bin/gfx/GalaxyOut.bin"
 HScoreBGM7_End:
 
 org !TilemapBank
@@ -194,6 +195,10 @@ StarsPal:
     incbin "bin/gfx/pal/StarsPal.bin"
 StarsPalEnd:
 
+OptionPlanetPal:
+    incbin "bin/gfx/pal/PlanetSprites.bin"
+OptionPlanetPalEnd:
+
 SmallUFOPal:
     incbin "bin/gfx/pal/SmallUFO-Pal.bin"
 SmallUFOPalEnd:
@@ -268,7 +273,7 @@ ArrowSpr_Pal_End:
 
 ;   highscore mode7 BG    ;
 HScoreBGM7_Pal:
-    incbin "bin/gfx/pal/Mode7Test-Pal.bin"
+    incbin "bin/gfx/pal/Galaxy-Pal.bin"
 HScoreBGM7_Pal_End:
 
 ZVal:
@@ -720,8 +725,42 @@ NMIHandler:
     sep #%00100000
     lda.b #$01                  ;Enable DMA 0
     sta.w HW_MDMAEN
-    rep #$20
     
+    rep #$20
+    lda.b ZP.PalFadeEnd
+    beq .HDMALoop
+    tdc
+    ldy.w #$0000
+    ldx.w #$0000
+    sep #$20
+    lda.b ZP.PalFadeInd
+    and.b #$1F
+    asl
+    tax
+    lda.b ZP.PalFadeStart
+    sta.w HW_CGADD
+    lda.b ZP.PalFadeStart+1
+    sta.w HW_CGADD
+    rep #$20
+    lda.b ZP.PalFadeStart
+    tay
+    .FadeLoop:
+    rep #$20
+    lda.w PalMirror, Y
+    sec
+    sbc.w PalFadeMask, X
+    bcs +
+    lda.w #$0000
+    +
+    .ApplyColour:
+    sep #$20
+    sta.w HW_CGDATA
+    xba
+    sta.w HW_CGDATA
+    iny
+    iny
+    cpy.b ZP.PalFadeEnd
+    bne .FadeLoop
     ;---------------;
     ;  HDMA Writes  ;
     ;---------------;
@@ -923,7 +962,10 @@ TitleScene:
     lda.b #$1F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipTitleLoad:
-    
+    rep #$20
+    stz.b ZP.PalFadeStart
+    stz.b ZP.PalFadeEnd
+
     tdc
     sep #$20
     lda.b ZP.ExitScene
@@ -1007,12 +1049,6 @@ TitleScene:
     and #$04
     beq +
     stz.w BGScrollOff+2
-    ;Text
-    ldy.w #$0102
-    tdc
-    lda.b #$05
-    sta.b ZP.R4
-    jsr PalCycle
     ;BG
     ldy.w #$0024
     tdc
@@ -1109,7 +1145,9 @@ GameScene:
     stz.w HW_HDMAEN
     stz.w HW_MDMAEN
     jsr TransitionIn
-
+    
+    lda.b #$02
+    sta.w HW_OBSEL
     ;Load Game BG palettes
     lda.b #$02
     sta.w HW_DMAP1              ;Setup DMAP1
@@ -1134,10 +1172,8 @@ GameScene:
     lda.b #$03
     sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
 
-    ldx.w #$0000
-    stx.b ZP.R0
-    jsr LoadEnemyGFX
-
+    ldx.w #!SprVram
+    stx.w HW_VMADDL             ;Set VRAM address to Sprite VRAM
     ;Load Game Sprites
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
@@ -1149,6 +1185,10 @@ GameScene:
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
+
+    ldx.w #$0000
+    stx.b ZP.R0
+    jsr LoadEnemyGFX
 
     ldy.w #$0000
     -
@@ -1180,7 +1220,8 @@ GameScene:
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w HW_BGMODE
-    stz.w BGCount
+    lda.b #$05
+    sta.w BGCount
     ;Reset Player
     lda.b #$70
     sta.w Player.X
@@ -1225,7 +1266,18 @@ GameScene:
     lda.b #$61
     sta.w HW_MOSAIC
     +
-
+    
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!Mod9
+    sep #$20
+    beq +
+    lda.b ZP.EnemyPlanePosY
+    sec
+    sbc.b #$20
+    sta.b ZP.EnemyPlanePosY
+    +
+    tdc
     ;Set RNG up for enemy timers
     ldy.w #$0003
     -
@@ -1312,6 +1364,11 @@ GameScene:
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipLoad:
+
+    ;-----------------------;
+    ;   Background Logic    ;
+    ;-----------------------;
+    jsr GameLoop_UpdateBG
 
     ;-------------------;
     ;   Player Logic    ;
@@ -1902,11 +1959,6 @@ GameScene:
     ;    Handle UFO     ;
     ;-------------------;
     jsr GameLoop_HandleUFO
-
-    ;-----------------------;
-    ;   Background Logic    ;
-    ;-----------------------;
-    jsr GameLoop_UpdateBG
     
     ;------------------------;
     ;    Handle Explosions   ;
@@ -2505,8 +2557,7 @@ GameLoop_SendWave:
     lda.w BGIndex
     cmp.b #!MaxBG
     bne ++
-    lda.b #$00
-    sta.w BGIndex
+    stz.w BGIndex
     ++
     ldy.w #$0003
     lda.b #!ShieldStartHP
@@ -2536,6 +2587,18 @@ GameLoop_SendWave:
     sta.b ZP.EnemyTimer
     lda.b #!GameState_Play
     sta.w GameState
+
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!Mod9
+    sep #$20
+    beq +
+    lda.b ZP.EnemyPlanePosY
+    sec
+    sbc.b #$20
+    sta.b ZP.EnemyPlanePosY
+    +
+    tdc
     ;Set RNG up for enemy timers
     ldy.w #$0003
     -
@@ -3129,7 +3192,7 @@ OptionsScene:
     lda.b #$02
     sta.w HW_OBSEL
 
-    ldx.w #$4010
+    ldx.w #!SprVram+$10
     stx.w HW_VMADDL             ;Set VRAM address to Sprite VRAM
     
     lda.b #$01
@@ -3218,6 +3281,22 @@ OptionsScene:
     
     lda.w SmallUFOPal, Y
     sta.w PalMirror+$0140, Y
+
+    lda.w OptionPlanetPal, Y
+    sta.w PalMirror+$0160, Y
+    dey
+    bpl -
+    
+    ldy.w #StarsPalEnd-StarsPal
+    -
+    lda.w StarsPal, Y
+    sta.w PalMirror+$0120, Y
+    
+    lda.w SmallUFOPal, Y
+    sta.w PalMirror+$0140, Y
+    
+    lda.w OptionPlanetPal, Y
+    sta.w PalMirror+$0160, Y
     dey
     bpl -
     
@@ -3242,6 +3321,7 @@ OptionsScene:
     -
     jsr Rand
     and.b #$07
+    lsr
     sta.w SParticleState, Y
     
     tya
@@ -3259,6 +3339,30 @@ OptionsScene:
     dex
     dey
     bpl -
+
+    jsr Rand
+    xba
+    rep #$20
+    and.w #$01FF
+    sta.w OBJXPos+2
+    jsr Rand
+    xba
+    rep #$20
+    and.w #$01FF
+    sta.w OBJXPos+4
+    jsr Rand
+    xba
+    rep #$20
+    and.w #$01FF
+    sta.w OBJXPos+6
+
+    sep #$20
+    lda.b #$14
+    sta.w OBJYPos+1
+    lda.b #$55
+    sta.w OBJYPos+2
+    lda.b #$29
+    sta.w OBJYPos+3
 
     jsr OptionsScreen_DrawUI
     lda.b #$0F                  ;Set master brightness to 15 & stop blanking
@@ -3452,6 +3556,34 @@ OptionsScene:
     +
 
     sep #$20
+    inc.w OBJTimers+1
+    lda.w OBJTimers+1
+    cmp #$50
+    bne +
+    stz.w OBJTimers+1
+    rep #$20
+    dec.w OBJXPos+2
+    sep #$20
+    +
+    inc.w OBJTimers+2
+    lda.w OBJTimers+2
+    cmp #$30
+    bne +
+    stz.w OBJTimers+2
+    rep #$20
+    dec.w OBJXPos+4
+    sep #$20
+    +
+    inc.w OBJTimers+3
+    lda.w OBJTimers+3
+    cmp #$22
+    bne +
+    stz.w OBJTimers+3
+    rep #$20
+    dec.w OBJXPos+6
+    sep #$20
+    +
+    sep #$20
     lda.b #$D8
     sta.b ZP.AddSprX
     lda.b #$3E
@@ -3463,6 +3595,49 @@ OptionsScene:
     stz.b ZP.AddSprBigFlag
     jsr AddSprite
 
+    ;Circle Planet
+    rep #$20
+    lda.w OBJXPos+2
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w OBJYPos+1
+    sta.b ZP.AddSprY
+    lda.b #!Planet0
+    sta.b ZP.AddSprTile
+    lda.b #!PlanetsAttr
+    sta.b ZP.AddSprAttr
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    ;Box Planet
+    rep #$20
+    lda.w OBJXPos+4
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w OBJYPos+2
+    sta.b ZP.AddSprY
+    lda.b #!Planet1
+    sta.b ZP.AddSprTile
+    lda.b #!PlanetsAttr
+    sta.b ZP.AddSprAttr
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    ;Triangle Planet
+    rep #$20
+    lda.w OBJXPos+6
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w OBJYPos+3
+    sta.b ZP.AddSprY
+    lda.b #!Planet2
+    sta.b ZP.AddSprTile
+    lda.b #!PlanetsHiAttr
+    sta.b ZP.AddSprAttr
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    ;UFO
     sep #$20
     inc.w OBJTimers
     lda.w OBJTimers
@@ -3636,6 +3811,13 @@ OptionsScene:
     inc.w BGScrollVal+6
     +
 
+    inc.w BGScrollOff+7
+    lda.w BGScrollOff+7
+    cmp.b #$8C
+    bne +
+    stz.w BGScrollOff+7
+    inc.w !BG2HOffMirror
+    +
     ldy.w #$0000
     ldx.w #$0000
     tdc
@@ -3974,17 +4156,22 @@ HighscoreScene:
     lda.b #$FF
     sta.w TMMirror
     rep #$20
-    lda.w #$0200
+    lda.w #$00C0
     sta.w !BG1HOffMirror
     sta.w !BG1HOffMirror+1
     sta.w !BG1VOffMirror
     sta.w !BG1VOffMirror+1
     lda.w !BG1HOffMirror
-    adc.w #$0080
+    adc.w #$0800
     sta.w M7XMirror
     lda.w !BG1VOffMirror
-    adc.w #$0080
+    adc.w #$0800
     sta.w M7YMirror
+    
+    tdc
+    ldx.w #$4444
+    stx.w HW_BG12NBA
+    stx.w HW_BG34NBA
 
     sep #$20
     ldy.w #HDMAMirror2-HDMAMirror
@@ -4009,17 +4196,13 @@ HighscoreScene:
     ;C = -Sin @
     ;D = Cos  @
     rep #$20
-    lda.w Sin16, Y
-    asl
-    asl
-    asl
-    sta.w M7BMirror
-    eor.w #$FFFF
-    sta.w M7CMirror
-    lda.w Cos16, Y
-    ;asl
-    sta.w M7DMirror
-    sta.w M7AMirror
+    ;lda.w Sin16, Y
+    ;sta.w M7BMirror
+    ;eor.w #$FFFF
+    ;sta.w M7CMirror
+    ;lda.w Cos16, Y
+    ;sta.w M7DMirror
+    ;sta.w M7AMirror
 
     lda.w !BG1HOffMirror
     adc.w #$0080
@@ -4027,6 +4210,98 @@ HighscoreScene:
     lda.w !BG1VOffMirror
     adc.w #$0080
     sta.w M7YMirror
+
+    ldx.w #$0000
+    ldy.w #$0000
+    sep #$30
+    ldx.w SinePtr
+    ldy.b #$60
+    rep #$10
+    ldx.w #HDMAMode7Buffer
+    stx.w HW_WMADDL
+    sep #$10
+    lda.b #$7E
+    sta.w HW_WMADDH
+    
+    lda.b #$7F
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    lda.b #$21
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+
+    lda.b #$E0
+    sta.w HW_WMDATA
+
+    .ScaleAB:
+    rep #$20
+    lda.w Cos16, X
+    sep #$20
+    sta.w HW_M7A
+    xba
+    sta.w HW_M7A
+    lda.b #$02
+    sta.w HW_M7B
+    rep #$20
+    lda.w HW_MPYL
+    sep #$20
+    sta.w HW_WMDATA
+    xba
+    sta.w HW_WMDATA
+    
+    lda.w Sin16, X
+    sep #$20
+    sta.w HW_M7A
+    xba
+    sta.w HW_M7A
+    lda.b #$02
+    sta.w HW_M7B
+    rep #$20
+    lda.w HW_MPYL
+    sep #$20
+    sta.w HW_WMDATA
+    xba
+    sta.w HW_WMDATA
+    inx
+    inx
+    dey
+    bpl .ScaleAB
+    
+
+    sep #$20
+    rep #$10
+    ldy.w #$0060
+    ldx.w #HDMAMode7Buffer2
+    stx.w HW_WMADDL
+    lda.b #$7E
+    sta.w HW_WMADDH
+    lda.b #$E0
+    sta.w HW_WMDATA
+    .ScaleCD:
+    
+    ;Mode switch
+    sep #$20
+    lda.b #$00
+    sta.w HDMAMirror1
+    lda.b #(HW_BGMODE)&$FF
+    sta.w HDMAMirror1+1
+    ldx.w #HighscoreVMode&$FFFF
+    stx.w HDMAMirror1+2
+    lda.b #(HighscoreVMode>>16)&$FF
+    sta.w HDMAMirror1+4
+
+    ;Perspective mode 7 view
+    sep #$20
+    lda.b #$02
+    sta.w HDMAMirror1
+    lda.b #(HW_M7A)&$FF
+    sta.w HDMAMirror1+1
+    ldx.w #HDMAMode7Buffer&$FFFF
+    stx.w HDMAMirror1+2
+    lda.b #$7E
+    sta.w HDMAMirror1+4
 
     ;sep #$20
     ;lda.b ZP.Controller
@@ -5130,6 +5405,38 @@ BG_Surfboard:
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
 
+    ;Load Objects
+    ldy.w #$0000
+    lda.b #(BG4_OBJ)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG4_OBJ>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG4_OBJ>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #!SprVram+((GameSprEnd-GameSpr)/2)
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG4_OBJ_End-BG4_OBJ
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
     stz.w !BG3VOffMirror
     stz.w !BG3VOffMirror+1
     ;Transfer palette data
@@ -5157,6 +5464,38 @@ GameLoop_UpdateBG:
     pha
     phx
     phy
+    lda.w GameState
+    cmp.b #!GameState_Stop
+    bne .SkipFade
+    lda.w BGCount
+    inc
+    cmp.w BGChange
+    bne .SkipFade
+    lda.b ZP.PalFadeInd
+    cmp #$1F
+    beq .SkipFade
+    rep #$20
+    stz.b ZP.PalFadeStart
+    lda.w #$0060
+    sta.b ZP.PalFadeEnd
+    sep #$20
+    inc.b ZP.PalFadeInd
+    bra .GotoBGUpdate
+    .SkipFade:
+    lda.w BGCount
+    bne .GotoBGUpdate
+    lda.b ZP.PalFadeInd
+    beq .GotoBGUpdate
+    dec.b ZP.PalFadeInd
+    beq +
+    bra .GotoBGUpdate
+    +
+    rep #$20
+    stz.b ZP.PalFadeStart
+    stz.b ZP.PalFadeEnd
+    sep #$20
+
+    .GotoBGUpdate:
     ldx.w #$0000
     tdc
     lda.w BGIndex
@@ -7028,25 +7367,25 @@ ShieldTileTable:
     db $00
     db $00
     ;Severely damaged
-    db $4D
-    db $4C
-    db $4C
-    db $4D
+    db $20
+    db $1F
+    db $1F
+    db $20
     ;Moderately damaged
-    db $4B
-    db $4A
-    db $4A
-    db $4B
+    db $1E
+    db $1D
+    db $1D
+    db $1E
     ;Partially damaged
-    db $49
-    db $48
-    db $48
-    db $49
+    db $1C
+    db $1B
+    db $1B
+    db $1C
     ;Full health
-    db $47
-    db $46
-    db $46
-    db $47
+    db $1A
+    db $19
+    db $19
+    db $1A
 
 ShieldExplosionTileTable:
     db $55
@@ -7121,9 +7460,18 @@ StarPrio:
     db $10
 
 PalFadeMask:
-    for x = 0..31
-        dw $7FFF-($3FF*!x)
+    for x = 0..32
+        dw $0421*!x
     endfor
+
+HighscoreVMode:
+    db $7F
+    db $01
+    db $21
+    db $01
+    db $01
+    db $07
+    db $00
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
@@ -7258,19 +7606,6 @@ dw $0069,$006A,$006C,$006E,$006F,$0071,$0072
 dw $0074,$0075,$0076,$0077,$0079,$007A,$007A
 dw $007B,$007C,$007D,$007E,$007E,$007F,$007F
 dw $007F,$0080,$0080,$0080
-
-;exp(5*t/T)
-Perspective:
-dw $0080,$008A,$0096,$00A2,$00AF,$00BD,$00CD
-dw $00DD,$00EF,$0103,$0118,$012E,$0147,$0161
-dw $017E,$019D,$01BF,$01E3,$020A,$0235,$0263
-dw $0294,$02CA,$0304,$0343,$0386,$03D0,$041F
-dw $0475,$04D2,$0536,$05A2,$0617,$0696,$071F
-dw $07B3,$0853,$0901,$09BC,$0A86,$0B61,$0C4E
-dw $0D4E,$0E63,$0F8E,$10D2,$122F,$13AA,$1543
-dw $16FD,$18DB,$1AE0,$1D0F,$1F6C,$21F9,$24BC
-dw $27B8,$2AF3,$2E70,$3236,$364A,$3AB4,$3F79
-dw $44A1
 
 ;log(24/t)
 SkewTable:
