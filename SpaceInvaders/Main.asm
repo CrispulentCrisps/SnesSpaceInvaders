@@ -109,6 +109,16 @@ OptionsSpr:
     incbin "bin/gfx/PlanetSprites.bin"
 OptionsSprEnd:
 
+HScoreBG:
+    incbin "bin/gfx/HScoreFont.bin"
+    incbin "bin/gfx/HighscoreL1.bin"
+    incbin "bin/gfx/HighscoreL2.bin"
+HScoreBGEnd:
+
+HScoreSpr:
+    incbin "bin/gfx/Twinkle.bin"
+HScoreSprEnd:
+
 org !GfxBank3
 
 ;   highscore mode7 BG    ;
@@ -163,6 +173,12 @@ Options_TM:
     incbin "bin/gfx/tilemap/OptionsBG.bin"
     incbin "bin/gfx/tilemap/OptionsBG2.bin"
 Options_TM_End:
+
+HScoreBG_TM:
+    incbin "bin/gfx/tilemap/HighscoreL1.bin"
+HScoreBG_TM_2:
+    incbin "bin/gfx/tilemap/HighscoreL2.bin"
+HScoreBG_TM_End:
 
 org !CodeBank
 
@@ -276,6 +292,18 @@ HScoreBGM7_Pal:
     incbin "bin/gfx/pal/Galaxy-Pal.bin"
 HScoreBGM7_Pal_End:
 
+HScoreBGL1_Pal:
+    incbin "bin/gfx/pal/HighscoreL1.bin"
+HScoreBGL1_Pal_End:
+HScoreBGL2_Pal:
+    incbin "bin/gfx/pal/HighscoreL2.bin"
+HScoreBGL2_Pal_End:
+HScoreTextPal:
+    incbin "bin/gfx/pal/HScoreFont-Pal.bin"
+HScoreTextPalEnd:
+TwinklePal:
+    incbin "bin/gfx/pal/Twinkle-Pal.bin"
+TwinklePalEnd:
 ZVal:
     dw $0000
 
@@ -822,6 +850,25 @@ NMIHandler:
     adc.b #$04                     ;X being used as our bitfield for HDMA
     tax
     +
+    lda.w HDMAMirror3+1
+    beq +
+    lda.w HDMAMirror3
+    sta.w HW_DMAP3
+    lda.w HDMAMirror3+1
+    sta.w HW_BBAD3
+    rep #$20
+    lda.w HDMAMirror3+2
+    sta.w HW_A1T3L
+    tdc
+    sep #$20
+    lda.w HDMAMirror3+4
+    sta.w HW_A1B3
+    txa
+    clc
+    adc.b #$08                     ;X being used as our bitfield for HDMA
+    tax
+    +
+
     stx.w HW_HDMAEN
     ;----------------------;
     ;   Controller Input   ;
@@ -4130,6 +4177,18 @@ HighscoreScene:
     stz.w HW_HDMAEN
     jsr TransitionIn
 
+    lda.b #$80
+    sta.w WH1Mirror
+    stz.w CGWSELMirror
+    stz.w CGADSUBMirror
+    lda.w W12SELMirror
+    ora.b #$22
+    sta.w W12SELMirror
+    lda.w W34SELMirror
+    ora.b #$22
+    sta.w W34SELMirror
+    lda.b #$35
+    sta.w WOBJSELMirror
     ldx.w #$0000
     stx.w HW_VMADDL
     ;Load BG characters
@@ -4145,22 +4204,190 @@ HighscoreScene:
     stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 7
+
+    ldx.w #!SprVram
+    stx.w HW_VMADDL
+    ;Load BG characters
+    lda.b #$18
+    sta.w HW_BBAD7
+    lda.b #$01
+    sta.w HW_DMAP7              ;Setup DMAP0
+    ldx.w #HScoreBG&$FFFF     ;Grab graphics addr
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    lda.b #HScoreBG>>16&$FF
+    sta.w HW_A1B7               ;Store bank
+    ldx.w #HScoreBGEnd-HScoreBG
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 7
+    
+    ldx.w #!HSSprVram
+    stx.w HW_VMADDL
+    ;Load BG characters
+    lda.b #$18
+    sta.w HW_BBAD7
+    lda.b #$01
+    sta.w HW_DMAP7              ;Setup DMAP0
+    ldx.w #HScoreSpr&$FFFF     ;Grab graphics addr
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    lda.b #HScoreSpr>>16&$FF
+    sta.w HW_A1B7               ;Store bank
+    ldx.w #HScoreSprEnd-HScoreSpr
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 7
+
+    ldx.w #L1Ram
+    stx.w HW_VMADDL
+    ;Load BG characters
+    lda.b #$18
+    sta.w HW_BBAD7
+    lda.b #$01
+    sta.w HW_DMAP7              ;Setup DMAP0
+    ldx.w #HScoreBG_TM&$FFFF     ;Grab graphics addr
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    lda.b #HScoreBG_TM>>16&$FF
+    sta.w HW_A1B7               ;Store bank
+    ldx.w #HScoreBG_TM_2-HScoreBG_TM
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 7
+    ldx.w #L1Ram
+    stx.w HW_VMADDL
+
+    ldx.w #L2Ram
+    stx.w HW_VMADDL
+    ;Load BG characters
+    lda.b #$18
+    sta.w HW_BBAD7
+    lda.b #$01
+    sta.w HW_DMAP7              ;Setup DMAP0
+    ldx.w #HScoreBG_TM_2&$FFFF     ;Grab graphics addr
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    lda.b #HScoreBG_TM_2>>16&$FF
+    sta.w HW_A1B7               ;Store bank
+    ldx.w #HScoreBG_TM_End-HScoreBG_TM_2
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 7
+
     ldy.w #HScoreBGM7_Pal_End-HScoreBGM7_Pal
     -
     lda.w HScoreBGM7_Pal, Y
     sta.w PalMirror, Y
     dey
     bpl -
+
+    ldy.w #HScoreBGL2_Pal_End-HScoreBGL2_Pal
+    -
+    lda.w HScoreTextPal, Y
+    sta.w PalMirror+$0020, Y
+    lda.w HScoreBGL1_Pal, Y
+    sta.w PalMirror+$00A0, Y
+    lda.w HScoreBGL2_Pal, Y
+    sta.w PalMirror+$00C0, Y
+    lda.w TwinklePal, Y
+    sta.w PalMirror+$01E0, Y
+    dey
+    bpl -
+
+    sep #$20
+    ldx.w #L3Ram+$43
+    stx.w HW_VMADDL
+    ldx.w #$0000
+    ldy.w #$0000
+    rep #$20
+    -
+    lda.w #!HText1st
+    ora.w HighscoreHeader, Y
+    sta.w HW_VMDATAL
+    iny
+    iny
+    cpy #HighscoreUnderline-HighscoreHeader
+    bne -
+
+    sep #$20
+    ldx.w #L3Ram+$63
+    stx.w HW_VMADDL
+    ldx.w #$0000
+    ldy.w #$0000
+    rep #$20
+    -
+    lda.w #!HText1st
+    ora.w HighscoreUnderline, Y
+    sta.w HW_VMDATAL
+    iny
+    iny
+    cpy #HighscoreText-HighscoreUnderline
+    bne -
+
+    stz.w WH0Mirror
+    stz.w WH1Mirror
+    sep #$20
+    ldx.w #L3Ram+$C3
+    stx.w HW_VMADDL
+    ldx.w #$0000
+    ldy.w #$0000
+    lda.b #$03
+    sta.b ZP.R0
+    rep #$20
+    -
+    lda.b ZP.R0
+    and.w #$00FF
+    asl
+    asl
+    xba
+    clc
+    adc.w #!HTextNormal
+    ora.w HighscoreText, Y
+    sta.w HW_VMDATAL
+    inx
+    cpx.w #$0018
+    bne +
+    sep #$20
+    lda.b ZP.R0
+    beq ++
+    rep #$20
+    lda.b ZP.R0
+    and.w #$00FF
+    asl
+    tax
+    asl
+    xba
+    adc.w #!HTextNormal
+    ora.w TrophyChar, X
+    sta.w HW_VMDATAL
+    stz.w HW_VMDATAL
+    dec.b ZP.R0
+    bra .FillEmpty
+    ++
+    rep #$20
+    stz.w HW_VMDATAL
+    stz.w HW_VMDATAL
+    .FillEmpty:
+    rep #$20
+    stz.w HW_VMDATAL
+    stz.w HW_VMDATAL
+    stz.w HW_VMDATAL
+    stz.w HW_VMDATAL
+    stz.w HW_VMDATAL
+    stz.w HW_VMDATAL
+    ldx.w #$0000
+    +
+    iny
+    iny
+    cpy #HighscoreTextEnd-HighscoreText
+    bne -
+
     lda.b #$C0
     sta.w HW_M7SEL
     lda.b #$FF
     sta.w TMMirror
     rep #$20
-    lda.w #$00C0
+    lda.w #$0180
     sta.w !BG1HOffMirror
-    sta.w !BG1HOffMirror+1
+    lda.w #$0148
     sta.w !BG1VOffMirror
-    sta.w !BG1VOffMirror+1
     lda.w !BG1HOffMirror
     adc.w #$0800
     sta.w M7XMirror
@@ -4172,6 +4399,9 @@ HighscoreScene:
     ldx.w #$4444
     stx.w HW_BG12NBA
     stx.w HW_BG34NBA
+    sep #$20
+    lda.b #$03
+    sta.w HW_OBSEL
 
     sep #$20
     ldy.w #HDMAMirror2-HDMAMirror
@@ -4183,19 +4413,15 @@ HighscoreScene:
     lda.b #$0F                  ;Set master brightness to 15 & stop blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipHighscoreLoad:
-    inc.w SinePtr
-    tdc
-    lda.w SinePtr
-    rep #$20
-    asl
-    tay
     sep #$20
+    inc.w SinePtr
+    rep #$20
     ;just pretend @ is theta
     ;A = Cos  @
     ;B = Sin  @
     ;C = -Sin @
     ;D = Cos  @
-    rep #$20
+    ;rep #$20
     ;lda.w Sin16, Y
     ;sta.w M7BMirror
     ;eor.w #$FFFF
@@ -4211,15 +4437,78 @@ HighscoreScene:
     adc.w #$0080
     sta.w M7YMirror
 
-    ldx.w #$0000
-    ldy.w #$0000
-    sep #$30
-    ldx.w SinePtr
-    ldy.b #$60
-    rep #$10
     ldx.w #HDMAMode7Buffer
     stx.w HW_WMADDL
-    sep #$10
+    sep #$20
+    lda.b #$7E
+    sta.w HW_WMADDH
+
+    rep #$20
+    ldx.w #$0000
+    ldy.w #$0000
+    lda.w SinePtr
+    and.w #$00FF
+    tax
+    ldy.w #$00C0
+    sep #$20
+
+    lda.b #$7F
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    lda.b #$21
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    lda.b #$E0
+    sta.w HW_WMDATA
+    .ScaleAB:
+    ;A
+    rep #$20
+    lda.w M7Log, Y
+    sep #$20
+    sta.w HW_M7A
+    xba
+    sta.w HW_M7A
+    lda.w Cos8, X
+    sta.w HW_M7B
+    rep #$20
+    lda.w HW_MPYL
+    sep #$20
+    sta.w HW_WMDATA
+    xba
+    sta.w HW_WMDATA
+    rep #$20
+    
+    ;B
+    lda.w M7Log, Y
+    sep #$20
+    sta.w HW_M7A
+    xba
+    sta.w HW_M7A
+    lda.w Sin8, X
+    sta.w HW_M7B
+    rep #$20
+    lda.w HW_MPYL
+    sep #$20
+    sta.w HW_WMDATA
+    xba
+    sta.w HW_WMDATA
+    rep #$20
+    dey
+    dey
+    bpl .ScaleAB
+
+
+
+    sep #$20
+    ldy.w #$0060
+    ldx.w #HDMAMode7Buffer2
+    stx.w HW_WMADDL
     lda.b #$7E
     sta.w HW_WMADDH
     
@@ -4227,74 +4516,78 @@ HighscoreScene:
     sta.w HW_WMDATA
     stz.w HW_WMDATA
     stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
     lda.b #$21
     sta.w HW_WMDATA
     stz.w HW_WMDATA
     stz.w HW_WMDATA
-
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
     lda.b #$E0
     sta.w HW_WMDATA
 
-    .ScaleAB:
     rep #$20
-    lda.w Cos16, X
-    sep #$20
-    sta.w HW_M7A
-    xba
-    sta.w HW_M7A
-    lda.b #$02
-    sta.w HW_M7B
-    rep #$20
-    lda.w HW_MPYL
-    sep #$20
-    sta.w HW_WMDATA
-    xba
-    sta.w HW_WMDATA
-    
-    lda.w Sin16, X
-    sep #$20
-    sta.w HW_M7A
-    xba
-    sta.w HW_M7A
-    lda.b #$02
-    sta.w HW_M7B
-    rep #$20
-    lda.w HW_MPYL
-    sep #$20
-    sta.w HW_WMDATA
-    xba
-    sta.w HW_WMDATA
-    inx
-    inx
-    dey
-    bpl .ScaleAB
-    
-
-    sep #$20
-    rep #$10
-    ldy.w #$0060
-    ldx.w #HDMAMode7Buffer2
-    stx.w HW_WMADDL
-    lda.b #$7E
-    sta.w HW_WMADDH
-    lda.b #$E0
-    sta.w HW_WMDATA
+    ldx.w #$0000
+    ldy.w #$0000
+    lda.w SinePtr
+    and.w #$00FF
+    tax
+    ldy.w #$00C0
     .ScaleCD:
+    rep #$20
     
+    ;C
+    lda.w M7Log, Y
+    sep #$20
+    sta.w HW_M7A
+    xba
+    sta.w HW_M7A
+    lda.w Sin8, X
+    eor.b #$FF
+    sta.w HW_M7B
+    rep #$20
+    lda.w HW_MPYL
+    sep #$20
+    sta.w HW_WMDATA
+    xba
+    sta.w HW_WMDATA
+    rep #$20
+    
+    ;D
+    rep #$20
+    lda.w M7Log, Y
+    sep #$20
+    sta.w HW_M7A
+    xba
+    sta.w HW_M7A
+    lda.w Cos8, X
+    sta.w HW_M7B
+    rep #$20
+    lda.w HW_MPYL
+    sep #$20
+    sta.w HW_WMDATA
+    xba
+    sta.w HW_WMDATA
+    rep #$20
+
+    dey
+    dey
+    bpl .ScaleCD
     ;Mode switch
     sep #$20
     lda.b #$00
-    sta.w HDMAMirror1
+    sta.w HDMAMirror
     lda.b #(HW_BGMODE)&$FF
-    sta.w HDMAMirror1+1
+    sta.w HDMAMirror+1
     ldx.w #HighscoreVMode&$FFFF
-    stx.w HDMAMirror1+2
+    stx.w HDMAMirror+2
     lda.b #(HighscoreVMode>>16)&$FF
-    sta.w HDMAMirror1+4
+    sta.w HDMAMirror+4
 
     ;Perspective mode 7 view
     sep #$20
-    lda.b #$02
+    lda.b #$03
     sta.w HDMAMirror1
     lda.b #(HW_M7A)&$FF
     sta.w HDMAMirror1+1
@@ -4302,6 +4595,42 @@ HighscoreScene:
     stx.w HDMAMirror1+2
     lda.b #$7E
     sta.w HDMAMirror1+4
+
+    lda.b #$03
+    sta.w HDMAMirror2
+    lda.b #(HW_M7C)&$FF
+    sta.w HDMAMirror2+1
+    ldx.w #HDMAMode7Buffer2&$FFFF
+    stx.w HDMAMirror2+2
+    lda.b #$7E
+    sta.w HDMAMirror2+4
+
+    ldy.w #$0010
+    ldx.w #$0020
+    .TwinkleLoop:
+    sep #$20
+    lda.w OBJTimers, Y
+    inc
+    sta.w OBJTimers, Y
+    bit #$40
+    beq +
+    rep #$20
+    jsr Rand
+    cmp.w #$01F2
+    bmi ++
+    sec
+    sbc.w #$01F2
+    ++
+    clc
+    adc.w #$0018
+    sta.w OBJXPos, Y
+    jsr Rand
+    and.w #$000F
+    sec
+    sbc.w #$0008
+    +
+    dey
+    bpl .TwinkleLoop
 
     ;sep #$20
     ;lda.b ZP.Controller
@@ -6299,9 +6628,11 @@ DrawTransition:
     .SetupWindow:
     ;Set window 2 up
     lda.b #$CC
+    ora.w W12SELMirror
     sta.w W12SELMirror
+    lda.w W34SELMirror
+    ora.w W34SELMirror
     sta.w W34SELMirror
-    sta.w WOBJSELMirror
     lda.b #$FF
     sta.w TMWMirror
     stz.w TSWMirror
@@ -6433,17 +6764,21 @@ AddSprite:
 ;|------------------|
 ;|   IN GAME TEXT   |
 ;|------------------|
+HighscoreHeader:
+    dw ">@~ THE HALL OF FAME ~@>"
+HighscoreUnderline:
+    dw "''''''''''''''''''''''''"
 HighscoreText:
-    dw "01      CRIS      100000"
-    dw "02      TOAS      090000"
-    dw "03      DAVR      080000"
-    dw "04      MRMA      070000"
-    dw "05      JUIC      060000"
-    dw "06      WANK      050000"
-    dw "07      PZZA      040000"
-    dw "08      FUCK      030000"
-    dw "09      DEAD      020000"
-    dw "10      HEHE      010000"
+    dw "01: THE QUICK     100000"
+    dw "02: BROWN FOX     090000"
+    dw "03: JUMPS OVER    080000"
+    dw "04: THE LAZY DOG! 070000"
+    dw "05: 0123456789ABC 060000"
+    dw "06: DEFGHIJKLMNOP 050000"
+    dw "07: QRSTUVWXYZ!?' 040000"
+    dw "08: YOU TELLING M 030000"
+    dw "09: E A SHRIMP FR 020000"
+    dw "10: IED THIS RICE 010000"
 HighscoreTextEnd:
 
 ScoreText:
@@ -7466,12 +7801,49 @@ PalFadeMask:
 
 HighscoreVMode:
     db $7F
-    db $01
-    db $21
-    db $01
+    db $09
+    db $20
+    db $09
     db $01
     db $07
     db $00
+
+HighscoreTextBG:
+    db $0E
+    db $00
+    
+    db $0A
+    db $DC
+
+    db $01
+    db $00
+    
+    db $4C
+    db $DC
+    
+    db $01
+    db $00
+    db $00
+
+TrophyChar:
+    dw $0000
+    dw $0029
+    dw $002A
+    dw $002B
+
+TwinkleFrame3rd:
+    db $04
+    db $05
+    db $06
+TwinkleFrame2nd:
+    db $07
+    db $08
+    db $09
+TwinkleFrame1st:
+    db $0A
+    db $0B
+    db $0C
+
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
@@ -7607,6 +7979,78 @@ dw $0074,$0075,$0076,$0077,$0079,$007A,$007A
 dw $007B,$007C,$007D,$007E,$007E,$007F,$007F
 dw $007F,$0080,$0080,$0080
 
+M7Log:
+dw $0003,$0004,$0004,$0004,$0005,$0005,$0005
+dw $0006,$0006,$0006,$0007,$0007,$0007,$0008
+dw $0008,$0008,$0009,$0009,$000A,$000A,$000B
+dw $000B,$000B,$000C,$000C,$000D,$000D,$000E
+dw $000E,$000F,$000F,$0010,$0010,$0011,$0011
+dw $0012,$0012,$0013,$0013,$0014,$0014,$0015
+dw $0015,$0016,$0017,$0017,$0018,$0018,$0019
+dw $001A,$001A,$001B,$001C,$001D,$001D,$001E
+dw $001F,$0020,$0020,$0021,$0022,$0023,$0024
+dw $0024,$0025,$0026,$0027,$0028,$0029,$002A
+dw $002B,$002C,$002D,$002E,$002F,$0030,$0032
+dw $0033,$0034,$0035,$0036,$0038,$0039,$003A
+dw $003C,$003D,$003F,$0040,$0042,$0043,$0045
+dw $0047,$0048,$004A,$004C,$004E
+
+Sin8:
+db $00,$00,$01,$01,$02,$02,$02,$03,$03,$04
+db $04,$04,$05,$05,$05,$06,$06,$06,$07,$07
+db $08,$08,$08,$09,$09,$09,$0A,$0A,$0A,$0A
+db $0B,$0B,$0B,$0C,$0C,$0C,$0C,$0D,$0D,$0D
+db $0D,$0E,$0E,$0E,$0E,$0E,$0E,$0F,$0F,$0F
+db $0F,$0F,$0F,$0F,$10,$10,$10,$10,$10,$10
+db $10,$10,$10,$10,$10,$10,$10,$10,$10,$10
+db $10,$10,$10,$10,$10,$0F,$0F,$0F,$0F,$0F
+db $0F,$0F,$0E,$0E,$0E,$0E,$0E,$0E,$0D,$0D
+db $0D,$0D,$0C,$0C,$0C,$0C,$0B,$0B,$0B,$0A
+db $0A,$0A,$0A,$09,$09,$09,$08,$08,$08,$07
+db $07,$06,$06,$06,$05,$05,$05,$04,$04,$04
+db $03,$03,$02,$02,$02,$01,$01,$00,$00,$00
+db $FF,$FF,$FE,$FE,$FE,$FD,$FD,$FC,$FC,$FC
+db $FB,$FB,$FB,$FA,$FA,$FA,$F9,$F9,$F8,$F8
+db $F8,$F7,$F7,$F7,$F6,$F6,$F6,$F6,$F5,$F5
+db $F5,$F4,$F4,$F4,$F4,$F3,$F3,$F3,$F3,$F2
+db $F2,$F2,$F2,$F2,$F2,$F1,$F1,$F1,$F1,$F1
+db $F1,$F1,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0
+db $F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0
+db $F0,$F0,$F0,$F1,$F1,$F1,$F1,$F1,$F1,$F1
+db $F2,$F2,$F2,$F2,$F2,$F2,$F3,$F3,$F3,$F3
+db $F4,$F4,$F4,$F4,$F5,$F5,$F5,$F6,$F6,$F6
+db $F6,$F7,$F7,$F7,$F8,$F8,$F8,$F9,$F9,$FA
+db $FA,$FA,$FB,$FB,$FB,$FC,$FC,$FC,$FD,$FD
+db $FE,$FE,$FE,$FF,$FF,$00 
+
+Cos8:
+db $10,$10,$10,$10,$10,$10,$10,$10,$10,$10
+db $10,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0E,$0E
+db $0E,$0E,$0E,$0E,$0D,$0D,$0D,$0D,$0C,$0C
+db $0C,$0C,$0B,$0B,$0B,$0A,$0A,$0A,$0A,$09
+db $09,$09,$08,$08,$08,$07,$07,$06,$06,$06
+db $05,$05,$05,$04,$04,$04,$03,$03,$02,$02
+db $02,$01,$01,$00,$00,$00,$FF,$FF,$FE,$FE
+db $FE,$FD,$FD,$FC,$FC,$FC,$FB,$FB,$FB,$FA
+db $FA,$FA,$F9,$F9,$F8,$F8,$F8,$F7,$F7,$F7
+db $F6,$F6,$F6,$F6,$F5,$F5,$F5,$F4,$F4,$F4
+db $F4,$F3,$F3,$F3,$F3,$F2,$F2,$F2,$F2,$F2
+db $F2,$F1,$F1,$F1,$F1,$F1,$F1,$F1,$F0,$F0
+db $F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0
+db $F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F1
+db $F1,$F1,$F1,$F1,$F1,$F1,$F2,$F2,$F2,$F2
+db $F2,$F2,$F3,$F3,$F3,$F3,$F4,$F4,$F4,$F4
+db $F5,$F5,$F5,$F6,$F6,$F6,$F6,$F7,$F7,$F7
+db $F8,$F8,$F8,$F9,$F9,$FA,$FA,$FA,$FB,$FB
+db $FB,$FC,$FC,$FC,$FD,$FD,$FE,$FE,$FE,$FF
+db $FF,$00,$00,$00,$01,$01,$02,$02,$02,$03
+db $03,$04,$04,$04,$05,$05,$05,$06,$06,$06
+db $07,$07,$08,$08,$08,$09,$09,$09,$0A,$0A
+db $0A,$0A,$0B,$0B,$0B,$0C,$0C,$0C,$0C,$0D
+db $0D,$0D,$0D,$0E,$0E,$0E,$0E,$0E,$0E,$0F
+db $0F,$0F,$0F,$0F,$0F,$0F,$10,$10,$10,$10
+db $10,$10,$10,$10,$10,$10
+
 ;log(24/t)
 SkewTable:
 db $FF,$FF,$FF,$EA,$DA,$CE,$C4,$BC,$B4,$AE
@@ -7630,7 +8074,7 @@ db $0C,$0B,$0B,$0B,$0A,$0A,$0A,$09,$09,$09
 db $09,$08,$08,$08,$07,$07,$07,$06,$06,$06
 db $06,$05,$05,$05,$04,$04,$04,$04,$03,$03
 db $03,$02,$02,$02,$02,$01,$01,$01,$01,$00
-db $00,$00,$00,$00 
+db $00,$00,$00,$00
 
 ;sin(2*pi*t/T)*(1-(t%2*2))
 FogOffset:

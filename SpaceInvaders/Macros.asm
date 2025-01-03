@@ -183,6 +183,7 @@ PalMirror =         $0C10
 HDMAMirror =        $0E10
 HDMAMirror1 =       $0E20
 HDMAMirror2 =       $0E30
+HDMAMirror3 =       $0E40
 
 INIDSPMirror =      $0EA0
 BGMODEMirror =      $0EA1
@@ -351,7 +352,13 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !PlanetsAttr =      $06
 !PlanetsHiAttr =    $36
 
+!HTextNormal =      $3000
+!HText3rd =         $3400
+!HText2nd =         $3800
+!HText1st =         $3C00
+
 !SprVram =          $4000
+!HSSprVram =        $6010
 !BGVram =           $0000
 
 !Mod0 =             $0001       ;2x enemy health
@@ -413,3 +420,5 @@ EnemyFloor =        $04E9   ;Floor boundaries
 ''' = $26+1
 ':' = $27+1
 '>' = $28+1
+'@' = $29+1 ;Trophy character 2
+'~' = $2A+1 ;Trophy character 3
