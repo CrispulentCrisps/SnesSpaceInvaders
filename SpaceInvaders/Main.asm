@@ -126,6 +126,13 @@ HScoreBGM7:
     incbin "bin/gfx/GalaxyOut.bin"
 HScoreBGM7_End:
 
+org !GfxBank4
+
+BG6:
+    incbin "bin/gfx/BG-6-L2.bin"
+    incbin "bin/gfx/BG-6-L3.bin"
+BG6End:
+
 org !TilemapBank
 
 ;---------------;
@@ -163,6 +170,11 @@ BG4_L2_TM_End:
 BG4_L3_TM:
     incbin "bin/gfx/tilemap/BG-4-L3.bin"
 BG4_L3_TM_End:
+
+BG6_TM:
+    incbin "bin/gfx/tilemap/BG-6-L2.bin"
+    incbin "bin/gfx/tilemap/BG-6-L3.bin"
+BG6_TM_End:
 
 Title_TM:
     incbin "bin/gfx/tilemap/Title-BG-L1.bin"
@@ -263,6 +275,13 @@ BG4_L2_Pal:
     incbin "bin/gfx/pal/BG-4-L2-Pal.bin"
 BG4_L2_Pal_End:
 
+BG6_L2_Pal:
+    incbin "bin/gfx/pal/BG-6-L2-Pal.bin"
+BG6_L2_Pal_End:
+BG6_L3_Pal:
+    incbin "bin/gfx/pal/BG-6-L3-Pal.bin"
+BG6_L3_Pal_End:
+
 Surfboard_Pal:
     incbin "bin/gfx/pal/Surfboard-Pal.bin"
 Surfboard_Pal_End:
@@ -281,6 +300,10 @@ OptionsBG_Pal_End:
 OptionsGrad:
     incbin "bin/gfx/pal/OptionsBGGalaxyGrad.bin"
 OptionsGrad_End:
+
+;   Options screen Gradient
+BG6Grad:
+    incbin "bin/gfx/pal/BG6-Grad.bin"
 
 ;   Arrow Sprite Palette
 ArrowSpr_Pal:
@@ -375,9 +398,9 @@ Reset:
     stz.w TSWMirror
     stz.w WH2Mirror
 
-    lda.b #$00
+    lda.b #$55
     sta.w WBGLOGMirror
-    lda.b #$0A
+    lda.b #$55
     sta.w WOBJLOGMirror
     
     ldx.w #$0000
@@ -499,11 +522,11 @@ Reset:
 
     lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$00
+    lda.b #$05
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
-    lda.b #$00
+    lda.b #$04
     sta.w HW_SETINI
     lda.b #$81
     sta.w HW_NMITIMEN           ;NMI Enabled
@@ -780,7 +803,6 @@ NMIHandler:
     bcs +
     lda.w #$0000
     +
-    .ApplyColour:
     sep #$20
     sta.w HW_CGDATA
     xba
@@ -916,6 +938,9 @@ TitleScene:
     sta.w TMMirror
     stz.w HW_HDMAEN
     stz.w HW_OBSEL
+    
+    stz.w WBGLOGMirror
+    stz.w WOBJLOGMirror
     ;Transfer Title graphics
     ldx.w #$0000
     stx.w HW_VMADDL
@@ -1195,6 +1220,10 @@ GameScene:
     
     lda.b #$02
     sta.w HW_OBSEL
+
+    ldx.w #!SprVram
+    stx.w HW_VMADDL             ;Set VRAM address to Sprite VRAM
+    
     ;Load Game BG palettes
     lda.b #$02
     sta.w HW_DMAP1              ;Setup DMAP1
@@ -1219,8 +1248,6 @@ GameScene:
     lda.b #$03
     sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
 
-    ldx.w #!SprVram
-    stx.w HW_VMADDL             ;Set VRAM address to Sprite VRAM
     ;Load Game Sprites
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
@@ -1401,7 +1428,6 @@ GameScene:
     ;Write enemy entries into Enemy struct array
     jsr GameLoop_UpdateEnemyArray
     jsr GameLoop_DrawEnemies
-    jsr GameLoop_DrawScore
     jsr GameLoop_FindMaxRowBounds
     lda.b #!GameState_Play
     sta.w GameState
@@ -1411,6 +1437,8 @@ GameScene:
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipLoad:
+
+    jsr GameLoop_DrawScore
 
     ;-----------------------;
     ;   Background Logic    ;
@@ -1469,10 +1497,28 @@ GameScene:
     .SkipL:
     lda.b ZP.Controller
     and #$20                ;Check R
-    beq .SkipShoot
+    beq .SkipR
     lda.b #$00
     sec
     sbc.b #!BulletHSpeed
+    sta.w Bullet.Dir
+    .SkipR:
+
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!ModD
+    sep #$20
+    beq .SkipShoot
+    jsr Rand
+    xba
+    and.b #$01
+    beq ++
+    lda.b #!BulletHSpeed
+    eor.b #$FF
+    bra .StoreDir
+    ++
+    lda.b #!BulletHSpeed
+    .StoreDir:
     sta.w Bullet.Dir
     .SkipShoot:
 
@@ -1730,7 +1776,6 @@ GameScene:
     ply
     pla
     +
-    jsr GameLoop_DrawScore
     sta.w EnemyHealth, Y
     stz.w Bullet[0].Enabled
     lda.b #$FF
@@ -1746,6 +1791,7 @@ GameScene:
     ;---------------------;
     ;   Bullet Drawing    ;
     ;---------------------;
+    stz.b ZP.AddSprX+1
     lda.w Bullet.X
     sta.b ZP.AddSprX
     lda.w Bullet.Y
@@ -2149,152 +2195,121 @@ GameScene:
     ;
     ;   Clobberlist
     ;
-    ;   WMADDL
-    ;   WMADDM
-    ;   WMADDH
-    ;
 GameLoop_DrawScore:
     pha
     phy
-    ;Set up WRAM addr
+    phx
+    php    
     tdc
     sep #$20
-    lda.b #(TextDispBuffer>>16)&$FF
-    sta.w HW_WMADDH
-    lda.b #(TextDispBuffer>>8)&$FF
-    sta.w HW_WMADDM
-    lda.b #(TextDispBuffer)&$FF
-    sta.w HW_WMADDL
-    ldy #$0000
-    ;Draw initial text characters
+    stz.b ZP.AddSprBigFlag
+    ldx.w #$0002
+    stx.b ZP.AddSprX
+    sta.b ZP.AddSprY
+    lda.b #!UIAttr
+    sta.b ZP.AddSprAttr
+    lda.b #!ScoreUI
+    sta.b ZP.AddSprTile
+    jsr AddSprite
+    lda.b #!ScoreTextAttr
+    sta.b ZP.AddSprAttr
+    lda.b ZP.AddSprX
+    adc.b #$06
+    sta.b ZP.AddSprX
+    ldy.w #$0002
     -
-    lda.w ScoreText, Y
-    sta.w HW_WMDATA
-    iny
-    lda.b #!EnemyPal4
-    sta.w HW_WMDATA
-    iny
-    cpy #(EndScoreText-ScoreText)
-    bne -
-
-    ;Next, we then split each nibble of the score stored in BCD and then put them into the buffer
-    ldy #$0002
-    -
-    lda.w ZP.Score, Y
-    and #$F0
+    lda.b ZP.AddSprX
+    adc.b #$04
+    sta.b ZP.AddSprX
+    lda.b ZP.Score, Y
+    and.b #$F0
     lsr
     lsr
     lsr
     lsr
     inc
-    sta.w HW_WMDATA
-    lda.b #!EnemyPal4
-    sta.w HW_WMDATA
-    lda.w ZP.Score, Y
-    and #$0F
+    sta.b ZP.AddSprTile
+    jsr AddSprite
+    lda.b ZP.AddSprX
+    adc.b #$04
+    sta.b ZP.AddSprX
+    lda.b ZP.Score, Y
+    and.b #$0F
     inc
-    sta.w HW_WMDATA
-    lda.b #!EnemyPal4
-    sta.w HW_WMDATA
+    sta.b ZP.AddSprTile
+    jsr AddSprite
     dey
     bpl -
 
-    ;Space char
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    ;Next, we draw the wave counter
-    ldy.w #$0000
-    -
-    lda.w WaveText, Y
-    sta.w HW_WMDATA
-    iny
-    lda.b #!EnemyPal4
-    sta.w HW_WMDATA
-    iny
-    cpy #(EndWaveText-WaveText)
-    bne -
-    ;Draw said wave amount to screen
-    lda.b ZP.EnemyWaveCount
-    and #$F0
-    lsr
-    lsr
-    lsr
-    lsr
-    inc
-    sta.w HW_WMDATA
-    lda.b #!EnemyPal4
-    sta.w HW_WMDATA
-    lda.b ZP.EnemyWaveCount
-    and #$0F
-    inc
-    sta.w HW_WMDATA
-    lda.b #!EnemyPal4
-    sta.w HW_WMDATA
-    ;Space char
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    ldy.w #$0000
-    ;Draw Lives text characters
-    -
-    lda.w LivesText, Y
-    sta.w HW_WMDATA
-    iny
-    lda.b #!EnemyPal4
-    sta.w HW_WMDATA
-    iny
-    cpy #(EndLivesText-LivesText)
-    bne -
+    lda.b #$02
+    sta.b ZP.AddSprX
+    lda.b #$0C
+    sta.b ZP.AddSprY
+    lda.b #!UIAttr
+    sta.b ZP.AddSprAttr
+    lda.b #!LivesUI
+    sta.b ZP.AddSprTile
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
 
-    ;Draw lives counter
-    tdc
+    lda.b #!ScoreTextAttr
+    sta.b ZP.AddSprAttr
+    lda.b ZP.AddSprX
+    adc.b #$0A
+    sta.b ZP.AddSprX
     lda.b ZP.Lives
-    and #$F0
+    and.b #$F0
     lsr
     lsr
     lsr
     lsr
     inc
-    sta.w HW_WMDATA
-    lda.b #!EnemyPal4
-    sta.w HW_WMDATA
+    sta.b ZP.AddSprTile
+    jsr AddSprite
+    lda.b ZP.AddSprX
+    adc.b #$04
+    sta.b ZP.AddSprX
     lda.b ZP.Lives
-    and #$0F
+    and.b #$0F
     inc
-    sta.w HW_WMDATA
-    lda.b #!EnemyPal4
-    sta.w HW_WMDATA
+    sta.b ZP.AddSprTile
+    jsr AddSprite
 
-    ;Finally, set up DMA pointer to render to screen
-    ldy.w #$0000
-    lda.b #(TextDispBuffer)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(TextDispBuffer>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(TextDispBuffer>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    rep #$20
-    lda.w #!ScoreDisp
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
-    lda.w #(EndLivesText-ScoreText)+36
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc.w #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
+    lda.b #$02
+    sta.b ZP.AddSprX
+    lda.b #$18
+    sta.b ZP.AddSprY
+    lda.b #!UIAttr
+    sta.b ZP.AddSprAttr
+    lda.b #!WaveUI
+    sta.b ZP.AddSprTile
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    lda.b #!ScoreTextAttr
+    sta.b ZP.AddSprAttr
+    lda.b ZP.AddSprX
+    adc.b #$0A
+    sta.b ZP.AddSprX
+    lda.b ZP.EnemyWaveCount
+    and.b #$F0
+    lsr
+    lsr
+    lsr
+    lsr
+    inc
+    sta.b ZP.AddSprTile
+    jsr AddSprite
+    lda.b ZP.AddSprX
+    adc.b #$04
+    sta.b ZP.AddSprX
+    lda.b ZP.EnemyWaveCount
+    and.b #$0F
+    inc
+    sta.b ZP.AddSprTile
+    jsr AddSprite
+    plp
+    plx
     ply
     pla
     rts
@@ -2666,7 +2681,6 @@ GameLoop_SendWave:
     jsr GameLoop_UpdateEnemyArray
     jsr GameLoop_DrawEnemies
     jsr GameLoop_FindMaxRowBounds
-    jsr GameLoop_DrawScore
     rts
 
 LoadEnemyGFX:
@@ -3004,6 +3018,24 @@ GameLoop_EBulletLogic:
     php
     ldy.w #$0003
     .EBLogicLoop:
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!Mod4
+    sep #$20
+    beq +
+    tdc
+    lda.w Player.X
+    cmp.w EnemyBulletXPos, Y
+    bcc ++
+    lda.w EnemyBulletXPos, Y
+    inc
+    bra .SetXPos
+    ++
+    lda.w EnemyBulletXPos, Y
+    dec
+    .SetXPos:
+    sta.w EnemyBulletXPos, Y
+    +
     lda.w EnemyBulletActive, Y
     beq +
     lda.w EnemyBulletYPos, Y
@@ -3084,7 +3116,6 @@ GameLoop_ResetPlayer:
     bne +
     ;GAMEOVER code
     +
-    jsr GameLoop_DrawScore
     plp
     ply
     plx
@@ -4176,19 +4207,19 @@ HighscoreScene:
 
     stz.w HW_HDMAEN
     jsr TransitionIn
-
+    
+    ldx.w #$1440
+    stx.w COLDATAMirror
     lda.b #$80
     sta.w WH1Mirror
-    stz.w CGWSELMirror
-    stz.w CGADSUBMirror
-    lda.w W12SELMirror
-    ora.b #$22
-    sta.w W12SELMirror
-    lda.w W34SELMirror
-    ora.b #$22
-    sta.w W34SELMirror
-    lda.b #$35
+    lda.b #$10
+    sta.w CGWSELMirror
+    lda.b #$73
+    sta.w CGADSUBMirror
+    lda.b #$20
     sta.w WOBJSELMirror
+    lda.b #$35
+    sta.w WOBJLOGMirror
     ldx.w #$0000
     stx.w HW_VMADDL
     ;Load BG characters
@@ -4281,7 +4312,7 @@ HighscoreScene:
     ldy.w #HScoreBGL2_Pal_End-HScoreBGL2_Pal
     -
     lda.w HScoreTextPal, Y
-    sta.w PalMirror+$0020, Y
+    sta.w PalMirror+$20, Y
     lda.w HScoreBGL1_Pal, Y
     sta.w PalMirror+$00A0, Y
     lda.w HScoreBGL2_Pal, Y
@@ -4379,7 +4410,8 @@ HighscoreScene:
     cpy #HighscoreTextEnd-HighscoreText
     bne -
 
-    lda.b #$C0
+    sep #$20
+    lda.b #$FF
     sta.w HW_M7SEL
     lda.b #$FF
     sta.w TMMirror
@@ -4410,6 +4442,10 @@ HighscoreScene:
     sta.w HDMAMirror, Y
     dey
     bpl -
+    
+    ldx.w #$4055
+    stx.w WBGLOGMirror
+
     lda.b #$0F                  ;Set master brightness to 15 & stop blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipHighscoreLoad:
@@ -4502,8 +4538,6 @@ HighscoreScene:
     dey
     dey
     bpl .ScaleAB
-
-
 
     sep #$20
     ldy.w #$0060
@@ -4605,6 +4639,15 @@ HighscoreScene:
     lda.b #$7E
     sta.w HDMAMirror2+4
 
+    lda.b #$01
+    sta.w HDMAMirror3
+    lda.b #(HW_WH0)&$FF
+    sta.w HDMAMirror3+1
+    ldx.w #HScoreWindow&$FFFF
+    stx.w HDMAMirror3+2
+    lda.b #(HScoreWindow>>16)&$FF
+    sta.w HDMAMirror3+4
+
     ldy.w #$0010
     ldx.w #$0020
     .TwinkleLoop:
@@ -4632,27 +4675,30 @@ HighscoreScene:
     dey
     bpl .TwinkleLoop
 
-    ;sep #$20
-    ;lda.b ZP.Controller
-    ;and #$20                ;Check R
-    ;beq .SkipMoveR
-    ;rep #$20
-    ;lda.w !BG1HOffMirror
-    ;clc
-    ;adc.w #$0004
-    ;sta.w !BG1HOffMirror
-    ;sep #$20
-    ;.SkipMoveR:
-;
-    ;lda.b ZP.Controller
-    ;and #$10                ;Check L
-    ;beq .SkipMoveL
-    ;rep #$20
-    ;lda.w !BG1HOffMirror
-    ;sec
-    ;sbc.w #$0004
-    ;sta.w !BG1HOffMirror
-    ;.SkipMoveL:
+    sep #$20
+    lda.b ZP.InputFlag
+    bne +
+    lda.b ZP.Controller+1       ;Start
+    bit #$10
+    beq +
+    lda.b #$01
+    sta.b ZP.InputFlag
+    lda.b #$00
+    sta.b ZP.ChangeScene
+    stz.b ZP.ExitScene
+    stz.b ZP.SceneGoto
+    jsr TransitionOut
+    +
+
+    sep #$20
+    lda.b ZP.ExitScene
+    beq +
+    stz.b ZP.ExitScene
+    lda.w ZP.SceneGoto
+    sta.w ZP.SceneIndex
+    lda.b #$01
+    sta.b ZP.ChangeScene
+    +
     rep #$20
     rts
 
@@ -4887,7 +4933,6 @@ GameLoop_HandleUFO:
     lda.w #$01FF
     sta.w UFOXPos
     sep #$20
-    jsr GameLoop_DrawScore
     .SkipUFOCol:
 
     ;Update if UFO active
@@ -5194,6 +5239,8 @@ BGLoad:
     dw BG_Mountains     ;BG-2
     dw BG_Computer      ;BG-3
     dw BG_Surfboard     ;BG-4
+    dw BG_Volcano       ;BG-5
+    dw BG_Wetlands      ;BG-6
 
 BG_City:
     ;Setup video display
@@ -5787,6 +5834,113 @@ BG_Surfboard:
     sta.w PalMirror+(144*2), Y
     dey
     bne -
+    rts
+
+BG_Volcano:
+    rts
+BG_Wetlands:
+
+    ;Setup video display
+    stz.w HDMAMirror2
+    stz.w HDMAMirror2+1
+    stz.w HDMAMirror2+2
+    stz.w HDMAMirror2+3
+    lda.b #$01
+    sta.w HW_BGMODE
+    lda.b #$1F
+    sta.w TMMirror
+    sta.w TSMirror
+    sta.w TMWMirror
+    sta.w TSWMirror
+    stz.w CGWSELMirror
+    stz.w CGADSUBMirror
+    stz.w COLDATAMirror
+    stz.w COLDATAMirror+1
+    stz.w WH0Mirror
+    stz.w WH1Mirror
+
+    stz.w HW_BG12NBA
+    lda.b #$01
+    sta.w HW_BG34NBA
+    ;Load Graphics
+    ldy.w #$0000
+    lda.b #(BG6)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG6>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG6>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #!BGTileDest
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG6End-BG6
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    ;Load Tilemaps
+    ldy.w #$0000
+    lda.b #(BG6_TM)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG6_TM>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG6_TM>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L2Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG6_TM_End-BG6_TM
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    
+    ;Transfer palette data
+    ldy.w #BG6_L2_Pal_End-BG6_L2_Pal
+    -
+    lda.w BG6_L2_Pal, Y
+    sta.w PalMirror+32, Y
+    dey
+    bne -
+    ldy.w #BG6_L3_Pal_End-BG6_L3_Pal
+    -
+    lda.w BG6_L3_Pal, Y
+    sta.w PalMirror, Y
+    dey
+    bne -
+    rts
 
 GameLoop_UpdateBG:
     php
@@ -5842,6 +5996,8 @@ BGList:
     dw BG1
     dw BG2
     dw BG3
+    dw BG4
+    dw BG5
 
 BG0:
     sep #$20
@@ -6539,6 +6695,118 @@ BG3:
     inc.b ZP.OAMPtr
     rts
 
+BG4:
+    rts
+
+BG5:
+    ;Pillars
+    inc.w BGScrollOff
+    lda.w BGScrollOff
+    bit #$80
+    beq +
+    inc.w BGScrollVal
+    stz.w BGScrollOff
+    +
+    ;Water
+    inc.w BGScrollOff+1
+    lda.w BGScrollOff+1
+    bit #$10
+    beq +
+    inc.w BGScrollVal+1
+    stz.w BGScrollOff+1
+    +
+    ;Grass1
+    inc.w BGScrollOff+2
+    lda.w BGScrollOff+2
+    bit #$04
+    beq +
+    inc.w BGScrollVal+2
+    stz.w BGScrollOff+2
+    +
+    ;Grass2
+    inc.w BGScrollOff+3
+    lda.w BGScrollOff+3
+    bit #$02
+    beq +
+    inc.w BGScrollVal+3
+    stz.w BGScrollOff+3
+    inc.w SinePtr
+    +
+
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HW_WMADDH
+
+    rep #$10
+    lda.b #$7F
+    sta.w HW_WMDATA
+    lda.w BGScrollVal
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    lda.b #$B0
+    sta.w HW_WMDATA
+    ldy.w #$0018
+    sep #$30
+    ldx.w SinePtr
+    -
+    inx
+    lda.w WaterDist, X
+    lsr
+    lsr
+    lsr
+    lsr
+    clc
+    adc.w BGScrollVal+1
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    inx
+    lda.w WaterDist, X
+    lsr
+    lsr
+    lsr
+    lsr
+    eor.b #$FF
+    clc
+    adc.w BGScrollVal+1
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    dey
+    bpl -
+
+    lda.b #$10
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+2
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    lda.b #$10
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+3
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+
+    stz.w HW_WMDATA
+
+    rep #$10
+    lda.b #$03
+    sta.w HDMAMirror
+    lda.b #(HW_CGADD)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #BG6ColTable
+    stx.w HDMAMirror+2
+    lda.b #$80
+    sta.w HDMAMirror+4
+    
+    lda.b #$02
+    sta.w HDMAMirror1
+    lda.b #(HW_BG2HOFS)&$FF
+    sta.w HDMAMirror1+1
+    ldx.w #HDMAScrollBuffer
+    stx.w HDMAMirror1+2
+    lda.b #$7E
+    sta.w HDMAMirror1+4
+
+    rts
     ;   ZP.MemPointer   | Text addr
     ;
     ;   ZP.R1           \
@@ -6630,9 +6898,12 @@ DrawTransition:
     lda.b #$CC
     ora.w W12SELMirror
     sta.w W12SELMirror
-    lda.w W34SELMirror
+    lda.b #$CC
     ora.w W34SELMirror
     sta.w W34SELMirror
+    lda.b #$CC
+    ora.w WOBJSELMirror
+    sta.w WOBJSELMirror
     lda.b #$FF
     sta.w TMWMirror
     stz.w TSWMirror
@@ -6729,16 +7000,24 @@ AddSprite:
     sep #$20
     lda.b ZP.AddSprX
     sta.b (ZP.OAMPtr)
+    rep #$20
     inc.b ZP.OAMPtr
+    sep #$20
     lda.b ZP.AddSprY
     sta.b (ZP.OAMPtr)
+    rep #$20
     inc.b ZP.OAMPtr
+    sep #$20
     lda.b ZP.AddSprTile
     sta.b (ZP.OAMPtr)
+    rep #$20
     inc.b ZP.OAMPtr
+    sep #$20
     lda.b ZP.AddSprAttr
     sta.b (ZP.OAMPtr)
+    rep #$20
     inc.b ZP.OAMPtr
+    sep #$20
     lda.b ZP.AddSprBigFlag
     beq +
     lda.b (ZP.AddSprPtr)
@@ -6769,16 +7048,20 @@ HighscoreHeader:
 HighscoreUnderline:
     dw "''''''''''''''''''''''''"
 HighscoreText:
-    dw "01: THE QUICK     100000"
-    dw "02: BROWN FOX     090000"
-    dw "03: JUMPS OVER    080000"
-    dw "04: THE LAZY DOG! 070000"
-    dw "05: 0123456789ABC 060000"
-    dw "06: DEFGHIJKLMNOP 050000"
-    dw "07: QRSTUVWXYZ!?' 040000"
-    dw "08: YOU TELLING M 030000"
-    dw "09: E A SHRIMP FR 020000"
-    dw "10: IED THIS RICE 010000"
+    dw "01: LOREM IPSUM!! 100000"
+    dw "02: LOREM IPSUM!! 090000"
+    dw "03: LOREM IPSUM!! 080000"
+    dw "04: LOREM IPSUM!! 070000"
+    dw "05: LOREM IPSUM!! 060000"
+    dw "06: LOREM IPSUM!! 050000"
+    dw "07: LOREM IPSUM!! 040000"
+    dw "08: LOREM IPSUM!! 030000"
+    dw "09: LOREM IPSUM!! 020000"
+    dw "10: LOREM IPSUM!! 010000"
+    dw "''''''''''''''''''''''''"
+    dw "                        "
+    dw "  PRESS START TO EXIT!  "
+    dw "  ''''''''''''''''''''  "
 HighscoreTextEnd:
 
 ScoreText:
@@ -7585,6 +7868,76 @@ BG4ColTable:
     dw $0000
     db $00
 
+BG6ColTable:
+    db $20      ;Scanline
+    dw $0000    ;Addr
+    dw $38C9    ;Data
+    db $18      ;Scanline
+    dw $0000    ;Addr
+    dw $490C    ;Data
+    db $10      ;Scanline
+    dw $0000    ;Addr
+    dw $554E    ;Data
+    db $0A      ;Scanline
+    dw $0000    ;Addr
+    dw $6170    ;Data
+    db $08      ;Scanline
+    dw $0000    ;Addr
+    dw $7193    ;Data
+    db $08      ;Scanline
+    dw $0000    ;Addr
+    dw $7DD5    ;Data
+    db $04      ;Scanline
+    dw $0000    ;Addr
+    dw $7E37    ;Data
+    db $04      ;Scanline
+    dw $0000    ;Addr
+    dw $7E57    ;Data
+    db $04      ;Scanline
+    dw $0000    ;Addr
+    dw $7EB9    ;Data
+    db $03      ;Scanline
+    dw $0000    ;Addr
+    dw $7EFB    ;Data
+    db $02      ;Scanline
+    dw $0000    ;Addr
+    dw $7F5C    ;Data
+    db $02      ;Scanline
+    dw $0000    ;Addr
+    dw $7F7D    ;Data
+    db $01      ;Scanline
+    dw $0000    ;Addr
+    dw $7F9E    ;Data
+    db $01      ;Scanline
+    dw $0000    ;Addr
+    dw $7FBE    ;Data
+    db $08      ;Scanline
+    dw $0000    ;Addr
+    dw $7FFF    ;Data
+
+    db $01      ;Scanline
+    dw $0000    ;Address
+    dw $0000    ;Data
+    db $00
+BG6ColTableEnd:
+
+HScoreWindow:
+    db $0C
+    dw $00FF
+    db $10
+    dw $E414
+    db $0C
+    dw $00FF
+    db $60
+    dw $E414
+    db $04
+    dw $00FF
+    db $10
+    dw $CC24
+    db $01
+    dw $00FF
+    db $00
+
 OptionGradOff:
     db $00
     db $10
@@ -7697,40 +8050,40 @@ ShieldPosTableEnd:
 
 ShieldTileTable:
     ;Dead
-    db $00
-    db $00
-    db $00
-    db $00
+    db $00+45
+    db $00+45
+    db $00+45
+    db $00+45
     ;Severely damaged
-    db $20
-    db $1F
-    db $1F
-    db $20
+    db $20+45
+    db $1F+45
+    db $1F+45
+    db $20+45
     ;Moderately damaged
-    db $1E
-    db $1D
-    db $1D
-    db $1E
+    db $1E+45
+    db $1D+45
+    db $1D+45
+    db $1E+45
     ;Partially damaged
-    db $1C
-    db $1B
-    db $1B
-    db $1C
+    db $1C+45
+    db $1B+45
+    db $1B+45
+    db $1C+45
     ;Full health
-    db $1A
-    db $19
-    db $19
-    db $1A
+    db $1A+45
+    db $19+45
+    db $19+45
+    db $1A+45
 
 ShieldExplosionTileTable:
-    db $55
-    db $54
-    db $53
-    db $52
-    db $51
-    db $50
-    db $4F
-    db $4E
+    db $55+45
+    db $54+45
+    db $53+45
+    db $52+45
+    db $51+45
+    db $50+45
+    db $4F+45
+    db $4E+45
 
 WBitmask:
     dw $0001
@@ -7979,21 +8332,51 @@ dw $0074,$0075,$0076,$0077,$0079,$007A,$007A
 dw $007B,$007C,$007D,$007E,$007E,$007F,$007F
 dw $007F,$0080,$0080,$0080
 
+;sin(16*pi*t/T)
+WaterDist:
+db $80,$99,$B1,$C7,$DA,$EA,$F5,$FD,$FF,$FD
+db $F5,$EA,$DA,$C7,$B1,$99,$80,$67,$4F,$39
+db $26,$16,$0B,$03,$01,$03,$0B,$16,$26,$39
+db $4F,$67,$80,$99,$B1,$C7,$DA,$EA,$F5,$FD
+db $FF,$FD,$F5,$EA,$DA,$C7,$B1,$99,$80,$67
+db $4F,$39,$26,$16,$0B,$03,$01,$03,$0B,$16
+db $26,$39,$4F,$67,$80,$99,$B1,$C7,$DA,$EA
+db $F5,$FD,$FF,$FD,$F5,$EA,$DA,$C7,$B1,$99
+db $80,$67,$4F,$39,$26,$16,$0B,$03,$01,$03
+db $0B,$16,$26,$39,$4F,$67,$80,$99,$B1,$C7
+db $DA,$EA,$F5,$FD,$FF,$FD,$F5,$EA,$DA,$C7
+db $B1,$99,$80,$67,$4F,$39,$26,$16,$0B,$03
+db $01,$03,$0B,$16,$26,$39,$4F,$67,$80,$99
+db $B1,$C7,$DA,$EA,$F5,$FD,$FF,$FD,$F5,$EA
+db $DA,$C7,$B1,$99,$80,$67,$4F,$39,$26,$16
+db $0B,$03,$01,$03,$0B,$16,$26,$39,$4F,$67
+db $80,$99,$B1,$C7,$DA,$EA,$F5,$FD,$FF,$FD
+db $F5,$EA,$DA,$C7,$B1,$99,$80,$67,$4F,$39
+db $26,$16,$0B,$03,$01,$03,$0B,$16,$26,$39
+db $4F,$67,$80,$99,$B1,$C7,$DA,$EA,$F5,$FD
+db $FF,$FD,$F5,$EA,$DA,$C7,$B1,$99,$80,$67
+db $4F,$39,$26,$16,$0B,$03,$01,$03,$0B,$16
+db $26,$39,$4F,$67,$80,$99,$B1,$C7,$DA,$EA
+db $F5,$FD,$FF,$FD,$F5,$EA,$DA,$C7,$B1,$99
+db $80,$67,$4F,$39,$26,$16,$0B,$03,$01,$03
+db $0B,$16,$26,$39,$4F,$67
+
+;256/(160+(t/-T)*64)
 M7Log:
-dw $0003,$0004,$0004,$0004,$0005,$0005,$0005
-dw $0006,$0006,$0006,$0007,$0007,$0007,$0008
-dw $0008,$0008,$0009,$0009,$000A,$000A,$000B
-dw $000B,$000B,$000C,$000C,$000D,$000D,$000E
-dw $000E,$000F,$000F,$0010,$0010,$0011,$0011
-dw $0012,$0012,$0013,$0013,$0014,$0014,$0015
-dw $0015,$0016,$0017,$0017,$0018,$0018,$0019
-dw $001A,$001A,$001B,$001C,$001D,$001D,$001E
-dw $001F,$0020,$0020,$0021,$0022,$0023,$0024
-dw $0024,$0025,$0026,$0027,$0028,$0029,$002A
-dw $002B,$002C,$002D,$002E,$002F,$0030,$0032
-dw $0033,$0034,$0035,$0036,$0038,$0039,$003A
-dw $003C,$003D,$003F,$0040,$0042,$0043,$0045
-dw $0047,$0048,$004A,$004C,$004E
+dw $0003,$0003,$0004,$0004,$0004,$0004,$0005
+dw $0005,$0005,$0005,$0006,$0006,$0006,$0007
+dw $0007,$0007,$0007,$0008,$0008,$0008,$0008
+dw $0009,$0009,$0009,$000A,$000A,$000A,$000B
+dw $000B,$000B,$000C,$000C,$000C,$000D,$000D
+dw $000D,$000E,$000E,$000E,$000F,$000F,$000F
+dw $0010,$0010,$0011,$0011,$0011,$0012,$0012
+dw $0012,$0013,$0013,$0014,$0014,$0015,$0015
+dw $0015,$0016,$0016,$0017,$0017,$0018,$0018
+dw $0019,$0019,$001A,$001A,$001B,$001B,$001C
+dw $001C,$001D,$001D,$001E,$001E,$001F,$0020
+dw $0020,$0021,$0021,$0022,$0023,$0023,$0024
+dw $0024,$0025,$0026,$0026,$0027,$0028,$0029
+dw $0029,$002A,$002B,$002C,$002C
 
 Sin8:
 db $00,$00,$01,$01,$02,$02,$02,$03,$03,$04

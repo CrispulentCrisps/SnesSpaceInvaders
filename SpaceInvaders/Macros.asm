@@ -1,5 +1,5 @@
 ;-----------------------------------;
-;   Macro's file for Tile Testing   ;
+;   Macro's file for Bored Aliens   ;
 ;-----------------------------------;
 
 struct ZP $00
@@ -24,7 +24,7 @@ struct ZP $00
 .VrDmaListPtr   skip 2  ;Pointer to current position in list
 .SceneIndex     skip 1  ;Current scene we are in
 .SceneGoto      skip 1  ;Byte to hold which scene to go to while transitioning
-.ChangeScene    skip 1  ;Tell the scene's to load/deload data
+.ChangeScene    skip 1  ;Tell the scenes to load/deload data
 .Controller     skip 2  ;Controller input
 .InputFlag      skip 1  ;Controller input pressed flag
 .OAMPtr         skip 2  ;Pointer to the last object in OAM
@@ -38,7 +38,7 @@ struct ZP $00
 .EnemyDownCount skip 1  ;Counter for the downward movement of the enemies
 .EnemyFrame     skip 1  ;Current enemy frame
 .EnemyWait      skip 1  ;Amount of frames between enemy movement
-.BulletColTile  skip 1  ;Index into enemy array
+.BulletColTile  skip 2  ;Index into enemy array
 .Score          skip 3  ;Current score of the player
 .Lives          skip 1  ;Current lives of the player as BCD
 .Modifiers      skip 2  ;Bitfield for current game modifiers
@@ -49,13 +49,14 @@ struct ZP $00
 .PalFadeTimer   skip 1  ;Timer to wait for palette index
 endstruct
 
-!CodeBank =     $008000 ;Hold game code + palette's
+!CodeBank =     $008000 ;Hold game code + palettes
 !GFXBank =      $018000 ;Holds character data
 !GfxBank2 =     $028000 ;Holds GFX data
 !GfxBank3 =     $038000 ;Holds GFX data
-!TilemapBank =  $048000 ;Holds tilemap
-!MusicBank =    $058000 ;Holds music data
-!MusicBank2 =   $068000 ;Holds music data
+!GfxBank4 =     $048000 ;Holds GFX data
+!TilemapBank =  $058000 ;Holds tilemap
+!MusicBank =    $068000 ;Holds music data
+!MusicBank2 =   $078000 ;Holds music data
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -77,7 +78,7 @@ struct Player $0400
 endstruct
 
 struct Bullet $0405
-.X          skip 1
+.X          skip 2
 .Y          skip 1
 .Frame      skip 1  ;Current animation frame
 .Enabled    skip 1  ;Test if the current laser is travelling upwards
@@ -96,7 +97,7 @@ EnemyBulletFrame =  $0420
 BulletFCount =      $0421
 
 !StartMaxBGCount =  $06
-!MaxBG =            $04
+!MaxBG =            $06
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
@@ -120,10 +121,10 @@ UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOYPos =          $00     ;Y Position of the UFO
 !UFOYPosB =         $08     ;Y Position of the UFO
 !UFOStartX =        $0100
-!UFOTile0 =         $05
-!UFOTile1 =         $06
-!UFOTile2 =         $0D
-!UFOTile3 =         $0E
+!UFOTile0 =         $05+45
+!UFOTile1 =         $06+45
+!UFOTile2 =         $0D+45
+!UFOTile3 =         $0E+45
 !UFOAttr =          %00101000
 !UFOAttrMir =       %01101000
 OBJTimers =         $0700   ;16 byte array of timers for general OBJ use
@@ -157,7 +158,7 @@ ExplosionFineXVal = $0580+(!MaxEplW*8)
 ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
-!ExplosionTile =    $11
+!ExplosionTile =    $11+45
 !ExplosionAttr =    %00111100
 
 EnemyTileBuffer =   $7E8000
@@ -258,7 +259,7 @@ SParticleX =        $0200   ;32 word X positions
 SParticleY =        $0240   ;32 byte Y positions
 SParticleVelX =     $0260   ;32 byte X velocities
 SParticleVelY =     $0280   ;32 byte Y velocities
-SParticleState =    $02A0   ;32 state's
+SParticleState =    $02A0   ;32 states
 SParticleTimer =    $02C0   ;32 particle timers
 
 !EnemyOffset =      $0084
@@ -294,15 +295,15 @@ OAMCopy =           $0800
 LaserOAM =          $0810
 !PlayerSpeed =      $02
 !PlayerY =          $C8
-!PlayerTileB =      $09
-!PlayerTileT =      $01
+!PlayerTileB =      $09+45
+!PlayerTileT =      $01+45
 !PlayerAttr =       %00111010
 !BulletAttr =       %00101110
 !EBullAttr =        %00101110
-!BulletF1 =         $03
-!BulletF2 =         $04
-!EBulletF1 =        $0B
-!EBulletF2 =        $0C
+!BulletF1 =         $03+45
+!BulletF2 =         $04+45
+!EBulletF1 =        $0B+45
+!EBulletF2 =        $0C+45
 
 !EnemyGfx =         $2D
 
@@ -330,9 +331,9 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !BG_L3_OFF =        $65
 
-!SurfboardT0 =      $29
-!SurfboardT1 =      $2A
-!SurfboardAttr =    $32
+!SurfboardT0 =      $29+45
+!SurfboardT1 =      $2A+45
+!SurfboardAttr =    $32+45
 
 !SprFont1Attr =     $30
 
@@ -360,6 +361,12 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !SprVram =          $4000
 !HSSprVram =        $6010
 !BGVram =           $0000
+
+!ScoreTextAttr =    $38
+!UIAttr =           $3A
+!LivesUI =          $56
+!WaveUI =           $57
+!ScoreUI =          $58
 
 !Mod0 =             $0001       ;2x enemy health
 !Mod1 =             $0002       ;1/2 time to make enemies move
