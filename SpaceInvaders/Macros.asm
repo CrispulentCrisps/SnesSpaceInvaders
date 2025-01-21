@@ -251,7 +251,7 @@ GalaxyRot =         $1110
 
 !ShieldStartHP =    $04
 !PlayerDieReset =   50
-!WaveInit =         $01
+!WaveInit =         $0A
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions

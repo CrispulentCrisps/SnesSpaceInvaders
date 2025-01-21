@@ -3010,9 +3010,17 @@ GameLoop_EBulletLogic:
     +
     lda.w EnemyBulletActive, Y
     beq +
+    lda.w EnemyBulletType, Y
+    bne ++
     lda.w EnemyBulletYPos, Y
     clc
     adc.b #!EnemyBulletSpeed
+    bra .ApplySpeed
+    ++
+    lda.w EnemyBulletYPos, Y
+    clc
+    adc.b #!EnemyBulletSpeed/2
+    .ApplySpeed:
     sta.w EnemyBulletYPos, Y
     sec
     sbc.b #$04
