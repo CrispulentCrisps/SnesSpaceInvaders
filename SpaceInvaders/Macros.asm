@@ -85,18 +85,20 @@ struct Bullet $0405
 .Dir        skip 1  ;H dir
 endstruct
 
-;At most 4 enemy bullets on screen at once
+;At most 8 enemy bullets on screen at once
+!EBulLoopCount =    $0007
 !EnemyBulletSpeed = $02
 EnemyShootDebug =   $040D   ;Current position display for debug purposes
 EnemyShootIndex =   $040F   ;Wich enemy is to fire said bullet
 EnemyShootTimer =   $0410   ;Frames to wait until firing bullet
-EnemyBulletXPos =   $0414
-EnemyBulletYPos =   $0418
-EnemyBulletActive = $041C
-EnemyBulletFrame =  $0420
-BulletFCount =      $0421
+EnemyBulletXPos =   $0418
+EnemyBulletYPos =   $0420
+EnemyBulletActive = $0428
+EnemyBulletFrame =  $0430
+EnemyBulletType =   $0438
+BulletFCount =      $0440
 
-!StartMaxBGCount =  $06
+!StartMaxBGCount =  $08
 !MaxBG =            $06
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
@@ -121,10 +123,8 @@ UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOYPos =          $00     ;Y Position of the UFO
 !UFOYPosB =         $08     ;Y Position of the UFO
 !UFOStartX =        $0100
-!UFOTile0 =         $05+45
-!UFOTile1 =         $06+45
-!UFOTile2 =         $0D+45
-!UFOTile3 =         $0E+45
+!UFOTile0 =         $38
+!UFOTile1 =         $3A
 !UFOAttr =          %00101000
 !UFOAttrMir =       %01101000
 OBJTimers =         $0700   ;16 byte array of timers for general OBJ use
@@ -147,7 +147,6 @@ OBJActive =         $0750   ;16 byte array of object active states
 !MaxEplW =          $0005
 
 ExplosionTimer =    $0580
-ExplosionFrame =    $0580+!MaxEplW
 ExplosionX =        $0580+(!MaxEplW*2)
 ExplosionY =        $0580+(!MaxEplW*3)
 ExplosionFineX =    $0580+(!MaxEplW*4)
@@ -158,7 +157,7 @@ ExplosionFineXVal = $0580+(!MaxEplW*8)
 ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
-!ExplosionTile =    $11+45
+!ExplosionTile =    $50
 !ExplosionAttr =    %00111100
 
 EnemyTileBuffer =   $7E8000
@@ -252,7 +251,7 @@ GalaxyRot =         $1110
 
 !ShieldStartHP =    $04
 !PlayerDieReset =   50
-!WaveInit =         $00
+!WaveInit =         $01
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions
@@ -295,15 +294,17 @@ OAMCopy =           $0800
 LaserOAM =          $0810
 !PlayerSpeed =      $02
 !PlayerY =          $C8
-!PlayerTileB =      $09+45
-!PlayerTileT =      $01+45
+!PlayerTile =       $32
 !PlayerAttr =       %00111010
 !BulletAttr =       %00101110
 !EBullAttr =        %00101110
-!BulletF1 =         $03+45
-!BulletF2 =         $04+45
-!EBulletF1 =        $0B+45
-!EBulletF2 =        $0C+45
+!EBull2Attr =       %00101010
+!BulletF1 =         $36
+!BulletF2 =         $37
+!EBulletF1 =        $46
+!EBulletF2 =        $47
+!EBullet2F1 =       $83
+!EBullet2F2 =       $84
 
 !EnemyGfx =         $2D
 
@@ -331,9 +332,9 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !BG_L3_OFF =        $65
 
-!SurfboardT0 =      $29+45
-!SurfboardT1 =      $2A+45
-!SurfboardAttr =    $32+45
+!SurfboardT0 =      $C0
+!SurfboardT1 =      $C1
+!SurfboardAttr =    $32
 
 !SprFont1Attr =     $30
 
@@ -364,9 +365,9 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !ScoreTextAttr =    $38
 !UIAttr =           $3A
-!LivesUI =          $56
-!WaveUI =           $57
-!ScoreUI =          $58
+!LivesUI =          $80
+!WaveUI =           $81
+!ScoreUI =          $82
 
 !Mod0 =             $0001       ;2x enemy health
 !Mod1 =             $0002       ;1/2 time to make enemies move

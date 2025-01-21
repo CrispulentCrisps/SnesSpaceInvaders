@@ -70,7 +70,6 @@ BG4_L3_End:
 
 BG4_OBJ:
     incbin "bin/gfx/Surfboard.bin"
-    incbin "bin/gfx/OceanRocks.bin"
 BG4_OBJ_End:
 
 org !GfxBank2
@@ -522,7 +521,7 @@ Reset:
 
     lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$05
+    lda.b #$03
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -1294,7 +1293,7 @@ GameScene:
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w HW_BGMODE
-    lda.b #$05
+    lda.b #$00
     sta.w BGCount
     ;Reset Player
     lda.b #$70
@@ -1353,7 +1352,7 @@ GameScene:
     +
     tdc
     ;Set RNG up for enemy timers
-    ldy.w #$0003
+    ldy.w #!EBulLoopCount
     -
     jsr Rand
     xba
@@ -1386,7 +1385,6 @@ GameScene:
     -
     lda.b #$00
     sta.w ExplosionTimer, Y
-    sta.w ExplosionFrame, Y
     lda.b #$F0
     sta.w ExplosionX, Y
     sta.w ExplosionY, Y
@@ -1440,11 +1438,6 @@ GameScene:
 
     jsr GameLoop_DrawScore
 
-    ;-----------------------;
-    ;   Background Logic    ;
-    ;-----------------------;
-    jsr GameLoop_UpdateBG
-
     ;-------------------;
     ;   Player Logic    ;
     ;-------------------;
@@ -1474,19 +1467,18 @@ GameScene:
     lda.b ZP.Controller+1
     and #$40                    ;Check A button
     beq .SkipShoot
-    lda.w Bullet[0].Enabled   
+    lda.w Bullet.Enabled
     bne .SkipShoot
     ;Enable bullet
     lda.b #$01
-    sta.w Bullet[0].Enabled
+    sta.w Bullet.Enabled
     ;Set Bullet position to the player's
     lda.w Player.X
     clc
     adc.b #$04
-    sta.w Bullet[0].X
-    sta.w LaserOAM
+    sta.w Bullet.X
     lda.b #!PlayerY
-    sta.w Bullet[0].Y
+    sta.w Bullet.Y
     ;Set bullet direction
     stz.w Bullet.Dir
     lda.b ZP.Controller
@@ -1527,82 +1519,39 @@ GameScene:
     lda.w Player.X
     bit #$4
     beq +
-    lda.b #$01
+    lda.b #$02
     sta.w Player.Frame
     +
     stz.w Player.State
 
     jsr HandleEBulletCollisions
-
+    jsr HandleBulletCollisions
     ;------------------------------;
     ;   Player Drawing Commands    ;
     ;------------------------------;
     ;Player will take the first 4 spots of OAM
     lda.w Player.Dead
     beq +
-    lda.w OAMCopy+512             ;Player X 9th bit
-    ora.b #%01010101
-    sta.w OAMCopy+512             ;Player X 9th bit
+    jmp .SkipPlayerDraw
     +
-    ;BL tile    
     lda.w Player.X
     sta.b ZP.AddSprX
     lda.b #!PlayerY
     sta.b ZP.AddSprY
-    lda.b #!PlayerTileB
+    lda.b #!PlayerTile
     clc
     adc.w Player.Frame
     sta.b ZP.AddSprTile
     lda.b #!PlayerAttr
     sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
+    sta.b ZP.AddSprBigFlag
     jsr AddSprite
+    .SkipPlayerDraw:
 
-    ;BR tile
-    lda.w Player.X
-    clc
-    adc.b #$08
-    sta.b ZP.AddSprX
-    lda.b #!PlayerY
-    sta.b ZP.AddSprY
-    lda.b #!PlayerTileB
-    clc
-    adc.w Player.Frame
-    sta.b ZP.AddSprTile
-    lda.b #!PlayerAttr+$40
-    sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
-    jsr AddSprite
-
-    ;TL tile
-    lda.w Player.X
-    sta.b ZP.AddSprX
-    lda.b #!PlayerY
-    sec
-    sbc.b #$08
-    sta.b ZP.AddSprY
-    lda.b #!PlayerTileT
-    sta.b ZP.AddSprTile
-    lda.b #!PlayerAttr
-    sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
-    jsr AddSprite
-
-    ;TR tile
-    lda.w Player.X
-    clc
-    adc.b #$08
-    sta.b ZP.AddSprX
-    lda.b #!PlayerY
-    sec
-    sbc.b #$08
-    sta.b ZP.AddSprY
-    lda.b #!PlayerTileT
-    sta.b ZP.AddSprTile
-    lda.b #!PlayerAttr+$40
-    sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
-    jsr AddSprite
+    ;-----------------------;
+    ;   Background Logic    ;
+    ;-----------------------;
+    jsr GameLoop_UpdateBG
 
     ;-------------------;
     ;   Bullet Logic    ;
@@ -2121,7 +2070,7 @@ GameScene:
     stz.b ZP.R2
     +
     tdc
-    ldy.w #$03
+    ldy.w #!EBulLoopCount
     -
     lda.w EnemyBulletXPos, Y
     sta.b ZP.R0
@@ -2203,7 +2152,7 @@ GameLoop_DrawScore:
     tdc
     sep #$20
     stz.b ZP.AddSprBigFlag
-    ldx.w #$0002
+    ldx.w #$0006
     stx.b ZP.AddSprX
     sta.b ZP.AddSprY
     lda.b #!UIAttr
@@ -2221,7 +2170,7 @@ GameLoop_DrawScore:
     lda.b ZP.AddSprX
     adc.b #$04
     sta.b ZP.AddSprX
-    lda.b ZP.Score, Y
+    lda.w ZP.Score, Y
     and.b #$F0
     lsr
     lsr
@@ -2233,7 +2182,7 @@ GameLoop_DrawScore:
     lda.b ZP.AddSprX
     adc.b #$04
     sta.b ZP.AddSprX
-    lda.b ZP.Score, Y
+    lda.w ZP.Score, Y
     and.b #$0F
     inc
     sta.b ZP.AddSprTile
@@ -2241,7 +2190,7 @@ GameLoop_DrawScore:
     dey
     bpl -
 
-    lda.b #$02
+    lda.b #$06
     sta.b ZP.AddSprX
     lda.b #$0C
     sta.b ZP.AddSprY
@@ -2275,7 +2224,7 @@ GameLoop_DrawScore:
     sta.b ZP.AddSprTile
     jsr AddSprite
 
-    lda.b #$02
+    lda.b #$06
     sta.b ZP.AddSprX
     lda.b #$18
     sta.b ZP.AddSprY
@@ -2621,6 +2570,23 @@ GameLoop_SendWave:
     bne ++
     stz.w BGIndex
     ++
+    ;Shield health bonus
+    sed
+    sep #$10
+    ldy.b #$03
+    -
+    ldx.w ShieldHealth, Y
+    lda.b ZP.Score
+    adc.w ShieldBonus, X
+    bcc ++
+    inc.b ZP.Score+1
+    ++
+    sta.b ZP.Score
+    dey
+    bpl -
+    rep #$10
+    cld
+    ;Restore shields
     ldy.w #$0003
     lda.b #!ShieldStartHP
     -
@@ -2662,7 +2628,7 @@ GameLoop_SendWave:
     +
     tdc
     ;Set RNG up for enemy timers
-    ldy.w #$0003
+    ldy.w #!EBulLoopCount
     -
     jsr Rand
     xba
@@ -2943,14 +2909,15 @@ GameLoop_Spawn_Enemy_Bullet:
     tax
     lda.w EnemyShootTypes, X
     beq .SkipShoot              ;Skip shooting if enemy cannot shoot
-    ;If we CAN shoot    
+    ;If we CAN shoot
+    sta.b ZP.R0
     ;Check for first inactive bullet
     ldx.b #$00
     -
     lda.w EnemyBulletActive, X  ;Don't fire if the current enemy bullet is active
     beq .InactiveBulletFound
     inx
-    cpx.b #$04                  ;Break if no enemy bullets found to be active
+    cpx.b #(!EBulLoopCount)&$FF ;Break if no enemy bullets found to be active
     bne -
     bra .SkipShoot
     .InactiveBulletFound:
@@ -2976,6 +2943,11 @@ GameLoop_Spawn_Enemy_Bullet:
     sbc.b ZP.EnemyPlanePosY
     sta.w EnemyBulletYPos, X
     sta.w EnemyShootDebug+1
+    ldy.w EnemyShootIndex       ;Grab current enemy to fire
+    lda.w EnemyType, Y
+    tay
+    lda.w BulletTypesTable, Y
+    sta.w EnemyBulletType, X
     .SkipShoot
     plp
     ply
@@ -2989,7 +2961,7 @@ GameLoop_HandleEnemyTimers:
     phy
     php    
     ;Handle Enemy shooting timers
-    ldy.w #$0003
+    ldy.w #!EBulLoopCount
     .EBTimerLoop:
     lda.w EnemyBulletActive, Y
     bne .SkipETimer
@@ -3016,7 +2988,7 @@ GameLoop_EBulletLogic:
     phx
     phy
     php
-    ldy.w #$0003
+    ldy.w #!EBulLoopCount
     .EBLogicLoop:
     rep #$20
     lda.b ZP.Modifiers
@@ -3068,18 +3040,31 @@ GameLoop_EBulletDraw:
     phx
     phy
     php
-    ldy.w #$0003
-    .EBDrawLoop:    
+    ldy.w #!EBulLoopCount
+    .EBDrawLoop:
     lda.w EnemyBulletXPos, Y
     sta.b ZP.AddSprX
     lda.w EnemyBulletYPos, Y
     sta.b ZP.AddSprY
+    lda.w EnemyBulletType, Y
+    bne +
     lda.b #!EBulletF1
+    bra ++
+    +
+    lda.b #!EBullet2F1
+    ++
     clc
     adc.w EnemyBulletFrame
     sta.b ZP.AddSprTile
+    lda.w EnemyBulletType, Y
+    bne +
     lda.b #!BulletAttr
     sta.b ZP.AddSprAttr
+    bra ++
+    +
+    lda.b #!EBull2Attr
+    sta.b ZP.AddSprAttr
+    ++
     jsr AddSprite
     dey
     bpl .EBDrawLoop
@@ -3123,7 +3108,7 @@ GameLoop_ResetPlayer:
     rts
 
 HandleEBulletCollisions:
-    ldy.w #$0003
+    ldy.w #!EBulLoopCount
     .ColLoop:
     ;if enemy bullet is active
     lda.w EnemyBulletActive, Y
@@ -3153,7 +3138,7 @@ HandleEBulletCollisions:
     beq .SkipCol
     jsr GameLoop_KillPlayer
     lda.b #$00
-    ldy.w #$0003
+    ldy.w #!EBulLoopCount
     -
     sta.w EnemyBulletActive, Y
     dey
@@ -3161,6 +3146,38 @@ HandleEBulletCollisions:
     .SkipCol:
     dey
     bpl .ColLoop
+    rts
+
+HandleBulletCollisions:
+    ldy.w #!EBulLoopCount
+    -
+    lda.w EnemyBulletActive, Y
+    beq .SkipCol
+    lda.w Bullet.Y
+    clc
+    adc.b #$08
+    sec
+    sbc.w EnemyBulletYPos, Y
+    bcs .SkipCol
+    lda.w EnemyBulletXPos, Y
+    clc
+    adc.b #$08
+    sec
+    sbc.w Bullet.X
+    bcs .SkipCol
+    lda.w EnemyBulletXPos, Y
+    sec
+    sbc.w Bullet.X
+    bcc .SkipCol
+    lda.w EnemyBulletType, Y
+    bne +
+    lda.b #$00
+    sta.w EnemyBulletActive, Y
+    +
+    stz.b Bullet.Enabled
+    .SkipCol:
+    dey
+    bpl -
     rts
 
     ;
@@ -4975,14 +4992,14 @@ GameLoop_HandleUFO:
     bit #$04
     beq +
     lda.w UFOFrame
-    eor #$02
+    eor #$04
     sta.w UFOFrame
     stz.w UFOFrameTimer
     +
     rts
 
 GameLoop_DrawUFO:
-    ;Top left
+    ;Left
     sep #$20
     ldx.w #$0000
     ldx.w UFOXPos
@@ -4995,31 +5012,13 @@ GameLoop_DrawUFO:
     sta.b ZP.AddSprTile
     lda.b #!UFOAttr
     sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
+    sta.b ZP.AddSprBigFlag
     jsr AddSprite
     
     ;Top mid
     tdc
     rep #$20
     lda.w UFOXPos
-    adc.w #$0008
-    sta.b ZP.AddSprX
-    sep #$20
-    lda.b #!UFOYPos
-    sta.b ZP.AddSprY
-    lda.b #!UFOTile1
-    clc
-    adc.w UFOFrame
-    sta.b ZP.AddSprTile
-    lda.b #!UFOAttr
-    sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
-    jsr AddSprite
-
-    ;Top mid
-    tdc
-    rep #$20
-    lda.w UFOXPos
     adc.w #$0010
     sta.b ZP.AddSprX
     sep #$20
@@ -5031,96 +5030,7 @@ GameLoop_DrawUFO:
     sta.b ZP.AddSprTile
     lda.b #!UFOAttr
     sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
-    jsr AddSprite
-
-    ;Top right
-    tdc
-    rep #$20
-    lda.w UFOXPos
-    adc.w #$0018
-    sta.b ZP.AddSprX
-    sep #$20
-    lda.b #!UFOYPos
-    sta.b ZP.AddSprY
-    lda.b #!UFOTile0
-    clc
-    adc.w UFOFrame
-    sta.b ZP.AddSprTile
-    lda.b #!UFOAttrMir
-    sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
-    jsr AddSprite
-
-    ;Bottom left
-    tdc
-    rep #$20
-    lda.w UFOXPos
-    sta.b ZP.AddSprX
-    sep #$20
-    lda.b #!UFOYPosB
-    sta.b ZP.AddSprY
-    lda.b #!UFOTile2
-    clc
-    adc.w UFOFrame
-    sta.b ZP.AddSprTile
-    lda.b #!UFOAttr
-    sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
-    jsr AddSprite
-
-    ;Bottom mid
-    tdc
-    rep #$20
-    lda.w UFOXPos
-    adc.w #$0008
-    sta.b ZP.AddSprX
-    sep #$20
-    lda.b #!UFOYPosB
-    sta.b ZP.AddSprY
-    lda.b #!UFOTile3
-    clc
-    adc.w UFOFrame
-    sta.b ZP.AddSprTile
-    lda.b #!UFOAttr
-    sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
-    jsr AddSprite
-
-    ;Bottom mid
-    tdc
-    rep #$20
-    lda.w UFOXPos
-    adc.w #$0010
-    sta.b ZP.AddSprX
-    sep #$20
-    lda.b #!UFOYPosB
-    sta.b ZP.AddSprY
-    lda.b #!UFOTile3
-    clc
-    adc.w UFOFrame
-    sta.b ZP.AddSprTile
-    lda.b #!UFOAttr
-    sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
-    jsr AddSprite
-
-    ;Bottom right
-    tdc
-    rep #$20
-    lda.w UFOXPos
-    adc.w #$0018
-    sta.b ZP.AddSprX
-    sep #$20
-    lda.b #!UFOYPosB
-    sta.b ZP.AddSprY
-    lda.b #!UFOTile2
-    clc
-    adc.w UFOFrame
-    sta.b ZP.AddSprTile
-    lda.b #!UFOAttrMir
-    sta.b ZP.AddSprAttr
-    stz.b ZP.AddSprBigFlag
+    sta.b ZP.AddSprBigFlag
     jsr AddSprite
     rts
 
@@ -5133,53 +5043,29 @@ UpdateExplosives:
     -
     ;Write explosion entry into OAM
     stz.b ZP.R2
-    .OAMLoop:
-    ;Write XPos
-    lda.b ZP.R2
-    and.b #$40
+
+    lda.w ExplosionX, Y
+    sta.b ZP.AddSprX
+    lda.w ExplosionY, Y
+    sta.b ZP.AddSprY
+    ;(Timer/Frames)
+    lda.w ExplosionTimer, Y
     lsr
     lsr
-    lsr
-    clc
-    adc.w ExplosionX, Y
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    ;Write YPos
-    lda.b ZP.R2
-    and.b #$80
-    lsr
-    lsr
-    lsr
-    lsr
-    clc
-    adc.w ExplosionY, Y
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    ;Calculate tile frame
-    lda.b #!ExplosionStart   ;Grab the max timer since we want to _increment_ through the frame list
+    asl
+    sta.b ZP.R0
+    lda.b #!ExplosionTile+$10
     sec
-    sbc.w ExplosionTimer, Y
-    lsr
-    lsr
-    sta.w ExplosionFrame, Y
-    ;Write Tile
-    lda.b #!ExplosionTile
-    clc
-    adc.w ExplosionFrame, Y
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    ;Write Attr
+    sbc.b ZP.R0
+    cmp.b #!ExplosionTile+$10
+    bne +
+    lda.b #!ExplosionTile+$0E
+    +
+    sta.b ZP.AddSprTile
     lda.b #!ExplosionAttr
-    clc
-    adc.b ZP.R2                 ;Add on tile offsets
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    ;Loop check
-    lda.b ZP.R2
-    clc
-    adc.b #$40
-    sta.b ZP.R2
-    bcc .OAMLoop                ;Should overflow when it reaches loop 4
+    sta.b ZP.AddSprAttr
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
 
     ;Make sure explosions don't die when player is dead
     lda.w GameState
@@ -5796,7 +5682,7 @@ BG_Surfboard:
     sta.b (ZP.VrDmaListPtr), Y
     iny
     rep #$20
-    lda.w #!SprVram+((GameSprEnd-GameSpr)/2)
+    lda.w #!SprVram+(GameSprEnd-GameSpr)
     sta.b (ZP.VrDmaListPtr), Y
     sep #$20
     iny
@@ -6000,6 +5886,7 @@ BGList:
     dw BG5
 
 BG0:
+    tdc
     sep #$20
 
     ;Main city view
@@ -6081,12 +5968,6 @@ BG0:
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
     
-    ;Score
-    lda.b #$10
-    sta.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-
     ;BG3 scroll
     ldx.w #HDMAScrollBuffer2&$FFFF
     stx.w HW_WMADDL
@@ -6578,17 +6459,22 @@ BG3:
     inc.w BGScrollVal+4
 
     tdc
-    lda.b #$D7          ;Scanline
+    lda.b #$F0          ;Scanline
     sta.w HW_WMDATA
     ;Skew water
+    inc.w SinePtr
+    ldx.w #$0000
+    lda.w SinePtr
+    tax
     ldy.w #$0000
     -
     lda.w BGScrollVal+4
     adc.w SkewTable, Y
     sta.w HW_WMDATA
     stz.w HW_WMDATA
+    inx
     iny
-    cpy.w #$005D
+    cpy.w #$0070
     bne -
 
     stz.w HW_WMDATA
@@ -6663,7 +6549,7 @@ BG3:
     inc.b ZP.OAMPtr
     lda.b #!PlayerY
     clc
-    adc.b #$06
+    adc.b #$0E
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.b #!SurfboardT0
@@ -6682,7 +6568,7 @@ BG3:
     inc.b ZP.OAMPtr
     lda.b #!PlayerY
     clc
-    adc.b #$06
+    adc.b #$0E
     sta.b (ZP.OAMPtr)
     inc.b ZP.OAMPtr
     lda.b #!SurfboardT1
@@ -7408,7 +7294,15 @@ EnemyScoreTable:
     db $02              ;Purple Mook
     db $04              ;MultiArm
     db $08              ;Tough Guy
-    
+
+
+ShieldBonus:
+    db $00
+    db $05
+    db $10
+    db $25
+    db $50
+
 ;List of enemy waves
 EnemyWaveLookup:
     dw EnemyWave00
@@ -7445,6 +7339,7 @@ EnemyWaveLookup:
     dw EnemyWave1F
     dw EnemyWave20
     dw EnemyWave21
+    dw EnemyWave22
 
 ;Enemy wave definitions
 EnemyWave00:
@@ -7651,6 +7546,12 @@ EnemyWave21:
     db $01,$02,$03,$04,$05,$06,$07,$08
     db $08,$07,$06,$05,$04,$03,$02,$01
     db $08,$07,$06,$05,$04,$03,$02,$01
+EnemyWave22:
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $05,$05,$05,$05,$05,$05,$05,$05
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:
@@ -7722,12 +7623,23 @@ EnemyShootTypes:
     db $00              ;Empty
     db $00              ;Basic Squelcher
     db $01              ;Metal Rocketeer
-    db $00              ;Boxy Greenback
-    db $01              ;Mind Cake
+    db $01              ;Boxy Greenback
+    db $00              ;Mind Cake
     db $00              ;Sophisticated mimic
     db $01              ;Purple Mook
     db $01              ;MultiArm
     db $01              ;Tough Guy
+
+BulletTypesTable:
+    db $00              ;Empty
+    db $00              ;Basic Squelcher
+    db $00              ;Metal Rocketeer
+    db $01              ;Boxy Greenback
+    db $00              ;Mind Cake
+    db $00              ;Sophisticated mimic
+    db $00              ;Purple Mook
+    db $01              ;MultiArm
+    db $00              ;Tough Guy
 
 BG1ColTable:
     db $40          ;Scanline counter
@@ -8050,30 +7962,30 @@ ShieldPosTableEnd:
 
 ShieldTileTable:
     ;Dead
-    db $00+45
-    db $00+45
-    db $00+45
-    db $00+45
+    db $00
+    db $00
+    db $00
+    db $00
     ;Severely damaged
-    db $20+45
-    db $1F+45
-    db $1F+45
-    db $20+45
+    db $77
+    db $76
+    db $76
+    db $77
     ;Moderately damaged
-    db $1E+45
-    db $1D+45
-    db $1D+45
-    db $1E+45
+    db $75
+    db $74
+    db $74
+    db $75
     ;Partially damaged
-    db $1C+45
-    db $1B+45
-    db $1B+45
-    db $1C+45
+    db $73
+    db $72
+    db $72
+    db $73
     ;Full health
-    db $1A+45
-    db $19+45
-    db $19+45
-    db $1A+45
+    db $71
+    db $70
+    db $70
+    db $71
 
 ShieldExplosionTileTable:
     db $55+45
@@ -8436,28 +8348,18 @@ db $10,$10,$10,$10,$10,$10
 
 ;log(24/t)
 SkewTable:
-db $FF,$FF,$FF,$EA,$DA,$CE,$C4,$BC,$B4,$AE
-db $A8,$A3,$9E,$99,$95,$92,$8E,$8B,$88,$85
-db $82,$7F,$7C,$7A,$78,$75,$73,$71,$6F,$6D
-db $6B,$6A,$68,$66,$64,$63,$61,$60,$5E,$5D
-db $5B,$5A,$59,$57,$56,$55,$54,$53,$51,$50
-db $4F,$4E,$4D,$4C,$4B,$4A,$49,$48,$47,$46
-db $45,$44,$43,$42,$42,$41,$40,$3F,$3E,$3D
-db $3D,$3C,$3B,$3A,$3A,$39,$38,$37,$37,$36
-db $35,$35,$34,$33,$33,$32,$31,$31,$30,$2F
-db $2F,$2E,$2E,$2D,$2C,$2C,$2B,$2B,$2A,$29
-db $29,$28,$28,$27,$27,$26,$26,$25,$25,$24
-db $24,$23,$23,$22,$22,$21,$21,$20,$20,$1F
-db $1F,$1E,$1E,$1E,$1D,$1D,$1C,$1C,$1B,$1B
-db $1A,$1A,$1A,$19,$19,$18,$18,$18,$17,$17
-db $16,$16,$16,$15,$15,$14,$14,$14,$13,$13
-db $13,$12,$12,$11,$11,$11,$10,$10,$10,$0F
-db $0F,$0F,$0E,$0E,$0E,$0D,$0D,$0D,$0C,$0C
-db $0C,$0B,$0B,$0B,$0A,$0A,$0A,$09,$09,$09
-db $09,$08,$08,$08,$07,$07,$07,$06,$06,$06
-db $06,$05,$05,$05,$04,$04,$04,$04,$03,$03
-db $03,$02,$02,$02,$02,$01,$01,$01,$01,$00
-db $00,$00,$00,$00
+db $FF,$FF,$FF,$F2,$E2,$D6,$CB,$C3,$BC,$B5
+db $AF,$AA,$A5,$A1,$9D,$99,$95,$92,$8F,$8C
+db $89,$86,$84,$81,$7F,$7D,$7B,$79,$76,$75
+db $73,$71,$6F,$6D,$6C,$6A,$69,$67,$66,$64
+db $63,$61,$60,$5F,$5E,$5C,$5B,$5A,$59,$58
+db $57,$55,$54,$53,$52,$51,$50,$4F,$4E,$4D
+db $4C,$4C,$4B,$4A,$49,$48,$47,$46,$46,$45
+db $44,$43,$42,$42,$41,$40,$3F,$3F,$3E,$3D
+db $3D,$3C,$3B,$3B,$3A,$39,$39,$38,$37,$37
+db $36,$35,$35,$34,$34,$33,$33,$32,$31,$31
+db $30,$30,$2F,$2F,$2E,$2E,$2D,$2D,$2C,$2C
+db $2B,$2B
 
 ;sin(2*pi*t/T)*(1-(t%2*2))
 FogOffset:
