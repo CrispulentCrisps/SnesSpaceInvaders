@@ -117,7 +117,7 @@ UFOTimer =          $06B3   ;Frames to wait before UFO appears
 UFOFrame =          $06B5
 UFOFrameTimer =     $06B6
 UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
-!UFOScore =         $0100   ;Score to give to the player when shooting down the UFO
+!UFOScore =         $0050   ;Score to give to the player when shooting down the UFO
 !UFOSpeed =         $01     ;How fast the UFO moves
 !UFOResetTime =     $03E8   ;Timer to wait to make UFO active [20 seconds on PAL, 16 on NTSC]
 !UFOYPos =          $00     ;Y Position of the UFO
@@ -158,7 +158,7 @@ ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
 !ExplosionTile =    $50
-!ExplosionAttr =    %00111100
+!ExplosionAttr =    $2C
 
 EnemyTileBuffer =   $7E8000
 TextDispBuffer =    $7E8400   ;Takes up [score text] + 6 bytes for score display
@@ -170,14 +170,14 @@ HDMAMode7Buffer2 =  $7E9480
 BGScrollOff =       $06C0     ;Scrolling offsets for background elements
 BGScrollVal =       $06D0
 
-!BG1HOffMirror =    $0C00
-!BG1VOffMirror =    $0C02
-!BG2HOffMirror =    $0C04
-!BG2VOffMirror =    $0C06
-!BG3HOffMirror =    $0C08
-!BG3VOffMirror =    $0C0A
-!BG4HOffMirror =    $0C0C
-!BG4VOffMirror =    $0C0E
+BG1HOffMirror =     $0C00
+BG1VOffMirror =     $0C02
+BG2HOffMirror =     $0C04
+BG2VOffMirror =     $0C06
+BG3HOffMirror =     $0C08
+BG3VOffMirror =     $0C0A
+BG4HOffMirror =     $0C0C
+BG4VOffMirror =     $0C0E
 PalMirror =         $0C10
 
 HDMAMirror =        $0E10
@@ -247,7 +247,16 @@ ShieldHealth =      $1100   ;Health of shields
 ShieldBlinkTimer =  $1104   ;Timer for shields to blink
 ShieldXPos =        $1108   ;Health of shields
 
-GalaxyRot =         $1110
+EnemyTransInd =     $1110
+EnemyTransSetup =   $1111
+SendWave =          $1112
+
+UFOPartEnabled =    $1120
+UFOPartYVel =       $1128
+UFOPartX =          $1130
+UFOPartY =          $1140
+
+!UFOPartGravity =   $A0
 
 !ShieldStartHP =    $04
 !PlayerDieReset =   50
@@ -284,11 +293,12 @@ SParticleTimer =    $02C0   ;32 particle timers
 !EnemySpeed =       $02
 !EnemyPlaneStartX = $00
 !EnemyPlaneStartY = $F0
+!EnemyTransHeight = $01F0
 
 EmptyChar =         $00
 L1Ram =             $7000
-L2Ram =             $7400
-L3Ram =             $7800
+L2Ram =             $7800
+L3Ram =             $7C00
 L4Ram =             $7C00
 OAMCopy =           $0800
 LaserOAM =          $0810

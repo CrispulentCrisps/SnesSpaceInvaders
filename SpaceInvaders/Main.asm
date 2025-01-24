@@ -177,8 +177,9 @@ BG6_TM_End:
 
 Title_TM:
     incbin "bin/gfx/tilemap/Title-BG-L1.bin"
+Title1_TM_End:
     incbin "bin/gfx/tilemap/Title-BG-L2.bin"
-Title_TM_End:
+Title2_TM_End:
 
 Options_TM:
     incbin "bin/gfx/tilemap/OptionsBG.bin"
@@ -479,9 +480,9 @@ Reset:
     sep #%00100000              ;Enter Memory mode
     lda.b #$70
     sta.w HW_BG1SC              ;Set Layer 1 values
-    lda.b #$74
-    sta.w HW_BG2SC              ;Set Layer 2 values
     lda.b #$78
+    sta.w HW_BG2SC              ;Set Layer 2 values
+    lda.b #$7C
     sta.w HW_BG3SC              ;Set Layer 3 values
     lda.b #$7C
     sta.w HW_BG4SC              ;Set Layer 4 values
@@ -521,7 +522,7 @@ Reset:
 
     lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$03
+    lda.b #$00
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -696,43 +697,43 @@ NMIHandler:
     sta.w HW_TSW
 
     ;BG 1
-    lda.w !BG1HOffMirror
+    lda.w BG1HOffMirror
     sta.w HW_BG1HOFS
-    lda.w !BG1HOffMirror+1
+    lda.w BG1HOffMirror+1
     sta.w HW_BG1HOFS
-    lda.w !BG1VOffMirror
+    lda.w BG1VOffMirror
     sta.w HW_BG1VOFS
-    lda.w !BG1VOffMirror+1
+    lda.w BG1VOffMirror+1
     sta.w HW_BG1VOFS
 
     ;BG 2
-    lda.w !BG2HOffMirror
+    lda.w BG2HOffMirror
     sta.w HW_BG2HOFS
-    lda.w !BG2HOffMirror+1
+    lda.w BG2HOffMirror+1
     sta.w HW_BG2HOFS
-    lda.w !BG2VOffMirror
+    lda.w BG2VOffMirror
     sta.w HW_BG2VOFS
-    lda.w !BG2VOffMirror+1
+    lda.w BG2VOffMirror+1
     sta.w HW_BG2VOFS
     
     ;BG 3
-    lda.w !BG3HOffMirror
+    lda.w BG3HOffMirror
     sta.w HW_BG3HOFS
-    lda.w !BG3HOffMirror+1
+    lda.w BG3HOffMirror+1
     sta.w HW_BG3HOFS
-    lda.w !BG3VOffMirror
+    lda.w BG3VOffMirror
     sta.w HW_BG3VOFS
-    lda.w !BG3VOffMirror+1
+    lda.w BG3VOffMirror+1
     sta.w HW_BG3VOFS
 
     ;BG 4
-    lda.w !BG3HOffMirror
+    lda.w BG3HOffMirror
     sta.w HW_BG4HOFS
-    lda.w !BG4HOffMirror+1
+    lda.w BG4HOffMirror+1
     sta.w HW_BG4HOFS
-    lda.w !BG4VOffMirror
+    lda.w BG4VOffMirror
     sta.w HW_BG4VOFS
-    lda.w !BG4VOffMirror+1
+    lda.w BG4VOffMirror+1
     sta.w HW_BG4VOFS
     
     lda.w M7AMirror
@@ -991,7 +992,22 @@ TitleScene:
     stx.w HW_A1T0L              ;Shove lo+mid addr byte
     lda.b #Title_TM>>16&$FF
     sta.w HW_A1B0               ;Store bank
-    ldx.w #Title_TM_End-Title_TM
+    ldx.w #Title1_TM_End-Title_TM
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+    
+    ldx.w #L2Ram
+    stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #Title1_TM_End&$FFFF    ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #Title1_TM_End>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #Title2_TM_End-Title1_TM_End
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
     lda.b #HW_VMDATAL&$FF
     sta.w HW_BBAD0
@@ -1220,6 +1236,9 @@ GameScene:
     lda.b #$02
     sta.w HW_OBSEL
 
+    lda.b #$72
+    sta.w HW_BG1SC              ;Set Layer 1 values
+
     ldx.w #!SprVram
     stx.w HW_VMADDL             ;Set VRAM address to Sprite VRAM
     
@@ -1421,8 +1440,8 @@ GameScene:
     jsr GameLoop_LoadBG
 
     ldx.w #$0000
-    stx.w !BG2VOffMirror
-    stx.w !BG1VOffMirror
+    stx.w BG2VOffMirror
+    stx.w BG1VOffMirror
     ;Write enemy entries into Enemy struct array
     jsr GameLoop_UpdateEnemyArray
     jsr GameLoop_DrawEnemies
@@ -1556,7 +1575,7 @@ GameScene:
     ;-------------------;
     ;   Bullet Logic    ;
     ;-------------------;
-    ;Check if the bullet is on screen    
+    ;Check if the bullet is on screen
     lda.w Bullet.Enabled
     bne .SkipBulletJmp
     jmp .SkipBullet0Logic
@@ -1579,6 +1598,12 @@ GameScene:
     clc
     adc.w Bullet.Dir
     sta.w Bullet.X
+    
+    lda.w GameState
+    cmp.b #!GameState_Stop
+    bne +
+    jmp .SkipBullet0Logic
+    +
     ;Collision code
     lda.b #$FF
     sta.b ZP.BulletColTile      ;Reset collided tile index
@@ -1793,7 +1818,11 @@ GameScene:
     bmi +
     stz.w EnemyShootIndex
     +
+    lda.w GameState
+    cmp.b #!GameState_Stop
+    beq +
     jsr GameLoop_HandleEnemyTimers
+    +
     sep #$20
     ;Handle bullet logic
     jsr GameLoop_EBulletLogic
@@ -1897,12 +1926,11 @@ GameScene:
     bra .SkipState
     ;Set the game state to Stop and initialise game timer
     .SetStateWait
+    lda.b #$01
+    sta.w EnemyTransSetup
     lda.b #!GameState_Stop
     sta.w GameState
-    rep #$20
-    lda.w #!GameWaitTime
-    sta.w GameStateWait
-    sep #$20
+    stz.w SendWave
     .SkipState:
     tdc
     lda.b ZP.EnemyTimer
@@ -1985,11 +2013,12 @@ GameScene:
     sta.w PlayerDeathTimer
     .SkipFloor:
     lda.b ZP.EnemyPlanePosX
-    sta.w !BG1HOffMirror
-    stz.w !BG1HOffMirror+1
+    sta.w BG1HOffMirror
+    stz.w BG1HOffMirror+1
     lda.b ZP.EnemyPlanePosY
-    sta.w !BG1VOffMirror
-    stz.w !BG1VOffMirror+1
+    sta.w BG1VOffMirror
+    lda.b #$01
+    sta.w BG1VOffMirror+1
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
     jsr GameLoop_DrawEnemies_FrameDecider
@@ -2002,6 +2031,8 @@ GameScene:
     ;-------------------;
     jsr GameLoop_HandleUFO
     
+    jsr GameLoop_HandleUFOParticles
+
     ;------------------------;
     ;    Handle Explosions   ;
     ;------------------------;
@@ -2113,23 +2144,24 @@ GameScene:
     bpl -
 
     jsr Gameloop_DrawShields
+
     ;------------------------;
     ;    Handle Game State   ;
     ;------------------------;
-    rep #$20
-    lda.w GameStateWait
-    beq +
-    dec
-    sta.w GameStateWait
-    bne .SkipSend
     sep #$20
+    lda.w SendWave
+    beq .SkipSend
     lda.b #!GameState_Play
     sta.w GameState
     jsr GameLoop_SendWave
+    stz.w SendWave
     .SkipSend:
-    +
     sep #$20
-
+    lda.w GameState
+    cmp.b #!GameState_Stop
+    bne +
+    jsr GameLoop_EnemyTransition
+    +
     ;-----------------------;
     ;   END OF GAME SCENE   ;
     ;-----------------------;
@@ -2601,16 +2633,12 @@ GameLoop_SendWave:
     sta.b ZP.EnemyDownCount
     lda.b #!EnemyPlaneStartX
     sta.b ZP.EnemyPlanePosX
-    sta.b !BG1HOffMirror
-    sta.w HW_BG1HOFS
-    stz.b !BG1HOffMirror+1
-    stz.w HW_BG1HOFS+1
+    sta.b BG1HOffMirror
+    stz.b BG1HOffMirror+1
     lda.b #!EnemyPlaneStartY
     sta.b ZP.EnemyPlanePosY
-    sta.b !BG1VOffMirror
-    sta.w HW_BG1VOFS
-    stz.b !BG1VOffMirror+1
-    stz.w HW_BG1VOFS+1
+    sta.b BG1VOffMirror
+    stz.b BG1VOffMirror+1
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
     lda.b #!GameState_Play
@@ -3162,18 +3190,20 @@ HandleBulletCollisions:
     lda.w EnemyBulletActive, Y
     beq .SkipCol
     lda.w Bullet.Y
-    clc
-    adc.b #$08
+    sec
+    sbc.b #$08
     sec
     sbc.w EnemyBulletYPos, Y
     bcs .SkipCol
     lda.w EnemyBulletXPos, Y
-    clc
-    adc.b #$08
+    sec
+    sbc.b #$04
     sec
     sbc.w Bullet.X
     bcs .SkipCol
     lda.w EnemyBulletXPos, Y
+    clc
+    adc.b #$04
     sec
     sbc.w Bullet.X
     bcc .SkipCol
@@ -3182,7 +3212,10 @@ HandleBulletCollisions:
     lda.b #$00
     sta.w EnemyBulletActive, Y
     +
-    stz.b Bullet.Enabled
+    stz.w Bullet.Enabled
+    lda.b #$F0
+    sta.w Bullet.X
+    sta.w Bullet.Y
     .SkipCol:
     dey
     bpl -
@@ -3919,7 +3952,7 @@ OptionsScene:
     cmp.b #$8C
     bne +
     stz.w BGScrollOff+7
-    inc.w !BG2HOffMirror
+    inc.w BG2HOffMirror
     +
     ldy.w #$0000
     ldx.w #$0000
@@ -4213,7 +4246,7 @@ OptionsScreen_DrawUI:
     rts
 
 ContinueScene:
-
+    
     rep #$20
     rts
 
@@ -4442,13 +4475,13 @@ HighscoreScene:
     sta.w TMMirror
     rep #$20
     lda.w #$0180
-    sta.w !BG1HOffMirror
+    sta.w BG1HOffMirror
     lda.w #$0148
-    sta.w !BG1VOffMirror
-    lda.w !BG1HOffMirror
+    sta.w BG1VOffMirror
+    lda.w BG1HOffMirror
     adc.w #$0800
     sta.w M7XMirror
-    lda.w !BG1VOffMirror
+    lda.w BG1VOffMirror
     adc.w #$0800
     sta.w M7YMirror
     
@@ -4491,10 +4524,10 @@ HighscoreScene:
     ;sta.w M7DMirror
     ;sta.w M7AMirror
 
-    lda.w !BG1HOffMirror
+    lda.w BG1HOffMirror
     adc.w #$0080
     sta.w M7XMirror
-    lda.w !BG1VOffMirror
+    lda.w BG1VOffMirror
     adc.w #$0080
     sta.w M7YMirror
 
@@ -4899,16 +4932,22 @@ GameLoop_HandleUFO:
     sep #$20
     lda.w Bullet.Y
     cmp.b #$10          ;BulletY < 16
-    bcs .SkipUFOCol
+    bcc +
+    jmp .SkipUFOCol
+    +
     lda.w UFOXPos
     sec
     sbc.b #$08          ;Adjust to occasional bullet misses
     cmp.w Bullet.X
-    bcs .SkipUFOCol     ;BulletX > UFOX
+    bcc +               ;BulletX > UFOX
+    jmp .SkipUFOCol
+    +
     lda.w UFOXPos
     adc.b #$20
     cmp.w Bullet.X      ;&& BulletX < UFOX+32
-    bcc .SkipUFOCol
+    bcs +
+    jmp .SkipUFOCol
+    +
     
     rep #$20
     lda.b ZP.Score
@@ -4935,6 +4974,40 @@ GameLoop_HandleUFO:
     ++
     sta.b ZP.Score
     cld
+    sep #$20
+    ldy.w #$0007
+    ldx.w #$0003
+    lda.w UFOXPos
+    -
+    pha
+    lda.b #!UFOYPos
+    sta.w UFOPartY, Y
+    lda.b #$01
+    sta.w UFOPartEnabled, X
+    pla
+    sta.w UFOPartX, Y
+    clc
+    adc.b #$08
+    dex
+    dey
+    dey
+    bpl -
+    ldy.w #$0007
+    lda.w UFOXPos
+    -
+    pha
+    lda.b #!UFOYPosB
+    sta.w UFOPartY, Y
+    lda.b #$01
+    sta.w UFOPartEnabled, Y
+    pla
+    sta.w UFOPartX, Y
+    clc
+    adc.b #$08
+    dey
+    dey
+    bpl -
+
     rep #$20
     lda.w #!UFOResetTime
     sta.w UFOTimer
@@ -5415,8 +5488,8 @@ BG_Mountains:
     sta.w PalMirror, Y
     dey
     bne -    
-    stz.w !BG3VOffMirror
-    stz.w !BG3VOffMirror+1
+    stz.w BG3VOffMirror
+    stz.w BG3VOffMirror+1
 
     rts
 BG_Computer:
@@ -5538,8 +5611,8 @@ BG_Computer:
     sta.b (ZP.VrDmaListPtr), Y
 
     lda.b #$20
-    sta.w !BG3VOffMirror
-    stz.w !BG3VOffMirror+1
+    sta.w BG3VOffMirror
+    stz.w BG3VOffMirror+1
 
     ;Transfer palette data
     ldy.w #BG3_L2_Pal_End-BG3_L2_Pal
@@ -5707,8 +5780,8 @@ BG_Surfboard:
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
 
-    stz.w !BG3VOffMirror
-    stz.w !BG3VOffMirror+1
+    stz.w BG3VOffMirror
+    stz.w BG3VOffMirror+1
     ;Transfer palette data
     ldy.w #BG4_L2_Pal_End-BG4_L2_Pal
     -
@@ -6201,7 +6274,7 @@ BG1:
     bit #$04
     beq +
     stz.w BGScrollVal+12
-    inc.w !BG3HOffMirror
+    inc.w BG3HOffMirror
     +
     sep #$10
     ldy.w SinePtr
@@ -6215,7 +6288,7 @@ BG1:
     lsr
     lsr
     clc
-    adc.w !BG3HOffMirror
+    adc.w BG3HOffMirror
     sta.w HW_WMDATA
     stz.w HW_WMDATA
     iny
@@ -6270,8 +6343,8 @@ BG2:
     bit #$40
     beq +
     stz.w BGScrollOff
-    inc.w !BG3HOffMirror
-    stz.w !BG3HOffMirror+1
+    inc.w BG3HOffMirror
+    stz.w BG3HOffMirror+1
     +
     
     ;Top CPU line
@@ -6699,8 +6772,97 @@ BG5:
     stx.w HDMAMirror1+2
     lda.b #$7E
     sta.w HDMAMirror1+4
-
     rts
+
+GameLoop_HandleUFOParticles:
+    pha
+    phx
+    phy
+    php
+    sep #$20
+    ldy.w #$0007
+    -
+    lda.w UFOPartEnabled
+    beq +
+    ;Handle movement
+    rep #$20
+    lda.w UFOPartX, Y
+    sta.b ZP.AddSprX
+    lda.w UFOPartY, Y
+    sta.b ZP.AddSprY
+    sep #$20
+    lda.w UFOPartTiles, Y
+    sta.b ZP.AddSprTile
+    lda.b #!UFOAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+    +
+    dey
+    bpl -
+    plp
+    ply
+    plx
+    pla
+    rts
+
+GameLoop_EnemyTransition:
+    pha
+    phx
+    phy
+    php
+    sep #$20
+    ldx.w #$0000
+    lda.w EnemyTransInd
+    asl
+    tax
+    jsr (ETransList, X)
+    plp
+    ply
+    plx
+    pla
+    rts
+
+ETransList:
+    dw Enemy_Descend
+    dw Enemy_Draw
+    dw Enemy_Lines
+    dw Enemy_Interlace
+
+Enemy_Descend:
+    php
+    sep #$20
+    lda.w EnemyTransSetup
+    beq +
+    ldx.w #$0080
+    stx.w BG1VOffMirror
+    ldx.w #$0100
+    stx.w BG1HOffMirror
+    inc.b ZP.EnemyWaveCount
+    jsr GameLoop_UpdateEnemyArray
+    jsr GameLoop_DrawEnemies
+    dec.b ZP.EnemyWaveCount
+    stz.w EnemyTransSetup
+    +
+    rep #$20
+    lda.w BG1VOffMirror
+    and #$01FF
+    cmp.w #!EnemyTransHeight
+    beq +
+    dec.w BG1VOffMirror
+    bra .Exit
+    +
+    inc.w SendWave
+    .Exit:
+    plp
+    rts
+Enemy_Draw:
+    rts
+Enemy_Lines:
+    rts
+Enemy_Interlace:
+    rts
+
     ;   ZP.MemPointer   | Text addr
     ;
     ;   ZP.R1           \
@@ -8117,6 +8279,21 @@ TwinkleFrame1st:
     db $0B
     db $0C
 
+UFOPartTiles:
+    db $38
+    db $39
+    db $3A
+    db $3B
+    db $48
+    db $49
+    db $4A
+    db $4B
+
+UFOPartXSpeed:
+    dw $0060
+    dw $0030
+    dw $8060
+    dw $8030
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
