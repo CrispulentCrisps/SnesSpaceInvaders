@@ -97,6 +97,8 @@ EnemyBulletActive = $0428
 EnemyBulletFrame =  $0430
 EnemyBulletType =   $0438
 BulletFCount =      $0440
+EnemyBulletSine =   $0448
+EnemyBulletWait =   $044A   ;Time to wait between movement when homing
 
 !StartMaxBGCount =  $08
 !MaxBG =            $06
@@ -119,7 +121,7 @@ UFOFrameTimer =     $06B6
 UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOScore =         $0050   ;Score to give to the player when shooting down the UFO
 !UFOSpeed =         $01     ;How fast the UFO moves
-!UFOResetTime =     $03E8   ;Timer to wait to make UFO active [20 seconds on PAL, 16 on NTSC]
+!UFOResetTime =     $05DC   ;Timer to wait to make UFO active [30 seconds on PAL, 25 on NTSC]
 !UFOYPos =          $00     ;Y Position of the UFO
 !UFOYPosB =         $08     ;Y Position of the UFO
 !UFOStartX =        $0100
@@ -127,6 +129,7 @@ UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOTile1 =         $3A
 !UFOAttr =          %00101000
 !UFOAttrMir =       %01101000
+!UFOPartAttr =      %00101000
 OBJTimers =         $0700   ;16 byte array of timers for general OBJ use
 OBJFrame =          $0710   ;16 byte array of general object frame counts, used for animating less important objects
 OBJXPos =           $0720   ;32 byte array of object types XPositions
@@ -229,8 +232,7 @@ TransitionFlag =    $0EF4   ;Flag to say transition is in progress
 TransitionState =   $0EF5   ;Value to say which direction we are transitioning [0 for not, 1 for in, 2 for out]
 !TransSpeed =       $08
 !OptionsTextAttr =  $20
-!OptionsTMapAddr =  $78C5
-!OptionsMosAddr =   $78C5
+!OptionsTMapAddr =  $7CC5
 
 StageSettings =     $0EF8   ;Settings byte for stage
 MusicSettings =     $0EF9   ;Settings byte for music options
@@ -252,15 +254,19 @@ EnemyTransSetup =   $1111
 SendWave =          $1112
 
 UFOPartEnabled =    $1120
-UFOPartYVel =       $1128
-UFOPartX =          $1130
-UFOPartY =          $1140
+UFOPartX =          $1128
+UFOPartY =          $1138
+EPlaneTop =         $1140
+UFOPartXVel =       $1148
+UFOPartYVel =       $1158
+UFOPartFlip =       $1168   ;Switch for setting the graphics for the UFO gibs
 
-!UFOPartGravity =   $A0
+EPlaneTopW =        $1200   ;Max height enemies go to
+!UFOPartGravity =   $0030
 
 !ShieldStartHP =    $04
 !PlayerDieReset =   50
-!WaveInit =         $0A
+!WaveInit =         $00
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions
@@ -311,10 +317,9 @@ LaserOAM =          $0810
 !EBull2Attr =       %00101010
 !BulletF1 =         $36
 !BulletF2 =         $37
-!EBulletF1 =        $46
-!EBulletF2 =        $47
-!EBullet2F1 =       $83
-!EBullet2F2 =       $84
+!EBulletF1 =        $83
+!EBullet2F1 =       $86
+!EBullet3F1 =       $89
 
 !EnemyGfx =         $2D
 
