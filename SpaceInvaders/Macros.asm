@@ -161,7 +161,7 @@ ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
 !ExplosionTile =    $50
-!ExplosionAttr =    $2C
+!ExplosionAttr =    $3C
 
 EnemyTileBuffer =   $7E8000
 TextDispBuffer =    $7E8400   ;Takes up [score text] + 6 bytes for score display
@@ -351,6 +351,14 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !SurfboardT1 =      $C1
 !SurfboardAttr =    $32
 
+!BG3Char1 =         $C0
+!BG3Char2 =         $C2
+!BG3Char3 =         $C4
+!BG3Char4 =         $C6
+!BG3Char1Attr =     $00
+!BG3Char2Attr =     $00
+!BG3Char3Attr =     $00
+!BG3Char4Attr =     $00
 !SprFont1Attr =     $30
 
 !ArrowX =           $50
@@ -399,7 +407,7 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !ModC =             $1000       ;Alien palette is set to black so only outlines are seen
 !ModD =             $2000       ;Bullets have random direction
 !ModE =             $4000       ;Enemy Bullets have a random direction
-!ModF =             $8000       ;NAN
+!ModF =             $8000       ;UFO fires bullets at the player
 ;Character data
 ' ' = $00
 '0' = $00+1

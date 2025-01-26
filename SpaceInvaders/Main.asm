@@ -59,6 +59,10 @@ BG3_L3:
     incbin "bin/gfx/BG-3-L3.bin"
 BG3_L3_End:
 
+BG3_OBJ:
+    incbin "bin/gfx/SpaceyCharacters.bin"
+BG3_OBJ_End:
+org !GfxBank2
 ;   Background 4    ;
 BG4_L2:
     incbin "bin/gfx/BG-4-L2.bin"
@@ -71,13 +75,11 @@ BG4_L3_End:
 BG4_OBJ:
     incbin "bin/gfx/Surfboard.bin"
 BG4_OBJ_End:
-
-org !GfxBank2
-
 ;       Title       ;
 Title_L1:
     incbin "bin/gfx/Title-BG-L1.bin"
 Title_L1_End:
+
 Title_L2:
     incbin "bin/gfx/Title-BG-L2.bin"
 Title_L2_End:
@@ -266,6 +268,10 @@ BG3_L3_Pal_End:
 BG3_L2_Pal:
     incbin "bin/gfx/pal/BG-3-L2-Pal.bin"
 BG3_L2_Pal_End:
+
+BG3_OBJ_Pal:
+    incbin "bin/gfx/pal/SpaceyCharacters-Pal.bin"
+BG3_OBJ_Pal_End:
 
 ;   Background 4    ;
 BG4_L3_Pal:
@@ -523,7 +529,7 @@ Reset:
 
     lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$01
+    lda.b #$02
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -2148,7 +2154,8 @@ GameScene:
     bpl -
 
     jsr Gameloop_DrawShields
-
+    
+    jsr GameLoop_UpdateBG_OBJ
     ;------------------------;
     ;    Handle Game State   ;
     ;------------------------;
@@ -2631,6 +2638,26 @@ GameLoop_SendWave:
     bpl -
     jsr GameLoop_LoadBG
     +
+    
+    ;Skip shield restore if weak shield modifier is off
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!ModA
+    sep #$20
+    bne .SkipRestore
+    ;Add shield health after every wave
+    ldy.w #$0003
+    .ShieldHRestore:
+    lda.w ShieldHealth, Y
+    inc
+    cmp.b #$05
+    bpl +
+    sta.w ShieldHealth, Y
+    +
+    dey
+    bpl .ShieldHRestore
+
+    .SkipRestore:
     lda.b !EnemyMoveR
     sta.b ZP.EnemyDir
     lda.b #!EnemyDownLoop
@@ -5670,9 +5697,57 @@ BG_Computer:
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
 
-    lda.b #$20
-    sta.w BG3VOffMirror
+
+    ldy.w #$0000
+    lda.b #(BG3_OBJ)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG3_OBJ>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG3_OBJ>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #!SprVram+(GameSprEnd-GameSpr)
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG3_OBJ_End-BG3_OBJ
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    stz.w BG3VOffMirror
     stz.w BG3VOffMirror+1
+
+    tdc
+    sep #$20
+    lda.b #$08
+    ldy.w #$000F
+    ldx.w #$001E
+    -
+    lda.w BG3StartY, Y
+    sta.w OBJYPos, Y
+    rep #$20
+    lda.w BG3StartX, X
+    sta.w OBJXPos, X
+    sep #$20
+    dex
+    dex
+    dey
+    bpl -
 
     ;Transfer palette data
     ldy.w #BG3_L2_Pal_End-BG3_L2_Pal
@@ -5685,6 +5760,13 @@ BG_Computer:
     -
     lda.w BG3_L3_Pal, Y
     sta.w PalMirror, Y
+    dey
+    bne -
+    
+    ldy.w #BG3_OBJ_Pal_End-BG3_OBJ_Pal
+    -
+    lda.w BG3_OBJ_Pal, Y
+    sta.w PalMirror+$0100, Y
     dey
     bne -
     rts
@@ -5986,7 +6068,7 @@ GameLoop_UpdateBG:
     beq .SkipFade
     rep #$20
     stz.b ZP.PalFadeStart
-    lda.w #$0060
+    lda.w #$0180
     sta.b ZP.PalFadeEnd
     sep #$20
     inc.b ZP.PalFadeInd
@@ -6383,14 +6465,14 @@ BG2:
     cmp.b #$05
     bne +
     stz.w BGScrollOff+$0F
-    ;Wires
-    ldy.w #$0002
-    tdc
-    lda.b #$03
-    sta.b ZP.R4
-    jsr PalCycle
     ;Forewires
     ldy.w #$0036
+    tdc
+    lda.b #$05
+    sta.b ZP.R4
+    jsr PalCycle
+    ;Sprites
+    ldy.w #$0116
     tdc
     lda.b #$05
     sta.b ZP.R4
@@ -6408,6 +6490,15 @@ BG2:
     stz.w BG3HOffMirror+1
     +
     
+    ;Pyramids
+    lda.w BGScrollOff+4
+    inc
+    sta.w BGScrollOff+4
+    bit #$08
+    beq +
+    stz.w BGScrollOff+4
+    inc.w BGScrollVal+4
+    +
     ;Hexagons
     lda.w BGScrollOff+1
     inc
@@ -6419,8 +6510,52 @@ BG2:
     +
 
     ;Floor
-    inc.w BGScrollVal+2
-    inc.w BGScrollVal+2
+    lda.w BGScrollVal+2
+    clc
+    adc.b #$05
+    sta.w BGScrollVal+2
+    ;Floor2
+    lda.w BGScrollVal+3
+    clc
+    adc.b #$07
+    sta.w BGScrollVal+3
+
+    ;Hexagons L3-1
+    lda.w BGScrollOff+5
+    inc
+    sta.w BGScrollOff+5
+    bit #$10
+    beq +
+    stz.w BGScrollOff+5
+    inc.w BGScrollVal+5
+    +
+    ;Hexagons L3-2
+    lda.w BGScrollOff+6
+    inc
+    sta.w BGScrollOff+6
+    bit #$20
+    beq +
+    stz.w BGScrollOff+6
+    inc.w BGScrollVal+6
+    +
+    ;Hexagons L3-3
+    lda.w BGScrollOff+7
+    inc
+    sta.w BGScrollOff+7
+    bit #$40
+    beq +
+    stz.w BGScrollOff+7
+    inc.w BGScrollVal+7
+    +
+    ;Hexagons L3-4
+    lda.w BGScrollOff+8
+    inc
+    sta.w BGScrollOff+8
+    bit #$80
+    beq +
+    stz.w BGScrollOff+8
+    inc.w BGScrollVal+8
+    +
 
     ldx.w #HDMAScrollBuffer&$FFFF
     stx.w HW_WMADDL
@@ -6429,7 +6564,8 @@ BG2:
 
     lda.b #$7F          ;Scanline
     sta.w HW_WMDATA
-    stz.w HW_WMDATA     ;|  Offsets
+    lda.w BGScrollVal+4 ;\
+    sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
     ;Hexagons
     lda.b #$50          ;Scanline
@@ -6438,9 +6574,43 @@ BG2:
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
     ;Floor
-    lda.b #$30          ;Scanline
+    lda.b #$10          ;Scanline
     sta.w HW_WMDATA
     lda.w BGScrollVal+2 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    ;Floor2
+    lda.b #$10          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+3 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    
+    stz.w HW_WMDATA     ;End
+
+    ldx.w #HDMAScrollBuffer2&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer2>>16)&$FF
+    sta.w HW_WMADDH
+
+    lda.b #$40          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+8 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$10          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+7 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$1C          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+6 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$10          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+5 ;\
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
     
@@ -6455,14 +6625,24 @@ BG2:
     lda.b #(HDMAScrollBuffer>>16)&$FF
     sta.w HDMAMirror1+4
 
+    lda.b #$02
+    sta.w HDMAMirror2
+    lda.b #(HW_BG3HOFS)&$FF
+    sta.w HDMAMirror2+1
+    ldx.w #HDMAScrollBuffer2&$FFFF
+    stx.w HDMAMirror2+2
+    lda.b #(HDMAScrollBuffer2>>16)&$FF
+    sta.w HDMAMirror2+4
+
     lda.b #$03
     sta.w HDMAMirror
     lda.b #(HW_CGADD)&$FF
     sta.w HDMAMirror+1
-    ldx.w #BG1ColTable
+    ldx.w #BG3ColTable
     stx.w HDMAMirror+2
     lda.b #$80
     sta.w HDMAMirror+4
+
     rts
 
 BG3:
@@ -6779,6 +6959,89 @@ BG5:
     sta.w HDMAMirror1+4
     rts
 
+GameLoop_UpdateBG_OBJ:
+    php
+    pha
+    phx
+    phy
+    ldx.w #$0000
+    tdc
+    lda.w BGIndex
+    asl
+    tax
+    jsr (BGOBJList, X)
+    ply
+    plx
+    pla
+    plp
+    rts
+
+BGOBJList:
+    dw OBJ_City         ;BG-1
+    dw OBJ_Mountains    ;BG-2
+    dw OBJ_Computer     ;BG-3
+    dw OBJ_Surfboard    ;BG-4
+    dw OBJ_Volcano      ;BG-5
+    dw OBJ_Wetlands     ;BG-6
+
+OBJ_City:
+    rts
+
+OBJ_Mountains:
+    rts
+
+OBJ_Computer:
+    ldy.w #$000F
+    ldx.w #$001E
+    .OBJMov:
+    sep #$20
+    lda.w OBJTimers, Y
+    inc
+    sta.w OBJTimers, Y
+    cmp.w BG3OBJSpeed, Y
+    bne +
+    rep #$20
+    dec.w OBJXPos, X
+    sep #$20
+    lda.b #$00
+    sta.w OBJTimers, Y
+    +
+    dex
+    dex
+    dey
+    bpl .OBJMov
+
+    ldy.w #$000F
+    ldx.w #$001E
+    .CharLoop:
+    rep #$20
+    lda.w OBJXPos, X
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w OBJYPos, Y
+    sta.b ZP.AddSprY
+    lda.w BG3CharTiles, Y
+    sta.b ZP.AddSprTile
+    lda.w BG3CharAttr, Y
+    sta.b ZP.AddSprAttr
+    lda.b #$01
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    dex
+    dex
+    dey
+    bpl .CharLoop
+    rts
+
+OBJ_Surfboard:
+    rts
+
+OBJ_Volcano:
+    rts
+
+OBJ_Wetlands:
+    rts
+
 GameLoop_HandleUFOParticles:
     pha
     phx
@@ -6854,6 +7117,7 @@ GameLoop_EnemyTransition:
     phx
     phy
     php
+    tdc
     sep #$20
     ldx.w #$0000
     lda.w EnemyTransInd
@@ -7236,7 +7500,7 @@ OpDText:
 OpEText:
     db "14: CONFUSED ENEMIES  "     ;Enemy Bullets have a random direction
 OpFText:
-    db "15: 2-????????????????"     ;NAN
+    db "15: DANGEROUS UFO     "     ;UFO fires bullets at the player
 ModEnd:
 
 GameModifiers:
@@ -7513,7 +7777,6 @@ EnemyScoreTable:
     db $04              ;MultiArm
     db $08              ;Tough Guy
 
-
 ShieldBonus:
     db $00
     db $05
@@ -7561,20 +7824,20 @@ EnemyWaveLookup:
 
 ;Enemy wave definitions
 EnemyWave00:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $01,$00,$00,$00,$00,$00,$00,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave01:
-    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $02,$02,$02,$02,$02,$02,$02,$02
     db $01,$01,$01,$01,$01,$01,$01,$01
     db $01,$01,$01,$01,$01,$01,$01,$01
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave02:
-    db $02,$02,$02,$02,$02,$02,$02,$02
     db $03,$03,$03,$03,$03,$03,$03,$03
+    db $02,$02,$02,$02,$02,$02,$02,$02
     db $01,$01,$01,$01,$01,$01,$01,$01
     db $01,$01,$01,$01,$01,$01,$01,$01
     db $00,$00,$00,$00,$00,$00,$00,$00
@@ -7959,30 +8222,51 @@ BG2ColTable:
 
     
 BG3ColTable:
-    db $40          ;Scanline counter
-    dw $0000        ;Address
-    dw $0020
-    db $20          ;Scanline counter
-    dw $0000        ;Address
-    dw $0441
-    db $18          ;Scanline counter
-    dw $0000        ;Address
-    dw $0862
-    db $18          ;Scanline counter
-    dw $0000        ;Address
-    dw $0882
-    db $10          ;Scanline counter
-    dw $0000        ;Address
-    dw $10A4
-    db $10          ;Scanline counter
-    dw $0000        ;Address
-    dw $14C5
     db $08          ;Scanline counter
     dw $0000        ;Address
-    dw $18E6
-    db $04          ;Scanline counter
+    dw $692B
+    db $08          ;Scanline counter
     dw $0000        ;Address
-    dw $0000
+    dw $652A
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $5D09
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $5909
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $54E8
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $50E7
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $4CC7
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $48C6
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $44A6
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $40A5
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $3C84
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $3884
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $3463
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $3063
+    db $08          ;Scanline counter
+    dw $0000        ;Address
+    dw $2842
     db $00
 
 BG4ColTable:
@@ -8366,10 +8650,93 @@ UFOPartYSpeed:
     dw !UFOPartGravity
     dw !UFOPartGravity
     dw !UFOPartGravity
-    dw !UFOPartGravity+$0020
-    dw !UFOPartGravity+$0020
-    dw !UFOPartGravity+$0020
-    dw !UFOPartGravity+$0020
+    dw !UFOPartGravity+$0028
+    dw !UFOPartGravity+$0028
+    dw !UFOPartGravity+$0028
+    dw !UFOPartGravity+$0028
+
+BG3CharTiles:
+    db !BG3Char1
+    db !BG3Char1
+    db !BG3Char1
+    db !BG3Char1
+    db !BG3Char2
+    db !BG3Char2
+    db !BG3Char2
+    db !BG3Char2
+    db !BG3Char3
+    db !BG3Char3
+    db !BG3Char4
+    db !BG3Char4
+    db !BG3Char4
+    db !BG3Char4
+    db !BG3Char4
+    db !BG3Char4
+
+BG3CharAttr:
+    db !BG3Char1Attr
+    db !BG3Char1Attr
+    db !BG3Char1Attr
+    db !BG3Char1Attr
+    db !BG3Char2Attr
+    db !BG3Char2Attr
+    db !BG3Char2Attr
+    db !BG3Char2Attr
+    db !BG3Char3Attr
+    db !BG3Char3Attr
+    db !BG3Char4Attr
+    db !BG3Char4Attr
+    db !BG3Char4Attr
+    db !BG3Char4Attr
+    db !BG3Char4Attr
+    db !BG3Char4Attr
+
+BG3OBJSpeed:
+    db $20
+    db $23
+    db $26
+    db $29
+
+    db $50
+    db $53
+    db $56
+    db $59
+
+    db $60
+    db $62
+
+    db $80
+    db $82
+    db $83
+    db $85
+    db $87
+    db $89
+
+BG3StartX:
+    for x = 0..16
+        dw $0020+(!x*96)
+    endfor
+
+BG3StartY:
+    db $70
+    db $58
+    db $64
+    db $50
+    
+    db $50
+    db $38
+    db $44
+    db $30
+
+    db $22
+    db $26
+    db $24
+    db $1C
+    
+    db $1A
+    db $21
+    db $1C
+    db $19
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
