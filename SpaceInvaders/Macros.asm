@@ -100,7 +100,7 @@ BulletFCount =      $0440
 EnemyBulletSine =   $0448
 EnemyBulletWait =   $044A   ;Time to wait between movement when homing
 
-!StartMaxBGCount =  $08
+!StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
 !MaxBG =            $06
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
@@ -261,10 +261,18 @@ UFOPartXVel =       $1148
 UFOPartYVel =       $1158
 UFOPartFlip =       $1168   ;Switch for setting the graphics for the UFO gibs
 
+StageTextX =        $1170
+StageTextY =        $117C
+StageTextIndex =    $1182
+ShowStageText  =    $1183
+ShowStageTextOut =  $1184   ;Flag to move out of the transition
+StageTextTransInd = $1185   ;Inde into transition offset table
+!StageTextAttr =    $35
+
 EPlaneTopW =        $1200   ;Max height enemies go to
 !UFOPartGravity =   $0030
 
-!ShieldStartHP =    $04
+!ShieldStartHP =    $08
 !PlayerDieReset =   50
 !WaveInit =         $00
 
@@ -383,6 +391,8 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !HText1st =         $3C00
 
 !SprVram =          $4000
+!Spr2Vram =         $5000 ;Second sprite table
+!SprTextVram =      $5800 ;VRAM position for stage text
 !HSSprVram =        $6010
 !BGVram =           $0000
 

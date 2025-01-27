@@ -134,6 +134,10 @@ BG6:
     incbin "bin/gfx/BG-6-L3.bin"
 BG6End:
 
+StageTextSpr:
+    incbin "bin/gfx/StageText.bin"
+StageTextSprEnd:
+
 org !TilemapBank
 
 ;---------------;
@@ -209,6 +213,10 @@ GamePalEnd:
 GameSprPal:
     incbin "bin/gfx/pal/GameSpritesPal.bin"
 GameSprPalEnd:
+
+StageTextPal:
+    incbin "bin/gfx/pal/StageTextPal.bin"
+StageTextPalEnd:
 
 SPRFont_Pal:
     incbin "bin/gfx/pal/SprFont-Pal.bin"
@@ -529,7 +537,7 @@ Reset:
 
     lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$02
+    lda.b #$00
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -1285,6 +1293,19 @@ GameScene:
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
 
+    ldx.w #!SprTextVram
+    stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #StageTextSpr&$FFFF        ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #StageTextSpr>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #StageTextSprEnd-StageTextSpr
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
     ldx.w #$0000
     stx.b ZP.R0
     jsr LoadEnemyGFX
@@ -1300,6 +1321,13 @@ GameScene:
     cpy #$100
     bne -
     
+    ldy.w #StageTextPalEnd-StageTextPal
+    -
+    lda.w StageTextPal, Y
+    sta.w PalMirror+$140, Y
+    dey
+    bpl -
+
     ;Clear tilemap 1
     ldx.w #L1Ram
     stx.w HW_VMADDL             ;Set VRAM address to L1RAM
@@ -1319,7 +1347,7 @@ GameScene:
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w HW_BGMODE
-    lda.b #$07
+    lda.b #$00
     sta.w BGCount
     ;Reset Player
     lda.b #$70
@@ -1552,6 +1580,7 @@ GameScene:
     +
     stz.w Player.State
 
+    jsr HandleStageText
     jsr HandleEBulletCollisions
     jsr HandleBulletCollisions
     ;------------------------------;
@@ -2137,7 +2166,7 @@ GameScene:
     bit #$04
     bne +
     lda.w ShieldHealth, Y
-    lda.b #$04
+    lda.b #!ShieldStartHP
     sec
     sbc.w ShieldHealth, Y
     asl
@@ -2382,8 +2411,8 @@ Gameloop_DrawShields:
     lda.b #!ShieldAttr2
     sta.b ZP.R1
     lda.w ShieldBlinkTimer, Y
-    bit #$40
-    beq +
+    cmp #$60
+    bmi +
     lda.b #$00
     sta.w ShieldBlinkTimer, Y
     stz.b ZP.R0
@@ -2636,6 +2665,8 @@ GameLoop_SendWave:
     sta.w ShieldHealth, Y
     dey
     bpl -
+    lda.b #$01
+    sta.w ShowStageTextOut
     jsr GameLoop_LoadBG
     +
     
@@ -2650,7 +2681,13 @@ GameLoop_SendWave:
     .ShieldHRestore:
     lda.w ShieldHealth, Y
     inc
-    cmp.b #$05
+    cmp.b #!ShieldStartHP+1
+    bpl +
+    sta.w ShieldHealth, Y
+    +
+    lda.w ShieldHealth, Y
+    inc
+    cmp.b #!ShieldStartHP+1
     bpl +
     sta.w ShieldHealth, Y
     +
@@ -3272,6 +3309,158 @@ HandleBulletCollisions:
     bpl -
     rts
 
+HandleStageText:
+    pha
+    phx
+    phy
+    php
+    sep #$20
+    lda.w ShowStageText
+    bne +
+    jmp .SkipText
+    +
+    ldx.w #$0038
+    stx.b ZP.R0
+    ldy.w #$0005
+    ldx.w #$000A
+    ;Handle movement
+    -
+    rep #$20
+    lda.b ZP.R0
+    sta.w StageTextX, X
+    clc
+    adc.w #$0010
+    sta.b ZP.R0
+    sep #$20
+    lda.b #$58
+    sta.w StageTextY, Y
+    dex
+    dex
+    dey
+    bpl -
+    
+    sep #$20
+    lda.w ShowStageTextOut
+    bne .Out
+    lda.w StageTextTransInd
+    clc
+    adc.b #$02
+    cmp.b #$82
+    bpl .SkipInd
+    bra .SetInd
+    .Out:
+    lda.w StageTextTransInd
+    clc
+    adc.b #$02
+    bcc +
+    stz.w ShowStageText
+    +
+    .SetInd:
+    sta.w StageTextTransInd
+    .SkipInd:
+    tdc
+    lda.w StageTextTransInd
+    rep #$20
+    asl
+    tax
+    lda.w StageTextXOff, X
+    sta.b ZP.R0
+    ldy.w #$0004
+    ldx.w #$0008
+    ;Draw characters
+    -
+    ;Top half
+    rep #$20
+    lda.w StageTextX, X
+    clc
+    adc.b ZP.R0
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w StageTextY, Y
+    sta.b ZP.AddSprY
+    lda.w StageTextChar, X
+    sta.b ZP.AddSprTile
+    lda.b #!StageTextAttr
+    sta.w ZP.AddSprAttr
+    sta.w ZP.AddSprBigFlag
+    jsr AddSprite
+
+    ;Bottom half
+    rep #$20
+    lda.w StageTextX, X
+    sec
+    sbc.b ZP.R0
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w StageTextY, Y
+    clc
+    adc.b #$10
+    sta.b ZP.AddSprY
+    lda.w StageTextChar+1, X
+    sta.b ZP.AddSprTile
+    lda.b #!StageTextAttr
+    sta.w ZP.AddSprAttr
+    sta.w ZP.AddSprBigFlag
+    jsr AddSprite
+    dex
+    dex
+    dey
+    bpl -
+    
+    ;Top index
+    ldx.w #$0000
+    ldy.w #$0000
+    rep #$20
+    lda.w StageTextX, X
+    clc
+    adc.w #$0018
+    clc
+    adc.b ZP.R0
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w StageTextY, Y
+    sta.b ZP.AddSprY
+    tdc
+    lda.w StageTextIndex
+    asl
+    tax
+    lda.w StageTextIndChar, X
+    sta.b ZP.AddSprTile
+    lda.b #!StageTextAttr
+    sta.w ZP.AddSprAttr
+    sta.w ZP.AddSprBigFlag
+    jsr AddSprite
+    ldx.w #$0000
+    ldy.w #$0000
+    rep #$20
+    lda.w StageTextX, X
+    clc
+    adc.w #$0018
+    sec
+    sbc.b ZP.R0
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w StageTextY, Y
+    clc
+    adc.b #$10
+    sta.b ZP.AddSprY
+    tdc
+    lda.w StageTextIndex
+    asl
+    tax
+    lda.w StageTextIndChar+1, X
+    sta.b ZP.AddSprTile
+    lda.b #!StageTextAttr
+    sta.w ZP.AddSprAttr
+    sta.w ZP.AddSprBigFlag
+    jsr AddSprite
+    ;Index character
+    .SkipText:
+    plp
+    ply
+    plx
+    pla
+    rts
     ;
 GameLoop_KillPlayer:
     php
@@ -6066,9 +6255,14 @@ GameLoop_UpdateBG:
     lda.b ZP.PalFadeInd
     cmp #$1F
     beq .SkipFade
+    lda.b #$01
+    sta.w ShowStageText
+    lda.w BGIndex
+    inc
+    sta.w StageTextIndex
     rep #$20
     stz.b ZP.PalFadeStart
-    lda.w #$0180
+    lda.w #$0140
     sta.b ZP.PalFadeEnd
     sep #$20
     inc.b ZP.PalFadeInd
@@ -6084,7 +6278,7 @@ GameLoop_UpdateBG:
     +
     rep #$20
     stz.b ZP.PalFadeStart
-    stz.b ZP.PalFadeEnd
+    stz.b ZP.PalFadeEnd 
     sep #$20
 
     .GotoBGUpdate:
@@ -7141,6 +7335,7 @@ Enemy_Descend:
     sep #$20
     lda.w EnemyTransSetup
     beq +
+    stz.w ShowStageTextOut
     ldx.w #$0080
     stx.w BG1VOffMirror
     ldx.w #$0100
@@ -7431,6 +7626,16 @@ HighscoreText:
     dw "  PRESS START TO EXIT!  "
     dw "  ''''''''''''''''''''  "
 HighscoreTextEnd:
+
+StageText:
+    db "NIGHTIME CITY       "
+    db "ROCKY ROAD ROUTE    "
+    db "ENERGY SECTOR       "
+    db "NORTH OF THE ISLE   "
+    db "MAGMATIC            "
+    db "VISCOUS MARSHLAND   "
+    db "SNOWSTORM TUNDRA    "
+    db "NO TEXT ATM         "
 
 ScoreText:
     dw "SCORE: "
@@ -7842,7 +8047,7 @@ EnemyWave02:
     db $01,$01,$01,$01,$01,$01,$01,$01
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave03:
-    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $06,$06,$06,$06,$06,$06,$06,$06
     db $02,$02,$02,$02,$02,$02,$02,$02
     db $03,$03,$03,$03,$03,$03,$03,$03
     db $03,$03,$03,$03,$03,$03,$03,$03
@@ -8483,16 +8688,36 @@ ShieldTileTable:
     db $00
     db $00
     ;Severely damaged
-    db $77
-    db $76
-    db $76
-    db $77
+    db $7F
+    db $7E
+    db $7E
+    db $7F
+    ;Severely damaged 2
+    db $7D
+    db $7C
+    db $7C
+    db $7D
     ;Moderately damaged
-    db $75
-    db $74
-    db $74
-    db $75
+    db $7B
+    db $7A
+    db $7A
+    db $7B
+    ;Moderately damaged
+    db $79
+    db $78
+    db $78
+    db $79
     ;Partially damaged
+    db $77
+    db $76
+    db $76
+    db $77
+    ;Partially damaged
+    db $75
+    db $74
+    db $74
+    db $75
+    ;Full health
     db $73
     db $72
     db $72
@@ -8654,6 +8879,40 @@ UFOPartYSpeed:
     dw !UFOPartGravity+$0028
     dw !UFOPartGravity+$0028
     dw !UFOPartGravity+$0028
+
+StageTextChar:
+    db $88
+    db $88+$20
+    db $86
+    db $86+$20
+    db $84
+    db $84+$20
+    db $82
+    db $82+$20
+    db $80
+    db $80+$20
+
+StageTextIndChar:
+    db $8A
+    db $8A+$20
+    db $8C
+    db $8C+$20
+    db $8E
+    db $8E+$20
+    db $C0
+    db $C0+$20
+    db $C2
+    db $C2+$20
+    db $C4
+    db $C4+$20
+    db $C6
+    db $C6+$20
+    db $C8
+    db $C8+$20
+    db $CA
+    db $CA+$20
+    db $CC
+    db $CC+$20
 
 BG3CharTiles:
     db !BG3Char1
@@ -9075,6 +9334,46 @@ db $03,$02,$02,$01,$00,$FF,$FE,$FE,$FD,$FC
 db $FC,$FB,$FA,$FA,$F9,$F9,$F9,$F8,$F8,$F8
 db $F8,$F8,$F8,$F8,$F9,$F9,$F9,$FA,$FA,$FB
 db $FC,$FC,$FD,$FE,$FE,$FF 
+
+;256, $100 - $FF02
+StageTextXOff:
+dw $00C3,$00C3,$00C3,$00C3,$00C3,$00C3,$00C3
+dw $00C3,$00C2,$00C2,$00C2,$00C2,$00C2,$00C2
+dw $00C1,$00C1,$00C1,$00C1,$00C1,$00C0,$00C0
+dw $00C0,$00C0,$00C0,$00BF,$00BF,$00BF,$00BE
+dw $00BE,$00BE,$00BE,$00BD,$00BD,$00BD,$00BC
+dw $00BC,$00BB,$00BB,$00BB,$00BA,$00BA,$00B9
+dw $00B9,$00B8,$00B8,$00B7,$00B7,$00B6,$00B5
+dw $00B5,$00B4,$00B3,$00B3,$00B2,$00B1,$00B0
+dw $00B0,$00AF,$00AE,$00AD,$00AC,$00AB,$00AA
+dw $00A9,$00A8,$00A7,$00A6,$00A5,$00A3,$00A2
+dw $00A1,$009F,$009E,$009D,$009B,$009A,$0098
+dw $0096,$0095,$0093,$0091,$0090,$008E,$008C
+dw $008A,$0088,$0086,$0084,$0081,$007F,$007D
+dw $007A,$0078,$0076,$0073,$0070,$006E,$006B
+dw $0068,$0066,$0063,$0060,$005D,$005A,$0057
+dw $0053,$0050,$004D,$004A,$0046,$0043,$003F
+dw $003C,$0038,$0035,$0031,$002E,$002A,$0026
+dw $0022,$001F,$001B,$0017,$0013,$000F,$000C
+dw $0008,$0004,$0000,$FFFC,$FFF8,$FFF4,$FFF1
+dw $FFED,$FFE9,$FFE5,$FFE1,$FFDE,$FFDA,$FFD6
+dw $FFD2,$FFCF,$FFCB,$FFC8,$FFC4,$FFC1,$FFBD
+dw $FFBA,$FFB6,$FFB3,$FFB0,$FFAD,$FFA9,$FFA6
+dw $FFA3,$FFA0,$FF9D,$FF9A,$FF98,$FF95,$FF92
+dw $FF90,$FF8D,$FF8A,$FF88,$FF86,$FF83,$FF81
+dw $FF7F,$FF7C,$FF7A,$FF78,$FF76,$FF74,$FF72
+dw $FF70,$FF6F,$FF6D,$FF6B,$FF6A,$FF68,$FF66
+dw $FF65,$FF63,$FF62,$FF61,$FF5F,$FF5E,$FF5D
+dw $FF5B,$FF5A,$FF59,$FF58,$FF57,$FF56,$FF55
+dw $FF54,$FF53,$FF52,$FF51,$FF50,$FF50,$FF4F
+dw $FF4E,$FF4D,$FF4D,$FF4C,$FF4B,$FF4B,$FF4A
+dw $FF49,$FF49,$FF48,$FF48,$FF47,$FF47,$FF46
+dw $FF46,$FF45,$FF45,$FF45,$FF44,$FF44,$FF43
+dw $FF43,$FF43,$FF42,$FF42,$FF42,$FF42,$FF41
+dw $FF41,$FF41,$FF40,$FF40,$FF40,$FF40,$FF40
+dw $FF3F,$FF3F,$FF3F,$FF3F,$FF3F,$FF3E,$FF3E
+dw $FF3E,$FF3E,$FF3E,$FF3E,$FF3D,$FF3D,$FF3D
+dw $FF3D,$FF3D,$FF3D,$FF3D
 
                                 ;First half of the header
 org $FFB0                       ;Goto FFB0
