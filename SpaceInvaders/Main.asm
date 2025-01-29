@@ -138,6 +138,16 @@ StageTextSpr:
     incbin "bin/gfx/StageText.bin"
 StageTextSprEnd:
 
+org !GfxBank5
+
+GameOverSpr:
+    incbin "bin/gfx/GameOverText.bin"
+GameOverSprEnd:
+
+GameOverBG:
+    incbin "bin/gfx/GameOverL1.bin"
+GameOverBGEnd:
+
 org !TilemapBank
 
 ;---------------;
@@ -198,6 +208,10 @@ HScoreBG_TM:
 HScoreBG_TM_2:
     incbin "bin/gfx/tilemap/HighscoreL2.bin"
 HScoreBG_TM_End:
+
+GameOverTM:
+    incbin "bin/gfx/tilemap/GameOverL1.bin"
+GameOverTMEnd:
 
 org !CodeBank
 
@@ -342,6 +356,11 @@ HScoreTextPalEnd:
 TwinklePal:
     incbin "bin/gfx/pal/Twinkle-Pal.bin"
 TwinklePalEnd:
+
+GameOverPal:
+    incbin "bin/gfx/pal/GameOverL1Pal.bin"
+GameOverPalEnd:
+
 ZVal:
     dw $0000
 
@@ -537,7 +556,7 @@ Reset:
 
     lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$00
+    lda.b #$05
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -581,12 +600,22 @@ MainLoop:
     beq +
     jsr DrawTransition
     +
+
+    jsr HandlePaletteFade
+
     lda.w #$FFFF
     sta.b ZP.NMIDone
     -                           ;Infinite loop to
     lda.b ZP.NMIDone
     bpl MainLoop
     bra -                       ;Prevent the code going into random memory
+
+SelectScene:
+    dw TitleScene
+    dw GameScene
+    dw HighscoreScene
+    dw OptionsScene
+    dw ContinueScene
 
 NMIHandler:
     rep #%00110000      ;Reset X + M flags to set X to 16 bit mode
@@ -779,7 +808,7 @@ NMIHandler:
     stz.w HW_CGADD
     lda.b #$02
     sta.w HW_DMAP0
-    ldx.w #PalMirror            ;Grab source addr
+    ldx.w #PalOut               ;Grab source addr
     stx.w HW_A1T0L
     lda.b #$80                  ;Load into bank 80
     sta.w HW_A1B0
@@ -792,40 +821,6 @@ NMIHandler:
     lda.b #$01                  ;Enable DMA 0
     sta.w HW_MDMAEN
     
-    rep #$20
-    lda.b ZP.PalFadeEnd
-    beq .HDMALoop
-    tdc
-    ldy.w #$0000
-    ldx.w #$0000
-    sep #$20
-    lda.b ZP.PalFadeInd
-    and.b #$1F
-    asl
-    tax
-    lda.b ZP.PalFadeStart
-    sta.w HW_CGADD
-    lda.b ZP.PalFadeStart+1
-    sta.w HW_CGADD
-    rep #$20
-    lda.b ZP.PalFadeStart
-    tay
-    .FadeLoop:
-    rep #$20
-    lda.w PalMirror, Y
-    sec
-    sbc.w PalFadeMask, X
-    bcs +
-    lda.w #$0000
-    +
-    sep #$20
-    sta.w HW_CGDATA
-    xba
-    sta.w HW_CGDATA
-    iny
-    iny
-    cpy.b ZP.PalFadeEnd
-    bne .FadeLoop
     ;---------------;
     ;  HDMA Writes  ;
     ;---------------;
@@ -931,13 +926,6 @@ NMIHandler:
     pla                 ;Grab pre-clobbered stack values
     .SkipNMI:
     rti                 ;Return from interrupt
-
-SelectScene:
-    dw TitleScene
-    dw GameScene
-    dw HighscoreScene
-    dw OptionsScene
-    dw ContinueScene
 
 TitleScene:
     sep #$20
@@ -1347,7 +1335,7 @@ GameScene:
     sta.w BGChange
     lda.b #$01                  ;Set BG Mode 1
     sta.w HW_BGMODE
-    lda.b #$00
+    lda.b #!BGCountInitVal
     sta.w BGCount
     ;Reset Player
     lda.b #$70
@@ -2649,6 +2637,7 @@ GameLoop_SendWave:
     -
     ldx.w ShieldHealth, Y
     lda.b ZP.Score
+    clc
     adc.w ShieldBonus, X
     bcc ++
     inc.b ZP.Score+1
@@ -4504,8 +4493,84 @@ OptionsScreen_DrawUI:
 
 ContinueScene:
     sep #$20
+    lda.b ZP.ChangeScene
+    bne .LoadTitle
+    jmp .SkipContLoad
+    .LoadTitle:
+    sep #$20
+    lda.b #$8F                  ;Set master brightness to 15 & forces blanking
+    sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
+    stz.b ZP.ChangeScene        ;Reset flag
+    jsr TransitionIn
     lda.b #$03
     sta.w HW_BGMODE
+    lda.b #$FF
+    sta.w TMMirror
+    ldx.w #$0000
+    stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #GameOverBG&$FFFF       ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #GameOverBG>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #GameOverBGEnd-GameOverBG
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
+    ldx.w #L1Ram
+    stx.w HW_VMADDL
+    ;Load BG characters
+    lda.b #$18
+    sta.w HW_BBAD7
+    lda.b #$01
+    sta.w HW_DMAP7              ;Setup DMAP0
+    ldx.w #GameOverTM&$FFFF     ;Grab graphics addr
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    lda.b #GameOverTM>>16&$FF
+    sta.w HW_A1B7               ;Store bank
+    ldx.w #GameOverTMEnd-GameOverTM
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 7
+
+    ldx.w #!Spr2Vram
+    stx.w HW_VMADDL
+    ;Load BG characters
+    lda.b #$18
+    sta.w HW_BBAD7
+    lda.b #$01
+    sta.w HW_DMAP7              ;Setup DMAP0
+    ldx.w #GameOverSpr&$FFFF     ;Grab graphics addr
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    lda.b #GameOverSpr>>16&$FF
+    sta.w HW_A1B7               ;Store bank
+    ldx.w #GameOverSprEnd-GameOverSpr
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 7
+
+    ldy.w #GameOverPalEnd-GameOverPal
+    -
+    lda.w GameOverPal, Y
+    sta.w PalMirror, Y
+    dey
+    bpl -
+    
+    ldy.w #StageTextPalEnd-StageTextPal
+    -
+    lda.w StageTextPal, Y
+    sta.w PalMirror+$1E0, Y
+    dey
+    bpl -
+
+    lda.b #$0F                  ;Set master brightness to 15 & stops blanking
+    sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
+    .SkipContLoad:
+
     rep #$20
     rts
 
@@ -6262,7 +6327,7 @@ GameLoop_UpdateBG:
     sta.w StageTextIndex
     rep #$20
     stz.b ZP.PalFadeStart
-    lda.w #$0140
+    lda.w #$0060
     sta.b ZP.PalFadeEnd
     sep #$20
     inc.b ZP.PalFadeInd
@@ -7602,6 +7667,96 @@ AddSprite:
     plx
     pla
     rts
+    ;
+    ;   Processes the PalMirror with the fade mask to output the data to PalOut
+    ;
+    ;   Clobberlist
+    ;       ZP.R0
+    ;       ZP.R1
+HandlePaletteFade:
+    php
+    ldy.w #$0200
+    sep #$20
+    lda.b ZP.PalFadeEnd
+    bne .SkipTransfer
+    rep #$20
+    .TransferPal:
+    lda.w PalMirror, Y
+    sta.w PalOut, Y
+    dey
+    dey
+    bpl .TransferPal
+    .SkipTransfer:
+
+    rep #$20
+    lda.b ZP.PalFadeEnd
+    beq .SkipFade
+    tdc
+    ldy.w #$0000
+    ldx.w #$0000
+    sep #$20
+    lda.b ZP.PalFadeInd
+    and.b #$1F
+    asl
+    tax
+    rep #$20
+    lda.b ZP.PalFadeEnd
+    tay
+    .FadeLoop:
+    lda.w PalMirror, Y
+    sta.b ZP.R0
+    and.w #$001F
+    sec
+    sbc.b ZP.PalFadeInd
+    bcs +
+    lda.w #$0000
+    +
+    sta.b ZP.R2
+    lda.b ZP.R0
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    sta.b ZP.R0
+    and.w #$001F
+    sec
+    sbc.b ZP.PalFadeInd
+    bcs +
+    lda.w #$0000
+    +
+    asl
+    asl
+    asl
+    asl
+    asl
+    ora.b ZP.R2
+    sta.b ZP.R2
+    lda.b ZP.R0
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    sta.b ZP.R0
+    and.w #$001F
+    sec
+    sbc.b ZP.PalFadeInd
+    bcs +
+    lda.w #$0000
+    +
+    xba
+    asl
+    asl
+    ora.b ZP.R2
+    sta.w PalOut, Y
+    dey
+    dey
+    cpy.b ZP.PalFadeStart
+    bne .FadeLoop
+    .SkipFade:
+    plp
+    rts
 
 ;|------------------|
 ;|   IN GAME TEXT   |
@@ -7983,10 +8138,14 @@ EnemyScoreTable:
     db $08              ;Tough Guy
 
 ShieldBonus:
-    db $00
     db $05
     db $10
+    db $20
     db $25
+    db $30
+    db $35
+    db $40
+    db $45
     db $50
 
 ;List of enemy waves

@@ -43,7 +43,7 @@ struct ZP $00
 .Lives          skip 1  ;Current lives of the player as BCD
 .Modifiers      skip 2  ;Bitfield for current game modifiers
 .ExitScene      skip 1  ;Flag to say to exit the scene
-.PalFadeInd     skip 1  ;Index into palette fade, 0-31
+.PalFadeInd     skip 2  ;Index into palette fade, 0-31
 .PalFadeStart   skip 2  ;Pointer to start of palette fade
 .PalFadeEnd     skip 2  ;Pointer to end of palette fade
 .PalFadeTimer   skip 1  ;Timer to wait for palette index
@@ -54,9 +54,10 @@ endstruct
 !GfxBank2 =     $028000 ;Holds GFX data
 !GfxBank3 =     $038000 ;Holds GFX data
 !GfxBank4 =     $048000 ;Holds GFX data
-!TilemapBank =  $058000 ;Holds tilemap
-!MusicBank =    $068000 ;Holds music data
-!MusicBank2 =   $078000 ;Holds music data
+!GfxBank5 =     $058000 ;Holds GFX data
+!TilemapBank =  $068000 ;Holds tilemap
+!MusicBank =    $078000 ;Holds music data
+!MusicBank2 =   $088000 ;Holds music data
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -101,6 +102,7 @@ EnemyBulletSine =   $0448
 EnemyBulletWait =   $044A   ;Time to wait between movement when homing
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
+!BGCountInitVal =   $07
 !MaxBG =            $06
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
@@ -267,9 +269,11 @@ StageTextIndex =    $1182
 ShowStageText  =    $1183
 ShowStageTextOut =  $1184   ;Flag to move out of the transition
 StageTextTransInd = $1185   ;Inde into transition offset table
+
+EPlaneTopW =        $1186   ;Max height enemies go to
+PalOut =            $1200   ;Output palette
 !StageTextAttr =    $35
 
-EPlaneTopW =        $1200   ;Max height enemies go to
 !UFOPartGravity =   $0030
 
 !ShieldStartHP =    $08

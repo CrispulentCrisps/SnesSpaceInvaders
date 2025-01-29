@@ -1,6 +1,8 @@
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\GameGFX.png -t bin\gfx\GameGFX.bin -p bin\gfx\pal\GamePal.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\GameSprites.png -t bin\gfx\GameSprites.bin -p bin\gfx\pal\GameSpritesPal.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\StageText.png -t bin\gfx\StageText.bin -p bin\gfx\pal\StageTextPal.bin
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\GameOverText.png -t bin\gfx\GameOverText.bin -p bin\gfx\pal\GameOverTextPal.bin
+
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-1-L2.png -t bin\gfx\BG-1-L2.bin -p bin\gfx\pal\BG-1-L2-Pal.bin -m bin\gfx\tilemap\BG-1-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-1-L3.png -t bin\gfx\BG-1-L3.bin -p bin\gfx\pal\BG-1-L3-Pal.bin -m bin\gfx\tilemap\BG-1-L3.bin --tile-base-offset 314
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-2-L2.png -t bin\gfx\BG-2-L2.bin -p bin\gfx\pal\BG-2-L2-Pal.bin -m bin\gfx\tilemap\BG-2-L2.bin --tile-base-offset 128 --palette-base-offset 1
@@ -25,6 +27,7 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\OptionsBG2.png -t bin\gfx\OptionsBG2.bin -p bin\gfx\pal\OptionsBG2.bin -m bin\gfx\tilemap\OptionsBG2.bin --tile-base-offset 217 --palette-base-offset 2
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\OptionsBGGalaxyGrad.png -t bin\gfx\Bgs\OptionsBGGalaxyGrad.bin -p bin\gfx\pal\OptionsBGGalaxyGrad.bin --no-remap
 
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 8 -i res\img\Bgs\GameOverL1.png -t bin\gfx\GameOverL1.bin -m bin\gfx\tilemap\GameOverL1.bin -p bin\gfx\pal\GameOverL1Pal.bin
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\HighscoreL1.png -t bin\gfx\HighscoreL1.bin -p bin\gfx\pal\HighscoreL1.bin -m bin\gfx\tilemap\HighscoreL1.bin --tile-base-offset 22 --palette-base-offset 5
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\HighscoreL2.png -t bin\gfx\HighscoreL2.bin -p bin\gfx\pal\HighscoreL2.bin -m bin\gfx\tilemap\HighscoreL2.bin --tile-base-offset 23 --palette-base-offset 6
@@ -51,4 +54,4 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -W 16 -H 16 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 8 --mode snes_mode7 -i res\img\Bgs\Mode7\Galaxy.png -t bin\gfx\Galaxy.bin -p bin\gfx\pal\Galaxy-Pal.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe map --mode snes_mode7 -i res\img\Bgs\Mode7\Galaxy.png -t bin\gfx\Galaxy.bin -p bin\gfx\pal\Galaxy-Pal.bin --out-m7-data bin\gfx\GalaxyOut.bin
 
-C:\Users\david\Documents\Tools\ASAR-Assembler\asar.exe --no-title-check --symbols=wla --symbols-path=tempout.sym Main.asm SpaceInv.sfc
+C:\Users\david\Documents\Tools\ASAR-Assembler\asar.exe --no-title-check --symbols=wla --symbols-path=BoredAliens.sym Main.asm BoredAliens.sfc
