@@ -118,14 +118,10 @@ HScoreBGEnd:
 
 HScoreSpr:
     incbin "bin/gfx/Twinkle.bin"
+    incbin "bin/gfx/SpiralGalaxy.bin"
 HScoreSprEnd:
 
 org !GfxBank3
-
-;   highscore mode7 BG    ;
-HScoreBGM7:
-    incbin "bin/gfx/GalaxyOut.bin"
-HScoreBGM7_End:
 
 org !GfxBank4
 
@@ -339,11 +335,6 @@ ArrowSpr_Pal:
     incbin "bin/gfx/pal/Arrow.bin"
 ArrowSpr_Pal_End:
 
-;   highscore mode7 BG    ;
-HScoreBGM7_Pal:
-    incbin "bin/gfx/pal/Galaxy-Pal.bin"
-HScoreBGM7_Pal_End:
-
 HScoreBGL1_Pal:
     incbin "bin/gfx/pal/HighscoreL1.bin"
 HScoreBGL1_Pal_End:
@@ -360,6 +351,10 @@ TwinklePalEnd:
 GameOverPal:
     incbin "bin/gfx/pal/GameOverL1Pal.bin"
 GameOverPalEnd:
+
+HScoreSpr_Pal:
+    incbin "bin/gfx/pal/SpiralGalaxy-Pal.bin"
+HScoreSpr_PalEnd:
 
 ZVal:
     dw $0000
@@ -556,7 +551,7 @@ Reset:
 
     lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$05
+    lda.b #$00
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -1215,6 +1210,15 @@ TitleScene:
     stx.w HDMAMirror1+2
     lda.b #$7E
     sta.w HDMAMirror1+4
+
+    lda.b #$02
+    sta.w HDMAMirror2
+    lda.b #(HW_BG2VOFS)&$FF
+    sta.w HDMAMirror2+1
+    ldx.w #HDMAScrollBuffer2
+    stx.w HDMAMirror2+2
+    lda.b #$7E
+    sta.w HDMAMirror2+4
     
     rep #$20
     rts
@@ -4502,7 +4506,7 @@ ContinueScene:
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
     jsr TransitionIn
-    lda.b #$03
+    lda.b #$04
     sta.w HW_BGMODE
     lda.b #$FF
     sta.w TMMirror
@@ -4515,6 +4519,22 @@ ContinueScene:
     lda.b #GameOverBG>>16&$FF
     sta.w HW_A1B0               ;Store bank
     ldx.w #GameOverBGEnd-GameOverBG
+    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
+    lda.b #HW_VMDATAL&$FF
+    sta.w HW_BBAD0
+    lda.b #$01
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+
+
+    ldx.w #!SprVram
+    stx.w HW_VMADDL
+    lda.b #$01
+    sta.w HW_DMAP0              ;Setup DMAP0
+    ldx.w #GameGfx&$FFFF       ;Grab graphics addr
+    stx.w HW_A1T0L              ;Shove lo+mid addr byte
+    lda.b #GameGfx>>16&$FF
+    sta.w HW_A1B0               ;Store bank
+    ldx.w #GameGfxEnd-GameGfx
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
     lda.b #HW_VMDATAL&$FF
     sta.w HW_BBAD0
@@ -4567,9 +4587,99 @@ ContinueScene:
     dey
     bpl -
 
+    lda.b #$09
+    sta.w ContinueCount
+
+    lda.b #!GameOverTextTime
+    sta.w ContinueTimer
+    
+    lda.b #$C2
+    sta.w HW_OBSEL
+
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipContLoad:
+
+    sep #$20
+    ldy.w #$0000
+    ldx.w #$0018
+    stx.b ZP.R0
+    -
+    rep #$20
+    lda.b ZP.R0
+    adc.w #$0012
+    sta.w ZP.R0
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.b #$30
+    sta.b ZP.AddSprY
+    lda.w GameOverTextChar, Y
+    sta.b ZP.AddSprTile
+    lda.b #!GameOverTextAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+    iny
+    cpy.w #$0004
+    bne +
+    rep #$20
+    lda.b ZP.R0
+    adc.w #$0012
+    sta.w ZP.R0
+    sep #$20
+    +
+    cpy.w #$0008
+    bne -
+
+    ;Continue
+    sep #$20
+    ldy.w #$0000
+    ldx.w #$0018
+    stx.b ZP.R0
+    -
+    rep #$20
+    lda.b ZP.R0
+    adc.w #$0012
+    sta.w ZP.R0
+    sta.b ZP.AddSprX
+    sep #$20    
+    lda.b #$60
+    sta.b ZP.AddSprY
+    lda.w ContinueTextChar, Y
+    sta.b ZP.AddSprTile
+    lda.b #!GameOverTextAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+    iny
+    cpy.w #$0009
+    bne -
+
+    ldy.w #$0000
+    ldy.w ContinueCount
+    rep #$20
+    lda.w #$0074
+    sta.w ZP.AddSprX
+    sep #$20
+    lda.b #$90
+    sta.b ZP.AddSprY
+    lda.w ContinueTextInd, Y
+    sta.b ZP.AddSprTile
+    lda.b #!GameOverTextAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    sep #$20
+    dec.w ContinueTimer
+    lda.w ContinueTimer
+    bne +
+    lda.w ContinueCount
+    beq +
+    dec.w ContinueCount
+    lda.b #!GameOverTextTime
+    sta.w ContinueTimer
+    +
 
     rep #$20
     rts
@@ -4584,7 +4694,7 @@ HighscoreScene:
     lda.b #$8F                  ;Set master brightness to 15 & forces blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
-    lda.b #$07
+    lda.b #$09
     sta.w HW_BGMODE
 
     stz.w HW_HDMAEN
@@ -4607,16 +4717,6 @@ HighscoreScene:
     ;Load BG characters
     lda.b #$18
     sta.w HW_BBAD7
-    lda.b #$01
-    sta.w HW_DMAP7              ;Setup DMAP0
-    ldx.w #HScoreBGM7&$FFFF     ;Grab graphics addr
-    stx.w HW_A1T7L              ;Shove lo+mid addr byte
-    lda.b #HScoreBGM7>>16&$FF
-    sta.w HW_A1B7               ;Store bank
-    ldx.w #HScoreBGM7_End-HScoreBGM7
-    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
-    lda.b #$80
-    sta.w HW_MDMAEN             ;Enable DMA channel 7
 
     ldx.w #!SprVram
     stx.w HW_VMADDL
@@ -4634,7 +4734,7 @@ HighscoreScene:
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 7
     
-    ldx.w #!HSSprVram
+    ldx.w #!HSSprVram-$10
     stx.w HW_VMADDL
     ;Load BG characters
     lda.b #$18
@@ -4684,13 +4784,6 @@ HighscoreScene:
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 7
 
-    ldy.w #HScoreBGM7_Pal_End-HScoreBGM7_Pal
-    -
-    lda.w HScoreBGM7_Pal, Y
-    sta.w PalMirror, Y
-    dey
-    bpl -
-
     ldy.w #HScoreBGL2_Pal_End-HScoreBGL2_Pal
     -
     lda.w HScoreTextPal, Y
@@ -4701,6 +4794,8 @@ HighscoreScene:
     sta.w PalMirror+$00C0, Y
     lda.w TwinklePal, Y
     sta.w PalMirror+$01E0, Y
+    lda.w HScoreSpr_Pal, Y
+    sta.w PalMirror+$0100, Y
     dey
     bpl -
 
@@ -4798,16 +4893,6 @@ HighscoreScene:
     lda.b #$FF
     sta.w TMMirror
     rep #$20
-    lda.w #$0180
-    sta.w BG1HOffMirror
-    lda.w #$0148
-    sta.w BG1VOffMirror
-    lda.w BG1HOffMirror
-    adc.w #$0800
-    sta.w M7XMirror
-    lda.w BG1VOffMirror
-    adc.w #$0800
-    sta.w M7YMirror
     
     tdc
     ldx.w #$4444
@@ -4828,12 +4913,22 @@ HighscoreScene:
     ldx.w #$4055
     stx.w WBGLOGMirror
 
+    jsr TransitionIn
+
+    ;Set up sine ptrs
+    ldy.w #!SpiralBCount
+    lda.b #$00
+    -
+    sta.w SpiralTimer, Y
+    clc
+    adc.b #($0100/!SpiralArmCount)+!SpiralArmOffset
+    dey
+    bpl -
+
     lda.b #$0F                  ;Set master brightness to 15 & stop blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     .SkipHighscoreLoad:
     sep #$20
-    inc.w SinePtr
-    rep #$20
     ;just pretend @ is theta
     ;A = Cos  @
     ;B = Sin  @
@@ -4848,179 +4943,130 @@ HighscoreScene:
     ;sta.w M7DMirror
     ;sta.w M7AMirror
 
-    lda.w BG1HOffMirror
-    adc.w #$0080
-    sta.w M7XMirror
-    lda.w BG1VOffMirror
-    adc.w #$0080
-    sta.w M7YMirror
 
-    ldx.w #HDMAMode7Buffer
-    stx.w HW_WMADDL
+    ;Update sine ptrs
+    inc.w SpiralGalScale
+    ldy.w #$0000
+    sep #$10
+    ldy.b #!SpiralBCount
+    -
+    lda.w SpiralTimer, Y
+    inc
+    sta.w SpiralTimer, Y
+    dey
+    bpl -
+
+    rep #$30
+    ldx.w #SpiralTimer+!SpiralBCount
+    stx.b ZP.MemPointer
+    ldx.w #$0000
+    sep #$10
+    ldx.b #!SpiralWCount
+    rep #$10
+    -
     sep #$20
-    lda.b #$7E
-    sta.w HW_WMADDH
+    tdc
+    lda.b (ZP.MemPointer)
+    rep #$20
+    asl
+    tay
+    lda.w Sin16Sign, Y
+    sep #$20
+    sta.w HW_M7A
+    xba
+    sta.w HW_M7A
+    tdc
+    txa
+    lsr
+    tay
+    lda.w SpiralScale, Y
+    sta.w HW_M7B
+    rep #$20
+    lda.w HW_MPYL
+    lsr
+    lsr
+    lsr
+    clc
+    adc.w #!CX
+    ;clc
+    ;adc.w SpiralPosOffWord-1, X
+    sta.w SpiralGalX, X
+    dec.b ZP.MemPointer
+    dex
+    dex
+    bpl -
+
+    rep #$30
+    ldx.w #SpiralTimer+!SpiralBCount
+    stx.b ZP.MemPointer
+    sep #$30
+    ldy.b #!SpiralBCount
+    -
+    lda.b (ZP.MemPointer)
+    tax
+    lda.w Cos8Sign, X
+    sta.w HW_M7A
+    stz.w HW_M7A
+    lda.w SpiralScale, Y
+    sta.w HW_M7B
+    rep #$20
+    lda.w HW_MPYL
+    lsr
+    lsr
+    lsr
+    lsr
+    sep #$20
+    clc
+    adc.b #!CY
+    sta.w SpiralGalY, Y
 
     rep #$20
-    ldx.w #$0000
-    ldy.w #$0000
-    lda.w SinePtr
+    lda.w SpiralTimer, Y
     and.w #$00FF
     tax
-    ldy.w #$00C0
     sep #$20
-
-    lda.b #$7F
-    sta.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    lda.b #$21
-    sta.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    lda.b #$E0
-    sta.w HW_WMDATA
-    .ScaleAB:
-    ;A
+    lda.w Cos8Sign, X
+    lsr
+    lsr
+    and.b #$FE
+    sta.w SpiralGalZ, Y
     rep #$20
-    lda.w M7Log, Y
+    dec.b ZP.MemPointer
     sep #$20
-    sta.w HW_M7A
-    xba
-    sta.w HW_M7A
-    lda.w Cos8, X
-    sta.w HW_M7B
-    rep #$20
-    lda.w HW_MPYL
-    sep #$20
-    sta.w HW_WMDATA
-    xba
-    sta.w HW_WMDATA
-    rep #$20
-    
-    ;B
-    lda.w M7Log, Y
-    sep #$20
-    sta.w HW_M7A
-    xba
-    sta.w HW_M7A
-    lda.w Sin8, X
-    sta.w HW_M7B
-    rep #$20
-    lda.w HW_MPYL
-    sep #$20
-    sta.w HW_WMDATA
-    xba
-    sta.w HW_WMDATA
-    rep #$20
     dey
+    bpl -
+    sep #$20
+
+    ldy.b #!SpiralBCount
+    ldx.b #!SpiralWCount
+    .SpiralLoop:
+    rep #$20
+    lda.w SpiralGalX, X
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w SpiralGalY, Y
+    sta.b ZP.AddSprY
+    lda.w SpiralGalZ, Y
+    phy
+    lsr
+    lsr
+    tay
+    and.b #$FE
+    clc
+    adc.b #$10
+    sta.b ZP.AddSprTile
+    lda.w SpiralZPrio, Y
+    sta.b ZP.AddSprAttr
+    lda.b #$01
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    ply
+    dex
+    dex
     dey
-    bpl .ScaleAB
+    bpl .SpiralLoop
 
-    sep #$20
-    ldy.w #$0060
-    ldx.w #HDMAMode7Buffer2
-    stx.w HW_WMADDL
-    lda.b #$7E
-    sta.w HW_WMADDH
-    
-    lda.b #$7F
-    sta.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    lda.b #$21
-    sta.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
-    lda.b #$E0
-    sta.w HW_WMDATA
-
-    rep #$20
-    ldx.w #$0000
-    ldy.w #$0000
-    lda.w SinePtr
-    and.w #$00FF
-    tax
-    ldy.w #$00C0
-    .ScaleCD:
-    rep #$20
-    
-    ;C
-    lda.w M7Log, Y
-    sep #$20
-    sta.w HW_M7A
-    xba
-    sta.w HW_M7A
-    lda.w Sin8, X
-    eor.b #$FF
-    sta.w HW_M7B
-    rep #$20
-    lda.w HW_MPYL
-    sep #$20
-    sta.w HW_WMDATA
-    xba
-    sta.w HW_WMDATA
-    rep #$20
-    
-    ;D
-    rep #$20
-    lda.w M7Log, Y
-    sep #$20
-    sta.w HW_M7A
-    xba
-    sta.w HW_M7A
-    lda.w Cos8, X
-    sta.w HW_M7B
-    rep #$20
-    lda.w HW_MPYL
-    sep #$20
-    sta.w HW_WMDATA
-    xba
-    sta.w HW_WMDATA
-    rep #$20
-
-    dey
-    dey
-    bpl .ScaleCD
-    ;Mode switch
-    sep #$20
-    lda.b #$00
-    sta.w HDMAMirror
-    lda.b #(HW_BGMODE)&$FF
-    sta.w HDMAMirror+1
-    ldx.w #HighscoreVMode&$FFFF
-    stx.w HDMAMirror+2
-    lda.b #(HighscoreVMode>>16)&$FF
-    sta.w HDMAMirror+4
-
-    ;Perspective mode 7 view
-    sep #$20
-    lda.b #$03
-    sta.w HDMAMirror1
-    lda.b #(HW_M7A)&$FF
-    sta.w HDMAMirror1+1
-    ldx.w #HDMAMode7Buffer&$FFFF
-    stx.w HDMAMirror1+2
-    lda.b #$7E
-    sta.w HDMAMirror1+4
-
-    lda.b #$03
-    sta.w HDMAMirror2
-    lda.b #(HW_M7C)&$FF
-    sta.w HDMAMirror2+1
-    ldx.w #HDMAMode7Buffer2&$FFFF
-    stx.w HDMAMirror2+2
-    lda.b #$7E
-    sta.w HDMAMirror2+4
-
+    rep #$10
     lda.b #$01
     sta.w HDMAMirror3
     lda.b #(HW_WH0)&$FF
@@ -6202,7 +6248,6 @@ BG_Surfboard:
 BG_Volcano:
     rts
 BG_Wetlands:
-
     ;Setup video display
     stz.w HDMAMirror2
     stz.w HDMAMirror2+1
@@ -7152,7 +7197,7 @@ BG5:
     rep #$10
     lda.b #$7F
     sta.w HW_WMDATA
-    lda.w BGScrollVal
+    lda.w BGScrollVal+1
     sta.w HW_WMDATA
     stz.w HW_WMDATA
     lda.b #$B0
@@ -7184,6 +7229,8 @@ BG5:
     stz.w HW_WMDATA
     dey
     bpl -
+
+    stz.w HW_WMDATA
 
     lda.b #$10
     sta.w HW_WMDATA
@@ -7411,10 +7458,16 @@ Enemy_Descend:
     sta.w EPlaneTopW
     sep #$20
     inc.b ZP.EnemyWaveCount
+    ldy.w #$0028
+    lda.b #$00
+    -
+    sta.w EnemyHurtTable, Y
+    dey
+    bpl -
     jsr GameLoop_UpdateEnemyArray
     jsr GameLoop_DrawEnemies
     dec.b ZP.EnemyWaveCount
-    stz.w EnemyTransSetup
+    stz.w EnemyTransSetup    
     +
     rep #$20
     lda.w BG1VOffMirror
@@ -9073,6 +9126,40 @@ StageTextIndChar:
     db $CC
     db $CC+$20
 
+GameOverTextChar:
+    db $00          ;G
+    db $02          ;A
+    db $04          ;M
+    db $06          ;E
+                    ;
+    db $8A          ;O
+    db $08          ;V
+    db $06          ;E
+    db $0A          ;R
+
+ContinueTextChar:
+    db $0C          ;C
+    db $8A          ;O
+    db $0E          ;N
+    db $40          ;T
+    db $42          ;I
+    db $0E          ;N
+    db $44          ;U
+    db $06          ;E
+    db $46          ;?
+    
+ContinueTextInd:
+    db $8A
+    db $48
+    db $4A
+    db $4C
+    db $4E
+    db $80
+    db $82
+    db $84
+    db $86
+    db $88
+
 BG3CharTiles:
     db !BG3Char1
     db !BG3Char1
@@ -9155,6 +9242,35 @@ BG3StartY:
     db $21
     db $1C
     db $19
+
+SpiralZPrio:
+    for t = 0..8
+        db !SpiralGalAttrP0
+    endfor
+    for t = 0..8
+        db !SpiralGalAttrP1
+    endfor
+
+SpiralScale:
+    for x = 0..(!SpiralBCount/!SpiralArmCount)
+        for y = 0..!SpiralArmCount
+        db (!x)+$01
+        endfor
+    endfor
+    
+SpiralPosOff:
+    for x = 0..(!SpiralBCount/!SpiralArmCount)
+        for y = 0..!SpiralArmCount
+        db $F8+(!y*$04)
+        endfor
+    endfor
+
+SpiralPosOffWord:
+    for x = 0..(!SpiralBCount/!SpiralArmCount)
+        for y = 0..!SpiralArmCount
+        dw $FFF8+(!y*$04)
+        endfor
+    endfor
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
@@ -9289,6 +9405,73 @@ dw $0069,$006A,$006C,$006E,$006F,$0071,$0072
 dw $0074,$0075,$0076,$0077,$0079,$007A,$007A
 dw $007B,$007C,$007D,$007E,$007E,$007F,$007F
 dw $007F,$0080,$0080,$0080
+
+Sin16Sign:
+dw $0000,$0003,$0006,$0009,$000D,$0010,$0013
+dw $0016,$0019,$001C,$001F,$0022,$0025,$0028
+dw $002B,$002E,$0031,$0034,$0037,$003A,$003C
+dw $003F,$0042,$0044,$0047,$004A,$004C,$004F
+dw $0051,$0054,$0056,$0058,$005B,$005D,$005F
+dw $0061,$0063,$0065,$0067,$0069,$006A,$006C
+dw $006E,$006F,$0071,$0072,$0074,$0075,$0076
+dw $0077,$0079,$007A,$007A,$007B,$007C,$007D
+dw $007E,$007E,$007F,$007F,$007F,$0080,$0080
+dw $0080,$0080,$0080,$0080,$0080,$007F,$007F
+dw $007F,$007E,$007E,$007D,$007C,$007B,$007A
+dw $007A,$0079,$0077,$0076,$0075,$0074,$0072
+dw $0071,$006F,$006E,$006C,$006A,$0069,$0067
+dw $0065,$0063,$0061,$005F,$005D,$005B,$0058
+dw $0056,$0054,$0051,$004F,$004C,$004A,$0047
+dw $0044,$0042,$003F,$003C,$003A,$0037,$0034
+dw $0031,$002E,$002B,$0028,$0025,$0022,$001F
+dw $001C,$0019,$0016,$0013,$0010,$000D,$0009
+dw $0006,$0003,$0000,$FFFD,$FFFA,$FFF7,$FFF3
+dw $FFF0,$FFED,$FFEA,$FFE7,$FFE4,$FFE1,$FFDE
+dw $FFDB,$FFD8,$FFD5,$FFD2,$FFCF,$FFCC,$FFC9
+dw $FFC6,$FFC4,$FFC1,$FFBE,$FFBC,$FFB9,$FFB6
+dw $FFB4,$FFB1,$FFAF,$FFAC,$FFAA,$FFA8,$FFA5
+dw $FFA3,$FFA1,$FF9F,$FF9D,$FF9B,$FF99,$FF97
+dw $FF96,$FF94,$FF92,$FF91,$FF8F,$FF8E,$FF8C
+dw $FF8B,$FF8A,$FF89,$FF87,$FF86,$FF86,$FF85
+dw $FF84,$FF83,$FF82,$FF82,$FF81,$FF81,$FF81
+dw $FF80,$FF80,$FF80,$FF80,$FF80,$FF80,$FF80
+dw $FF81,$FF81,$FF81,$FF82,$FF82,$FF83,$FF84
+dw $FF85,$FF86,$FF86,$FF87,$FF89,$FF8A,$FF8B
+dw $FF8C,$FF8E,$FF8F,$FF91,$FF92,$FF94,$FF96
+dw $FF97,$FF99,$FF9B,$FF9D,$FF9F,$FFA1,$FFA3
+dw $FFA5,$FFA8,$FFAA,$FFAC,$FFAF,$FFB1,$FFB4
+dw $FFB6,$FFB9,$FFBC,$FFBE,$FFC1,$FFC4,$FFC6
+dw $FFC9,$FFCC,$FFCF,$FFD2,$FFD5,$FFD8,$FFDB
+dw $FFDE,$FFE1,$FFE4,$FFE7,$FFEA,$FFED,$FFF0
+dw $FFF3,$FFF7,$FFFA,$FFFD
+
+Cos8Sign:
+db $FE,$FE,$FE,$FE,$FD,$FD,$FD,$FC,$FC,$FB
+db $FA,$F9,$F9,$F8,$F7,$F5,$F4,$F3,$F2,$F0
+db $EF,$EE,$EC,$EA,$E9,$E7,$E5,$E3,$E1,$DF
+db $DD,$DB,$D9,$D7,$D4,$D2,$D0,$CD,$CB,$C8
+db $C6,$C3,$C0,$BE,$BB,$B8,$B5,$B2,$B0,$AD
+db $AA,$A7,$A4,$A1,$9E,$9B,$98,$95,$92,$8F
+db $8B,$88,$85,$82,$7F,$7C,$79,$76,$73,$6F
+db $6C,$69,$66,$63,$60,$5D,$5A,$57,$54,$51
+db $4E,$4C,$49,$46,$43,$40,$3E,$3B,$38,$36
+db $33,$31,$2E,$2C,$2A,$27,$25,$23,$21,$1F
+db $1D,$1B,$19,$17,$15,$14,$12,$10,$0F,$0E
+db $0C,$0B,$0A,$09,$07,$06,$05,$05,$04,$03
+db $02,$02,$01,$01,$01,$00,$00,$00,$00,$00
+db $00,$00,$01,$01,$01,$02,$02,$03,$04,$05
+db $05,$06,$07,$09,$0A,$0B,$0C,$0E,$0F,$10
+db $12,$14,$15,$17,$19,$1B,$1D,$1F,$21,$23
+db $25,$27,$2A,$2C,$2E,$31,$33,$36,$38,$3B
+db $3E,$40,$43,$46,$49,$4C,$4E,$51,$54,$57
+db $5A,$5D,$60,$63,$66,$69,$6C,$6F,$73,$76
+db $79,$7C,$7F,$82,$85,$88,$8B,$8F,$92,$95
+db $98,$9B,$9E,$A1,$A4,$A7,$AA,$AD,$B0,$B2
+db $B5,$B8,$BB,$BE,$C0,$C3,$C6,$C8,$CB,$CD
+db $D0,$D2,$D4,$D7,$D9,$DB,$DD,$DF,$E1,$E3
+db $E5,$E7,$E9,$EA,$EC,$EE,$EF,$F0,$F2,$F3
+db $F4,$F5,$F7,$F8,$F9,$F9,$FA,$FB,$FC,$FC
+db $FD,$FD,$FD,$FE,$FE,$FE
 
 ;sin(16*pi*t/T)
 WaterDist:

@@ -2,6 +2,8 @@
 ;   Macro's file for Bored Aliens   ;
 ;-----------------------------------;
 
+!Region = $00           ;0 for PAL, 1 for NTSC
+
 struct ZP $00
 .MemPointer     skip 3  ;General purpose pointer memory
 .MemPointer2    skip 3  ;General purpose pointer memory
@@ -102,7 +104,7 @@ EnemyBulletSine =   $0448
 EnemyBulletWait =   $044A   ;Time to wait between movement when homing
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
-!BGCountInitVal =   $07
+!BGCountInitVal =   $00
 !MaxBG =            $06
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
@@ -270,15 +272,38 @@ ShowStageText  =    $1183
 ShowStageTextOut =  $1184   ;Flag to move out of the transition
 StageTextTransInd = $1185   ;Inde into transition offset table
 
+ContinueTimer =     $1186
+ContinueSelection = $1187
+ContinueCount =     $1188
+
 EPlaneTopW =        $1186   ;Max height enemies go to
 PalOut =            $1200   ;Output palette
+SpiralGalX =        $1400   ;64 word values
+SpiralGalY =        $1480   ;64 byte values
+SpiralGalZ =        $1580   ;64 byte values
+SpiralTimer =       $1600   ;64 Timer values
+SpiralGalScale =    $1700   ;1 byte scaling factor
+
+!SpiralArmCount =   $05
+!SpiralArmOffset =  $02
+!SpiralBCount =     $1E
+!SpiralWCount =     (!SpiralBCount*2)+1
+!SpiralGalAttr =    $20
+!CX =               $007F
+!CY =               $70
+
+!SpiralGalAttrP0 =  $20
+!SpiralGalAttrP1 =  $30
+
 !StageTextAttr =    $35
+!GameOverTextAttr = $3F
+!GameOverTextTime = $64
 
 !UFOPartGravity =   $0030
 
 !ShieldStartHP =    $08
 !PlayerDieReset =   50
-!WaveInit =         $00
+!WaveInit =         $0A
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions

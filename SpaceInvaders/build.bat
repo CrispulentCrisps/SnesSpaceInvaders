@@ -31,7 +31,8 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 8 -i res\img\B
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\HighscoreL1.png -t bin\gfx\HighscoreL1.bin -p bin\gfx\pal\HighscoreL1.bin -m bin\gfx\tilemap\HighscoreL1.bin --tile-base-offset 22 --palette-base-offset 5
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\HighscoreL2.png -t bin\gfx\HighscoreL2.bin -p bin\gfx\pal\HighscoreL2.bin -m bin\gfx\tilemap\HighscoreL2.bin --tile-base-offset 23 --palette-base-offset 6
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -B 4 -i res\img\HSTwinkle.png -t bin\gfx\Twinkle.bin -p bin\gfx\pal\Twinkle-Pal.bin
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\HSTwinkle.png -t bin\gfx\Twinkle.bin -p bin\gfx\pal\Twinkle-Pal.bin
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\SpiralGalaxy.png -t bin\gfx\SpiralGalaxy.bin -p bin\gfx\pal\SpiralGalaxy-Pal.bin
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -S -i res\img\ArrowSprite.png -t bin\gfx\Arrow.bin -p bin\gfx\pal\Arrow.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -S -i res\img\Stars.png -t bin\gfx\Stars.bin -p bin\gfx\pal\Stars.bin
@@ -50,8 +51,5 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\f
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Stars.png -t bin\gfx\Stars.bin -p bin\gfx\pal\StarsPal.bin -v
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\PlanetSprites.png -t bin\gfx\PlanetSprites.bin -p bin\gfx\pal\PlanetSprites.bin -v
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -W 16 -H 16 -i res\img\Invaders.png -t bin\gfx\Invaders.bin -p bin\gfx\pal\InvadersPal.bin --palette-base-offset 1 --no-remap
-
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 8 --mode snes_mode7 -i res\img\Bgs\Mode7\Galaxy.png -t bin\gfx\Galaxy.bin -p bin\gfx\pal\Galaxy-Pal.bin
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe map --mode snes_mode7 -i res\img\Bgs\Mode7\Galaxy.png -t bin\gfx\Galaxy.bin -p bin\gfx\pal\Galaxy-Pal.bin --out-m7-data bin\gfx\GalaxyOut.bin
 
 C:\Users\david\Documents\Tools\ASAR-Assembler\asar.exe --no-title-check --symbols=wla --symbols-path=BoredAliens.sym Main.asm BoredAliens.sfc
