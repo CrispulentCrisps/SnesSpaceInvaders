@@ -57,9 +57,10 @@ endstruct
 !GfxBank3 =     $038000 ;Holds GFX data
 !GfxBank4 =     $048000 ;Holds GFX data
 !GfxBank5 =     $058000 ;Holds GFX data
-!TilemapBank =  $068000 ;Holds tilemap
-!MusicBank =    $078000 ;Holds music data
-!MusicBank2 =   $088000 ;Holds music data
+!TilemapBank2 = $068000 ;Holds tilemap
+!TilemapBank =  $078000 ;Holds tilemap
+!MusicBank =    $088000 ;Holds music data
+!MusicBank2 =   $098000 ;Holds music data
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -282,15 +283,34 @@ SpiralGalX =        $1400   ;64 word values
 SpiralGalY =        $1480   ;64 byte values
 SpiralGalZ =        $1580   ;64 byte values
 SpiralTimer =       $1600   ;64 Timer values
-SpiralGalScale =    $1700   ;1 byte scaling factor
+SpiralXScale =      $1700   ;1 byte scaling factor X
+SpiralYScale =      $1701   ;1 byte scaling factor Y
+BHoleFrame =        $1702   ;1 byte frame index for black hole
+BHoleTimer =        $1703   ;1 byte timer value for black hole
 
 !SpiralArmCount =   $05
-!SpiralArmOffset =  $02
-!SpiralBCount =     $1E
-!SpiralWCount =     (!SpiralBCount*2)+1
+!SpiralArmOffset =  $04
+!SpiralBCount =     ((!SpiralArmCount*$05)-1)
+!SpiralWCount =     (!SpiralBCount*2)
 !SpiralGalAttr =    $20
-!CX =               $007F
-!CY =               $70
+!CX =               $0078
+!CY =               $A0
+
+!BHoleX1 =          $80
+!BHoleY =           $9A
+!BHoleX2 =          !BHoleX1-$10
+
+!BHoleT1 =          $30
+!BHoleT2 =          $34
+!BHoleT3 =          $38
+!BHoleT4 =          $3C
+!BHoleT5 =          $50
+!BHoleT6 =          $54
+!BHoleT7 =          $58
+!BHoleT8 =          $5C
+
+!BHoleAttr1 =        $7E
+!BHoleAttr2 =        $3E
 
 !SpiralGalAttrP0 =  $20
 !SpiralGalAttrP1 =  $30
@@ -414,10 +434,10 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !PlanetsAttr =      $06
 !PlanetsHiAttr =    $36
 
-!HTextNormal =      $3000
-!HText3rd =         $3400
-!HText2nd =         $3800
-!HText1st =         $3C00
+!HTextNormal =      $2000
+!HText3rd =         $2400
+!HText2nd =         $2800
+!HText1st =         $2C00
 
 !SprVram =          $4000
 !Spr2Vram =         $5000 ;Second sprite table

@@ -110,6 +110,8 @@ OptionsSpr:
     incbin "bin/gfx/PlanetSprites.bin"
 OptionsSprEnd:
 
+org !GfxBank3
+
 HScoreBG:
     incbin "bin/gfx/HScoreFont.bin"
     incbin "bin/gfx/HighscoreL1.bin"
@@ -119,9 +121,9 @@ HScoreBGEnd:
 HScoreSpr:
     incbin "bin/gfx/Twinkle.bin"
     incbin "bin/gfx/SpiralGalaxy.bin"
+    incbin "bin/gfx/SpiralGalaxyCore.bin"
 HScoreSprEnd:
 
-org !GfxBank3
 
 org !GfxBank4
 
@@ -204,6 +206,8 @@ HScoreBG_TM:
 HScoreBG_TM_2:
     incbin "bin/gfx/tilemap/HighscoreL2.bin"
 HScoreBG_TM_End:
+
+org !TilemapBank2
 
 GameOverTM:
     incbin "bin/gfx/tilemap/GameOverL1.bin"
@@ -336,10 +340,10 @@ ArrowSpr_Pal:
 ArrowSpr_Pal_End:
 
 HScoreBGL1_Pal:
-    incbin "bin/gfx/pal/HighscoreL1.bin"
+    incbin "bin/gfx/pal/HighscoreL1Pal.bin"
 HScoreBGL1_Pal_End:
 HScoreBGL2_Pal:
-    incbin "bin/gfx/pal/HighscoreL2.bin"
+    incbin "bin/gfx/pal/HighscoreL2Pal.bin"
 HScoreBGL2_Pal_End:
 HScoreTextPal:
     incbin "bin/gfx/pal/HScoreFont-Pal.bin"
@@ -347,6 +351,9 @@ HScoreTextPalEnd:
 TwinklePal:
     incbin "bin/gfx/pal/Twinkle-Pal.bin"
 TwinklePalEnd:
+SpiralBlackHole:
+    incbin "bin/gfx/pal/SpiralGalaxyCore-Pal.bin"
+SpiralBlackHoleEnd:
 
 GameOverPal:
     incbin "bin/gfx/pal/GameOverL1Pal.bin"
@@ -4718,7 +4725,7 @@ HighscoreScene:
     lda.b #$18
     sta.w HW_BBAD7
 
-    ldx.w #!SprVram
+    ldx.w #$0000
     stx.w HW_VMADDL
     ;Load BG characters
     lda.b #$18
@@ -4784,16 +4791,20 @@ HighscoreScene:
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 7
 
-    ldy.w #HScoreBGL2_Pal_End-HScoreBGL2_Pal
+    ldy.w #HScoreBGL1_Pal_End-HScoreBGL1_Pal
     -
     lda.w HScoreTextPal, Y
-    sta.w PalMirror+$20, Y
+    sta.w PalMirror, Y
     lda.w HScoreBGL1_Pal, Y
-    sta.w PalMirror+$00A0, Y
+    sta.w PalMirror+$20, Y
+    lda.w HScoreBGL2_Pal, Y
+    sta.w PalMirror+$40, Y
     lda.w HScoreBGL2_Pal, Y
     sta.w PalMirror+$00C0, Y
-    lda.w TwinklePal, Y
+    lda.w SpiralBlackHole, Y
     sta.w PalMirror+$01E0, Y
+    lda.w TwinklePal, Y
+    sta.w PalMirror+$01C0, Y
     lda.w HScoreSpr_Pal, Y
     sta.w PalMirror+$0100, Y
     dey
@@ -4895,7 +4906,7 @@ HighscoreScene:
     rep #$20
     
     tdc
-    ldx.w #$4444
+    ldx.w #$0000
     stx.w HW_BG12NBA
     stx.w HW_BG34NBA
     sep #$20
@@ -4945,7 +4956,65 @@ HighscoreScene:
 
 
     ;Update sine ptrs
-    inc.w SpiralGalScale
+    sep #$20
+    tdc
+    inc.w BGScrollOff
+    lda.w BGScrollOff
+    bit.b #$08
+    beq +
+    ldy.w #$01E2
+    tdc
+    lda.b #$0A
+    sta.b ZP.R4
+    jsr PalCycle
+    stz.w BGScrollOff
+    +
+
+    inc.w BGScrollOff+1
+    lda.w BGScrollOff+1
+    bit.b #$08
+    beq +
+    ;Cycle BG
+    ldy.w #$0042
+    tdc
+    lda.b #$0E
+    sta.b ZP.R4
+    jsr PalCycle
+    stz.w BGScrollOff+1
+    inc.w BG2HOffMirror
+    +
+    
+    inc.w BGScrollOff+3
+    lda.w BGScrollOff+3
+    bit.b #$04
+    beq +
+    ;Cycle Stars
+    ldy.w #$0022
+    tdc
+    lda.b #$0E
+    sta.b ZP.R4
+    jsr PalCycle
+    stz.w BGScrollOff+3
+    +
+
+    ;Black hole Animation
+    inc.w BHoleTimer
+    lda.w BHoleTimer
+    cmp.b #$06
+    bne +
+    lda.w BHoleFrame
+    inc
+    cmp.b #$20
+    bne ++
+    lda.b #$00
+    ++
+    sta.w BHoleFrame
+    stz.w BHoleTimer
+    inc.w BG1HOffMirror
+    inc.w BG1VOffMirror
+    +
+
+    inc.w SinePtr
     ldy.w #$0000
     sep #$10
     ldy.b #!SpiralBCount
@@ -4964,32 +5033,32 @@ HighscoreScene:
     ldx.b #!SpiralWCount
     rep #$10
     -
-    sep #$20
+    rep #$20
+    lda.w GalRingSinePtr, X
+    sta.b ZP.MemPointer2
     tdc
+    sep #$20
     lda.b (ZP.MemPointer)
     rep #$20
     asl
     tay
-    lda.w Sin16Sign, Y
-    sep #$20
-    sta.w HW_M7A
-    xba
-    sta.w HW_M7A
-    tdc
-    txa
-    lsr
-    tay
-    lda.w SpiralScale, Y
-    sta.w HW_M7B
-    rep #$20
-    lda.w HW_MPYL
-    lsr
-    lsr
-    lsr
+    lda.b (ZP.MemPointer2), Y
+    ;sta.w HW_M7A
+    ;stz.w HW_M7A
+    ;tdc
+    ;txa
+    ;lsr
+    ;tay
+    ;lda.w SpiralScale, Y
+    ;sta.w HW_M7B
+    ;rep #$20
+    ;lda.w HW_MPYL
+    ;lsr
+    ;lsr
+    ;lsr
+    ;lsr
     clc
     adc.w #!CX
-    ;clc
-    ;adc.w SpiralPosOffWord-1, X
     sta.w SpiralGalX, X
     dec.b ZP.MemPointer
     dex
@@ -5001,21 +5070,38 @@ HighscoreScene:
     stx.b ZP.MemPointer
     sep #$30
     ldy.b #!SpiralBCount
+    rep #$30
     -
-    lda.b (ZP.MemPointer)
+    tya
+    asl
     tax
-    lda.w Cos8Sign, X
-    sta.w HW_M7A
-    stz.w HW_M7A
-    lda.w SpiralScale, Y
-    sta.w HW_M7B
     rep #$20
-    lda.w HW_MPYL
-    lsr
-    lsr
-    lsr
-    lsr
+    lda.w GalRingSinePtr, X
+    sta.b ZP.MemPointer2
+    tdc
     sep #$20
+    lda.b (ZP.MemPointer)
+    adc.b #$40
+    rep #$20
+    asl
+    phy
+    tay
+    lda.b (ZP.MemPointer2), Y
+    lsr
+    and.w #$00FF
+    ply
+    sep #$20
+    ;sta.w HW_M7A
+    ;stz.w HW_M7A
+    ;lda.w SpiralScale, Y
+    ;sta.w HW_M7B
+    ;rep #$20
+    ;lda.w HW_MPYL
+    ;lsr
+    ;lsr
+    ;lsr
+    ;lsr
+    ;sep #$20
     clc
     adc.b #!CY
     sta.w SpiralGalY, Y
@@ -5035,11 +5121,50 @@ HighscoreScene:
     sep #$20
     dey
     bpl -
-    sep #$20
+    sep #$30
 
     ldy.b #!SpiralBCount
     ldx.b #!SpiralWCount
+    lda.b #!SpiralBCount/2
+    sta.w ZP.R0
+    rep #$10
     .SpiralLoop:
+    sep #$20
+    lda.b ZP.R0
+    bne .SkipBlackHole
+    phy
+    ldy.w #$0000
+    lda.w BHoleFrame
+    tay
+    lda.w BHoleXPos, Y
+    sta.b ZP.AddSprX
+    lda.b #!BHoleY
+    sta.b ZP.AddSprY
+    lda.w BHoleFrameTable, Y
+    sta.b ZP.AddSprTile
+    lda.w BHoleFrameAttr, Y
+    sta.b ZP.AddSprAttr
+    lda.b #$01
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    
+    lda.w BHoleXPos2, Y
+    sta.b ZP.AddSprX
+    lda.b #!BHoleY
+    sta.b ZP.AddSprY
+    lda.w BHoleFrameTable, Y
+    inc
+    inc
+    sta.b ZP.AddSprTile
+    lda.w BHoleFrameAttr, Y
+    sta.b ZP.AddSprAttr
+    lda.b #$01
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    
+    ply
+    .SkipBlackHole:
+    dec.b ZP.R0
     rep #$20
     lda.w SpiralGalX, X
     sta.b ZP.AddSprX
@@ -5055,7 +5180,7 @@ HighscoreScene:
     clc
     adc.b #$10
     sta.b ZP.AddSprTile
-    lda.w SpiralZPrio, Y
+    lda.b #!SpiralGalAttrP1
     sta.b ZP.AddSprAttr
     lda.b #$01
     sta.b ZP.AddSprBigFlag
@@ -5067,6 +5192,63 @@ HighscoreScene:
     bpl .SpiralLoop
 
     rep #$10
+    sep #$20
+    inc.w BGScrollOff+2
+    bit #$08
+    beq +
+    inc.w BGScrollVal+2
+    +
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    stx.w HW_WMADDH
+
+    ldy.w #$0000
+    ldx.w #$0000
+    sep #$10
+    lda.b #$FF
+    sta.w HW_WMDATA
+    ldx.b #$7F
+    ldy.b #$00
+    inc.w SinePtr2
+    lda.w SinePtr2
+    tay
+    .SquishLoop:
+    lda.w SineTable, Y
+    adc.w BGScrollVal+2
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    iny
+    dex
+    bne .SquishLoop
+
+    lda.b #$F0
+    sta.w HW_WMDATA
+    ldx.b #$70
+    .SquishLoop2:
+    ;tya
+    ;eor.b #$FF
+    ;tay
+    lda.w SineTable, Y
+    adc.w BGScrollVal+2
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    iny
+    dex
+    bne .SquishLoop2
+
+    stz.w HW_WMDATA
+
+    rep #$10
+    lda.b #$02
+    sta.w HDMAMirror2
+    lda.b #(HW_BG2VOFS)&$FF
+    sta.w HDMAMirror2+1
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HDMAMirror2+2
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HDMAMirror2+4
+
     lda.b #$01
     sta.w HDMAMirror3
     lda.b #(HW_WH0)&$FF
@@ -9243,34 +9425,141 @@ BG3StartY:
     db $1C
     db $19
 
-SpiralZPrio:
-    for t = 0..8
-        db !SpiralGalAttrP0
-    endfor
-    for t = 0..8
-        db !SpiralGalAttrP1
-    endfor
+BHoleFrameTable:
+    db !BHoleT8     ;Frame - 00
+    db !BHoleT7     ;Frame - 01
+    db !BHoleT6     ;Frame - 02
+    db !BHoleT5     ;Frame - 03
+    db !BHoleT4     ;Frame - 04
+    db !BHoleT3     ;Frame - 05
+    db !BHoleT2     ;Frame - 06
+    db !BHoleT1     ;Frame - 07
+    db !BHoleT1     ;Frame - 08
+    db !BHoleT1     ;Frame - 09
+    db !BHoleT1     ;Frame - 0A
+    db !BHoleT1     ;Frame - 0B
+    db !BHoleT1     ;Frame - 0C
+    db !BHoleT1     ;Frame - 0D
+    db !BHoleT1     ;Frame - 0E
+    db !BHoleT1     ;Frame - 0F
+    db !BHoleT1     ;Frame - 10
+    db !BHoleT1     ;Frame - 11
+    db !BHoleT1     ;Frame - 12
+    db !BHoleT1     ;Frame - 13
+    db !BHoleT1     ;Frame - 14
+    db !BHoleT1     ;Frame - 15
+    db !BHoleT1     ;Frame - 16
+    db !BHoleT1     ;Frame - 17
+    db !BHoleT1     ;Frame - 18
+    db !BHoleT2     ;Frame - 19
+    db !BHoleT3     ;Frame - 1A
+    db !BHoleT4     ;Frame - 1B
+    db !BHoleT5     ;Frame - 1C
+    db !BHoleT6     ;Frame - 1D
+    db !BHoleT7     ;Frame - 1E
+    db !BHoleT8     ;Frame - 1F
 
-SpiralScale:
-    for x = 0..(!SpiralBCount/!SpiralArmCount)
-        for y = 0..!SpiralArmCount
-        db (!x)+$01
-        endfor
-    endfor
-    
-SpiralPosOff:
-    for x = 0..(!SpiralBCount/!SpiralArmCount)
-        for y = 0..!SpiralArmCount
-        db $F8+(!y*$04)
-        endfor
-    endfor
+BHoleXPos:
+    db !BHoleX1     ;Frame - 00
+    db !BHoleX1     ;Frame - 01
+    db !BHoleX1     ;Frame - 02
+    db !BHoleX1     ;Frame - 03
+    db !BHoleX1     ;Frame - 04
+    db !BHoleX1     ;Frame - 05
+    db !BHoleX1     ;Frame - 06
+    db !BHoleX1     ;Frame - 07
+    db !BHoleX1     ;Frame - 08
+    db !BHoleX1     ;Frame - 09
+    db !BHoleX1     ;Frame - 0A
+    db !BHoleX1     ;Frame - 0B
+    db !BHoleX1     ;Frame - 0C
+    db !BHoleX1     ;Frame - 0D
+    db !BHoleX1     ;Frame - 0E
+    db !BHoleX1     ;Frame - 0F
+    db !BHoleX2     ;Frame - 10
+    db !BHoleX2     ;Frame - 11
+    db !BHoleX2     ;Frame - 12
+    db !BHoleX2     ;Frame - 13
+    db !BHoleX2     ;Frame - 14
+    db !BHoleX2     ;Frame - 15
+    db !BHoleX2     ;Frame - 16
+    db !BHoleX2     ;Frame - 17
+    db !BHoleX2     ;Frame - 18
+    db !BHoleX2     ;Frame - 19
+    db !BHoleX2     ;Frame - 1A
+    db !BHoleX2     ;Frame - 1B
+    db !BHoleX2     ;Frame - 1C
+    db !BHoleX2     ;Frame - 1D
+    db !BHoleX2     ;Frame - 1E
+    db !BHoleX2     ;Frame - 1F
 
-SpiralPosOffWord:
-    for x = 0..(!SpiralBCount/!SpiralArmCount)
-        for y = 0..!SpiralArmCount
-        dw $FFF8+(!y*$04)
-        endfor
-    endfor
+BHoleXPos2:
+    db !BHoleX2     ;Frame - 00
+    db !BHoleX2     ;Frame - 01
+    db !BHoleX2     ;Frame - 02
+    db !BHoleX2     ;Frame - 03
+    db !BHoleX2     ;Frame - 04
+    db !BHoleX2     ;Frame - 05
+    db !BHoleX2     ;Frame - 06
+    db !BHoleX2     ;Frame - 07
+    db !BHoleX2     ;Frame - 08
+    db !BHoleX2     ;Frame - 09
+    db !BHoleX2     ;Frame - 0A
+    db !BHoleX2     ;Frame - 0B
+    db !BHoleX2     ;Frame - 0C
+    db !BHoleX2     ;Frame - 0D
+    db !BHoleX2     ;Frame - 0E
+    db !BHoleX2     ;Frame - 0F
+    db !BHoleX1     ;Frame - 10
+    db !BHoleX1     ;Frame - 11
+    db !BHoleX1     ;Frame - 12
+    db !BHoleX1     ;Frame - 13
+    db !BHoleX1     ;Frame - 14
+    db !BHoleX1     ;Frame - 15
+    db !BHoleX1     ;Frame - 16
+    db !BHoleX1     ;Frame - 17
+    db !BHoleX1     ;Frame - 18
+    db !BHoleX1     ;Frame - 19
+    db !BHoleX1     ;Frame - 1A
+    db !BHoleX1     ;Frame - 1B
+    db !BHoleX1     ;Frame - 1C
+    db !BHoleX1     ;Frame - 1D
+    db !BHoleX1     ;Frame - 1E
+    db !BHoleX1     ;Frame - 1F
+
+BHoleFrameAttr:
+    db !BHoleAttr1  ;Frame - 00
+    db !BHoleAttr1  ;Frame - 01
+    db !BHoleAttr1  ;Frame - 02
+    db !BHoleAttr1  ;Frame - 03
+    db !BHoleAttr1  ;Frame - 04
+    db !BHoleAttr1  ;Frame - 05
+    db !BHoleAttr1  ;Frame - 06
+    db !BHoleAttr1  ;Frame - 07
+    db !BHoleAttr1  ;Frame - 08
+    db !BHoleAttr1  ;Frame - 09
+    db !BHoleAttr1  ;Frame - 0A
+    db !BHoleAttr1  ;Frame - 0B
+    db !BHoleAttr1  ;Frame - 0C
+    db !BHoleAttr1  ;Frame - 0D
+    db !BHoleAttr1  ;Frame - 0E
+    db !BHoleAttr1  ;Frame - 0F
+    db !BHoleAttr2  ;Frame - 10
+    db !BHoleAttr2  ;Frame - 11
+    db !BHoleAttr2  ;Frame - 12
+    db !BHoleAttr2  ;Frame - 13
+    db !BHoleAttr2  ;Frame - 14
+    db !BHoleAttr2  ;Frame - 15
+    db !BHoleAttr2  ;Frame - 16
+    db !BHoleAttr2  ;Frame - 17
+    db !BHoleAttr2  ;Frame - 18
+    db !BHoleAttr2  ;Frame - 19
+    db !BHoleAttr2  ;Frame - 1A
+    db !BHoleAttr2  ;Frame - 1B
+    db !BHoleAttr2  ;Frame - 1C
+    db !BHoleAttr2  ;Frame - 1D
+    db !BHoleAttr2  ;Frame - 1E
+    db !BHoleAttr2  ;Frame - 1F
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
@@ -9406,7 +9695,185 @@ dw $0074,$0075,$0076,$0077,$0079,$007A,$007A
 dw $007B,$007C,$007D,$007E,$007E,$007F,$007F
 dw $007F,$0080,$0080,$0080
 
-Sin16Sign:
+GalRingSinePtr:
+    for t = 0..!SpiralArmCount
+        dw GalRingX0
+    endfor
+    for t = 0..!SpiralArmCount
+        dw GalRingX1
+    endfor
+    for t = 0..!SpiralArmCount
+        dw GalRingX2
+    endfor
+    for t = 0..!SpiralArmCount
+        dw GalRingX3
+    endfor
+    for t = 0..!SpiralArmCount
+        dw GalRingX4
+    endfor
+
+;Amp = 24
+GalRingX0:
+dw $0000,$0001,$0001,$0002,$0002,$0003,$0004
+dw $0004,$0005,$0005,$0006,$0006,$0007,$0008
+dw $0008,$0009,$0009,$000A,$000A,$000B,$000B
+dw $000C,$000C,$000D,$000D,$000E,$000E,$000F
+dw $000F,$0010,$0010,$0011,$0011,$0011,$0012
+dw $0012,$0013,$0013,$0013,$0014,$0014,$0014
+dw $0015,$0015,$0015,$0015,$0016,$0016,$0016
+dw $0016,$0017,$0017,$0017,$0017,$0017,$0017
+dw $0018,$0018,$0018,$0018,$0018,$0018,$0018
+dw $0018,$0018,$0018,$0018,$0018,$0018,$0018
+dw $0018,$0018,$0018,$0017,$0017,$0017,$0017
+dw $0017,$0017,$0016,$0016,$0016,$0016,$0015
+dw $0015,$0015,$0015,$0014,$0014,$0014,$0013
+dw $0013,$0013,$0012,$0012,$0011,$0011,$0011
+dw $0010,$0010,$000F,$000F,$000E,$000E,$000D
+dw $000D,$000C,$000C,$000B,$000B,$000A,$000A
+dw $0009,$0009,$0008,$0008,$0007,$0006,$0006
+dw $0005,$0005,$0004,$0004,$0003,$0002,$0002
+dw $0001,$0001,$0000,$FFFF,$FFFF,$FFFE,$FFFE
+dw $FFFD,$FFFC,$FFFC,$FFFB,$FFFB,$FFFA,$FFFA
+dw $FFF9,$FFF8,$FFF8,$FFF7,$FFF7,$FFF6,$FFF6
+dw $FFF5,$FFF5,$FFF4,$FFF4,$FFF3,$FFF3,$FFF2
+dw $FFF2,$FFF1,$FFF1,$FFF0,$FFF0,$FFEF,$FFEF
+dw $FFEF,$FFEE,$FFEE,$FFED,$FFED,$FFED,$FFEC
+dw $FFEC,$FFEC,$FFEB,$FFEB,$FFEB,$FFEB,$FFEA
+dw $FFEA,$FFEA,$FFEA,$FFE9,$FFE9,$FFE9,$FFE9
+dw $FFE9,$FFE9,$FFE8,$FFE8,$FFE8,$FFE8,$FFE8
+dw $FFE8,$FFE8,$FFE8,$FFE8,$FFE8,$FFE8,$FFE8
+dw $FFE8,$FFE8,$FFE8,$FFE8,$FFE8,$FFE9,$FFE9
+dw $FFE9,$FFE9,$FFE9,$FFE9,$FFEA,$FFEA,$FFEA
+dw $FFEA,$FFEB,$FFEB,$FFEB,$FFEB,$FFEC,$FFEC
+dw $FFEC,$FFED,$FFED,$FFED,$FFEE,$FFEE,$FFEF
+dw $FFEF,$FFEF,$FFF0,$FFF0,$FFF1,$FFF1,$FFF2
+dw $FFF2,$FFF3,$FFF3,$FFF4,$FFF4,$FFF5,$FFF5
+dw $FFF6,$FFF6,$FFF7,$FFF7,$FFF8,$FFF8,$FFF9
+dw $FFFA,$FFFA,$FFFB,$FFFB,$FFFC,$FFFC,$FFFD
+dw $FFFE,$FFFE,$FFFF,$FFFF
+
+;Amp = 48
+GalRingX1:
+dw $0000,$0001,$0002,$0004,$0005,$0006,$0007
+dw $0008,$0009,$000B,$000C,$000D,$000E,$000F
+dw $0010,$0011,$0012,$0013,$0015,$0016,$0017
+dw $0018,$0019,$001A,$001B,$001C,$001D,$001E
+dw $001E,$001F,$0020,$0021,$0022,$0023,$0024
+dw $0024,$0025,$0026,$0027,$0027,$0028,$0029
+dw $0029,$002A,$002A,$002B,$002B,$002C,$002C
+dw $002D,$002D,$002E,$002E,$002E,$002F,$002F
+dw $002F,$002F,$002F,$0030,$0030,$0030,$0030
+dw $0030,$0030,$0030,$0030,$0030,$0030,$0030
+dw $002F,$002F,$002F,$002F,$002F,$002E,$002E
+dw $002E,$002D,$002D,$002C,$002C,$002B,$002B
+dw $002A,$002A,$0029,$0029,$0028,$0027,$0027
+dw $0026,$0025,$0024,$0024,$0023,$0022,$0021
+dw $0020,$001F,$001E,$001E,$001D,$001C,$001B
+dw $001A,$0019,$0018,$0017,$0016,$0015,$0013
+dw $0012,$0011,$0010,$000F,$000E,$000D,$000C
+dw $000B,$0009,$0008,$0007,$0006,$0005,$0004
+dw $0002,$0001,$0000,$FFFF,$FFFE,$FFFC,$FFFB
+dw $FFFA,$FFF9,$FFF8,$FFF7,$FFF5,$FFF4,$FFF3
+dw $FFF2,$FFF1,$FFF0,$FFEF,$FFEE,$FFED,$FFEB
+dw $FFEA,$FFE9,$FFE8,$FFE7,$FFE6,$FFE5,$FFE4
+dw $FFE3,$FFE2,$FFE2,$FFE1,$FFE0,$FFDF,$FFDE
+dw $FFDD,$FFDC,$FFDC,$FFDB,$FFDA,$FFD9,$FFD9
+dw $FFD8,$FFD7,$FFD7,$FFD6,$FFD6,$FFD5,$FFD5
+dw $FFD4,$FFD4,$FFD3,$FFD3,$FFD2,$FFD2,$FFD2
+dw $FFD1,$FFD1,$FFD1,$FFD1,$FFD1,$FFD0,$FFD0
+dw $FFD0,$FFD0,$FFD0,$FFD0,$FFD0,$FFD0,$FFD0
+dw $FFD0,$FFD0,$FFD1,$FFD1,$FFD1,$FFD1,$FFD1
+dw $FFD2,$FFD2,$FFD2,$FFD3,$FFD3,$FFD4,$FFD4
+dw $FFD5,$FFD5,$FFD6,$FFD6,$FFD7,$FFD7,$FFD8
+dw $FFD9,$FFD9,$FFDA,$FFDB,$FFDC,$FFDC,$FFDD
+dw $FFDE,$FFDF,$FFE0,$FFE1,$FFE2,$FFE2,$FFE3
+dw $FFE4,$FFE5,$FFE6,$FFE7,$FFE8,$FFE9,$FFEA
+dw $FFEB,$FFED,$FFEE,$FFEF,$FFF0,$FFF1,$FFF2
+dw $FFF3,$FFF4,$FFF5,$FFF7,$FFF8,$FFF9,$FFFA
+dw $FFFB,$FFFC,$FFFE,$FFFF
+
+;Amp = 64
+GalRingX2:
+dw $0000,$0002,$0003,$0005,$0006,$0008,$0009
+dw $000B,$000C,$000E,$0010,$0011,$0013,$0014
+dw $0016,$0017,$0018,$001A,$001B,$001D,$001E
+dw $0020,$0021,$0022,$0024,$0025,$0026,$0027
+dw $0029,$002A,$002B,$002C,$002D,$002E,$002F
+dw $0030,$0031,$0032,$0033,$0034,$0035,$0036
+dw $0037,$0038,$0038,$0039,$003A,$003B,$003B
+dw $003C,$003C,$003D,$003D,$003E,$003E,$003E
+dw $003F,$003F,$003F,$0040,$0040,$0040,$0040
+dw $0040,$0040,$0040,$0040,$0040,$0040,$0040
+dw $003F,$003F,$003F,$003E,$003E,$003E,$003D
+dw $003D,$003C,$003C,$003B,$003B,$003A,$0039
+dw $0038,$0038,$0037,$0036,$0035,$0034,$0033
+dw $0032,$0031,$0030,$002F,$002E,$002D,$002C
+dw $002B,$002A,$0029,$0027,$0026,$0025,$0024
+dw $0022,$0021,$0020,$001E,$001D,$001B,$001A
+dw $0018,$0017,$0016,$0014,$0013,$0011,$0010
+dw $000E,$000C,$000B,$0009,$0008,$0006,$0005
+dw $0003,$0002,$0000,$FFFE,$FFFD,$FFFB,$FFFA
+dw $FFF8,$FFF7,$FFF5,$FFF4,$FFF2,$FFF0,$FFEF
+dw $FFED,$FFEC,$FFEA,$FFE9,$FFE8,$FFE6,$FFE5
+dw $FFE3,$FFE2,$FFE0,$FFDF,$FFDE,$FFDC,$FFDB
+dw $FFDA,$FFD9,$FFD7,$FFD6,$FFD5,$FFD4,$FFD3
+dw $FFD2,$FFD1,$FFD0,$FFCF,$FFCE,$FFCD,$FFCC
+dw $FFCB,$FFCA,$FFC9,$FFC8,$FFC8,$FFC7,$FFC6
+dw $FFC5,$FFC5,$FFC4,$FFC4,$FFC3,$FFC3,$FFC2
+dw $FFC2,$FFC2,$FFC1,$FFC1,$FFC1,$FFC0,$FFC0
+dw $FFC0,$FFC0,$FFC0,$FFC0,$FFC0,$FFC0,$FFC0
+dw $FFC0,$FFC0,$FFC1,$FFC1,$FFC1,$FFC2,$FFC2
+dw $FFC2,$FFC3,$FFC3,$FFC4,$FFC4,$FFC5,$FFC5
+dw $FFC6,$FFC7,$FFC8,$FFC8,$FFC9,$FFCA,$FFCB
+dw $FFCC,$FFCD,$FFCE,$FFCF,$FFD0,$FFD1,$FFD2
+dw $FFD3,$FFD4,$FFD5,$FFD6,$FFD7,$FFD9,$FFDA
+dw $FFDB,$FFDC,$FFDE,$FFDF,$FFE0,$FFE2,$FFE3
+dw $FFE5,$FFE6,$FFE8,$FFE9,$FFEA,$FFEC,$FFED
+dw $FFEF,$FFF0,$FFF2,$FFF4,$FFF5,$FFF7,$FFF8
+dw $FFFA,$FFFB,$FFFD,$FFFE
+
+;Amp = 96
+GalRingX3:
+dw $0000,$0002,$0005,$0007,$0009,$000C,$000E
+dw $0010,$0013,$0015,$0017,$001A,$001C,$001E
+dw $0020,$0023,$0025,$0027,$0029,$002B,$002D
+dw $002F,$0031,$0033,$0035,$0037,$0039,$003B
+dw $003D,$003F,$0040,$0042,$0044,$0046,$0047
+dw $0049,$004A,$004C,$004D,$004E,$0050,$0051
+dw $0052,$0054,$0055,$0056,$0057,$0058,$0059
+dw $005A,$005A,$005B,$005C,$005D,$005D,$005E
+dw $005E,$005F,$005F,$005F,$0060,$0060,$0060
+dw $0060,$0060,$0060,$0060,$0060,$0060,$005F
+dw $005F,$005F,$005E,$005E,$005D,$005D,$005C
+dw $005B,$005A,$005A,$0059,$0058,$0057,$0056
+dw $0055,$0054,$0052,$0051,$0050,$004E,$004D
+dw $004C,$004A,$0049,$0047,$0046,$0044,$0042
+dw $0040,$003F,$003D,$003B,$0039,$0037,$0035
+dw $0033,$0031,$002F,$002D,$002B,$0029,$0027
+dw $0025,$0023,$0020,$001E,$001C,$001A,$0017
+dw $0015,$0013,$0010,$000E,$000C,$0009,$0007
+dw $0005,$0002,$0000,$FFFE,$FFFB,$FFF9,$FFF7
+dw $FFF4,$FFF2,$FFF0,$FFED,$FFEB,$FFE9,$FFE6
+dw $FFE4,$FFE2,$FFE0,$FFDD,$FFDB,$FFD9,$FFD7
+dw $FFD5,$FFD3,$FFD1,$FFCF,$FFCD,$FFCB,$FFC9
+dw $FFC7,$FFC5,$FFC3,$FFC1,$FFC0,$FFBE,$FFBC
+dw $FFBA,$FFB9,$FFB7,$FFB6,$FFB4,$FFB3,$FFB2
+dw $FFB0,$FFAF,$FFAE,$FFAC,$FFAB,$FFAA,$FFA9
+dw $FFA8,$FFA7,$FFA6,$FFA6,$FFA5,$FFA4,$FFA3
+dw $FFA3,$FFA2,$FFA2,$FFA1,$FFA1,$FFA1,$FFA0
+dw $FFA0,$FFA0,$FFA0,$FFA0,$FFA0,$FFA0,$FFA0
+dw $FFA0,$FFA1,$FFA1,$FFA1,$FFA2,$FFA2,$FFA3
+dw $FFA3,$FFA4,$FFA5,$FFA6,$FFA6,$FFA7,$FFA8
+dw $FFA9,$FFAA,$FFAB,$FFAC,$FFAE,$FFAF,$FFB0
+dw $FFB2,$FFB3,$FFB4,$FFB6,$FFB7,$FFB9,$FFBA
+dw $FFBC,$FFBE,$FFC0,$FFC1,$FFC3,$FFC5,$FFC7
+dw $FFC9,$FFCB,$FFCD,$FFCF,$FFD1,$FFD3,$FFD5
+dw $FFD7,$FFD9,$FFDB,$FFDD,$FFE0,$FFE2,$FFE4
+dw $FFE6,$FFE9,$FFEB,$FFED,$FFF0,$FFF2,$FFF4
+dw $FFF7,$FFF9,$FFFB,$FFFE
+
+;Amp = 128
+GalRingX4:
 dw $0000,$0003,$0006,$0009,$000D,$0010,$0013
 dw $0016,$0019,$001C,$001F,$0022,$0025,$0028
 dw $002B,$002E,$0031,$0034,$0037,$003A,$003C
