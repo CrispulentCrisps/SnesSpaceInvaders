@@ -122,15 +122,22 @@ HScoreSpr:
     incbin "bin/gfx/Twinkle.bin"
     incbin "bin/gfx/SpiralGalaxy.bin"
     incbin "bin/gfx/SpiralGalaxyCore.bin"
+    incbin "bin/gfx/HScoreCursor.bin"
 HScoreSprEnd:
-
 
 org !GfxBank4
 
-BG6:
+BG6Gfx:
     incbin "bin/gfx/BG-6-L2.bin"
     incbin "bin/gfx/BG-6-L3.bin"
-BG6End:
+BG6GfxEnd:
+
+BG7Gfx:
+    incbin "bin/gfx/BG-7-L2.bin"
+BG7GfxEnd:
+BG7Gfx_L3:
+    incbin "bin/gfx/BG-7-L3.bin"
+BG7Gfx_L3End:
 
 StageTextSpr:
     incbin "bin/gfx/StageText.bin"
@@ -189,6 +196,11 @@ BG6_TM:
     incbin "bin/gfx/tilemap/BG-6-L3.bin"
 BG6_TM_End:
 
+BG7_TM:
+    incbin "bin/gfx/tilemap/BG-7-L2.bin"
+    incbin "bin/gfx/tilemap/BG-7-L3.bin"
+BG7_TM_End:
+
 Title_TM:
     incbin "bin/gfx/tilemap/Title-BG-L1.bin"
 Title1_TM_End:
@@ -201,13 +213,13 @@ Options_TM_End:
     incbin "bin/gfx/tilemap/OptionsBG2.bin"
 Options2_TM_End:
 
+org !TilemapBank2
+
 HScoreBG_TM:
     incbin "bin/gfx/tilemap/HighscoreL1.bin"
 HScoreBG_TM_2:
     incbin "bin/gfx/tilemap/HighscoreL2.bin"
 HScoreBG_TM_End:
-
-org !TilemapBank2
 
 GameOverTM:
     incbin "bin/gfx/tilemap/GameOverL1.bin"
@@ -311,6 +323,13 @@ BG6_L3_Pal:
     incbin "bin/gfx/pal/BG-6-L3-Pal.bin"
 BG6_L3_Pal_End:
 
+BG7_L2_Pal:
+    incbin "bin/gfx/pal/BG-7-L2-Pal.bin"
+BG7_L2_Pal_End:
+BG7_L3_Pal:
+    incbin "bin/gfx/pal/BG-7-L3-Pal.bin"
+BG7_L3_Pal_End:
+
 Surfboard_Pal:
     incbin "bin/gfx/pal/Surfboard-Pal.bin"
 Surfboard_Pal_End:
@@ -409,7 +428,7 @@ Reset:
     sta.w RNGSeed+1
     lda.b #$01
     sta.w HW_MDMAEN
-
+    
     ;Reset PPU registers
     lda.b #$00
     ldy.w #$211F
@@ -540,6 +559,13 @@ Reset:
     sta.w HW_OAMADDL
     sep #$20
 
+	ldx.w #HighscoreValuesInitEnd-HighscoreValuesInit
+	-
+	lda.w HighscoreValuesInit, X
+	sta.w HScoreEntries, X
+	dex
+	bpl -
+
     stz.b ZP.R0
     stz.b ZP.R1
     stz.b ZP.R2
@@ -558,7 +584,7 @@ Reset:
 
     lda.b #$00
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$00
+    lda.b #$06
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -640,6 +666,7 @@ NMIHandler:
     ;------------------;
     ;   OAM Transfer   ;
     ;------------------;
+
     ldx.w #OAMCopy
     stx.w HW_OAMADDL
     sep #%00100000
@@ -1247,6 +1274,8 @@ GameScene:
     stz.w HW_MDMAEN
     jsr TransitionIn
     
+	jsr ClearL1Vram
+
     lda.b #$02
     sta.w HW_OBSEL
 
@@ -4741,7 +4770,7 @@ HighscoreScene:
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 7
     
-    ldx.w #!HSSprVram-$10
+    ldx.w #!SprVram
     stx.w HW_VMADDL
     ;Load BG characters
     lda.b #$18
@@ -4822,81 +4851,15 @@ HighscoreScene:
     sta.w HW_VMDATAL
     iny
     iny
-    cpy #HighscoreUnderline-HighscoreHeader
+    cpy.w #HighscoreUnderline-HighscoreHeader
     bne -
+	
+	stz.w HScorePlace
+    stz.w HScoreTextCursor
+	
+    jsr Highscore_EvaluatePlayerScorePosition
+	jsr Highscore_ConstructHighscore
 
-    sep #$20
-    ldx.w #L3Ram+$63
-    stx.w HW_VMADDL
-    ldx.w #$0000
-    ldy.w #$0000
-    rep #$20
-    -
-    lda.w #!HText1st
-    ora.w HighscoreUnderline, Y
-    sta.w HW_VMDATAL
-    iny
-    iny
-    cpy #HighscoreText-HighscoreUnderline
-    bne -
-
-    stz.w WH0Mirror
-    stz.w WH1Mirror
-    sep #$20
-    ldx.w #L3Ram+$C3
-    stx.w HW_VMADDL
-    ldx.w #$0000
-    ldy.w #$0000
-    lda.b #$03
-    sta.b ZP.R0
-    rep #$20
-    -
-    lda.b ZP.R0
-    and.w #$00FF
-    asl
-    asl
-    xba
-    clc
-    adc.w #!HTextNormal
-    ora.w HighscoreText, Y
-    sta.w HW_VMDATAL
-    inx
-    cpx.w #$0018
-    bne +
-    sep #$20
-    lda.b ZP.R0
-    beq ++
-    rep #$20
-    lda.b ZP.R0
-    and.w #$00FF
-    asl
-    tax
-    asl
-    xba
-    adc.w #!HTextNormal
-    ora.w TrophyChar, X
-    sta.w HW_VMDATAL
-    stz.w HW_VMDATAL
-    dec.b ZP.R0
-    bra .FillEmpty
-    ++
-    rep #$20
-    stz.w HW_VMDATAL
-    stz.w HW_VMDATAL
-    .FillEmpty:
-    rep #$20
-    stz.w HW_VMDATAL
-    stz.w HW_VMDATAL
-    stz.w HW_VMDATAL
-    stz.w HW_VMDATAL
-    stz.w HW_VMDATAL
-    stz.w HW_VMDATAL
-    ldx.w #$0000
-    +
-    iny
-    iny
-    cpy #HighscoreTextEnd-HighscoreText
-    bne -
 
     sep #$20
     lda.b #$FF
@@ -4906,11 +4869,8 @@ HighscoreScene:
     rep #$20
     
     tdc
-    ldx.w #$0000
-    stx.w HW_BG12NBA
-    stx.w HW_BG34NBA
     sep #$20
-    lda.b #$03
+    lda.b #$02
     sta.w HW_OBSEL
 
     sep #$20
@@ -4954,6 +4914,11 @@ HighscoreScene:
     ;sta.w M7DMirror
     ;sta.w M7AMirror
 
+	lda.w HScorePlace
+	cmp.b #$0A
+	beq +
+    jsr Highscore_HandleEntryInput
+	+
 
     ;Update sine ptrs
     sep #$20
@@ -5310,6 +5275,466 @@ HighscoreScene:
     sta.b ZP.ChangeScene
     +
     rep #$20
+    rts
+
+Highscore_HandleEntryInput:
+    pha
+    phx
+    phy
+    php
+	sep #$20
+
+    lda.b ZP.InputFlag
+    beq +
+	jmp .SkipSelect
+	+ 
+	
+	lda.b ZP.Controller+1
+    and.b #$08                    ;Check Down
+	beq .SkipDown
+	lda.b #$01
+    sta.b ZP.InputFlag
+	lda.w HScoreCursorChar
+	inc
+	sta.w HScoreCursorChar
+	cmp.b #!HScoreCursorMax
+	bmi +
+	lda.b #$00
+	+
+	sta.w HScoreCursorChar
+	.SkipDown:
+
+	lda.b ZP.Controller+1
+    and.b #$04                    ;Check UP
+	beq .SkipUp
+	lda.b #$01
+    sta.b ZP.InputFlag
+	lda.w HScoreCursorChar
+	dec
+	bpl +
+	lda.b #!HScoreCursorMax-1
+	+
+	sta.w HScoreCursorChar
+	.SkipUp:
+	
+	lda.b ZP.Controller+1
+    and.b #$02                    ;Check LEFT
+	beq .SkipL
+	lda.b #$01
+    sta.b ZP.InputFlag
+	lda.w HScoreTextCursor
+	dec
+	and.b #$0F
+	sta.w HScoreTextCursor
+	and.b #$0F
+	tdc
+	ldx.w #$0000
+	lda.w HScorePlace
+	asl
+	asl
+	asl
+	asl
+	clc
+	adc.w HScoreTextCursor
+	tax
+	lda.w HScoreEntries, X
+	sta.w HScoreCursorChar
+	.SkipL:
+
+	lda.b ZP.Controller+1
+    and.b #$01                    ;Check RIGHT
+	beq .SkipR
+	lda.b #$01
+    sta.b ZP.InputFlag
+	lda.w HScoreTextCursor
+	inc
+	and.b #$0F
+	sta.w HScoreTextCursor
+	tdc
+	ldx.w #$0000
+	lda.w HScorePlace
+	asl
+	asl
+	asl
+	asl
+	clc
+	adc.w HScoreTextCursor
+	tax
+	lda.w HScoreEntries, X
+	sta.w HScoreCursorChar
+	.SkipR:
+
+	lda.b ZP.Controller
+    and.b #$40                    ;Check A
+	beq .SkipSelect
+	lda.b #$01
+    sta.b ZP.InputFlag
+	inc.w HScoreTextCursor
+	.SkipSelect:
+
+	
+    lda.b ZP.InputFlag
+    beq .SkipTextUpdate
+	tdc
+	ldx.w #$0000
+	lda.w HScorePlace
+	asl
+	asl
+	asl
+	asl
+	clc
+	adc.w HScoreTextCursor
+	tax
+	lda.w HScoreCursorChar
+	sta.w HScoreEntries, X
+	jsr Highscore_ConstructHighscore
+	.SkipTextUpdate:
+
+	;Cursor sprite
+	ldx.w #$0000
+	ldy.w #$0000
+	lda.w HScoreCursorTimer
+	inc
+	bit.b #$04
+	beq +
+	lda.w HScoreCursorFrame
+	inc
+	cmp.b #$07
+	bne ++
+	lda.b #$00
+	++
+	sta.w HScoreCursorFrame
+	lda.b #$00
+	+
+	sta.w HScoreCursorTimer
+	lda.w HScoreTextCursor
+	tax
+	lda.w HscoreCursorX, X
+	sta.b ZP.AddSprX
+	lda.w HScorePlace
+	tax
+	lda.w HscoreCursorY, X
+	sta.b ZP.AddSprY
+	lda.b #!HScoreCursorSpr
+	clc
+	adc.w HScoreCursorFrame
+	sta.b ZP.AddSprTile
+	lda.b #!HScoreCursorAttr
+	sta.b ZP.AddSprAttr
+	stz.b ZP.AddSprBigFlag
+	jsr AddSprite
+
+
+    plp
+    ply
+    plx
+    pla
+    rts
+
+Highscore_ConstructHighscore:
+	pha
+	phx
+	phy
+	php
+    sep #$20
+    ldx.w #L3Ram+$63
+    stx.w HW_VMADDL
+    ldx.w #$0000
+    ldy.w #$0000
+	lda.b #$0C
+	sta.b ZP.R1			;Text colour decider
+    rep #$20
+    -
+    lda.w #!HText1st
+    ora.w HighscoreUnderline, Y
+    sta.w HW_VMDATAL
+    iny
+    iny
+    cpy #HighscoreText-HighscoreUnderline
+    bne -
+
+    stz.w WH0Mirror
+    stz.w WH1Mirror
+    sep #$20
+    ldx.w #L3Ram+$C3
+    stx.w HW_VMADDL
+	stx.w HW_WMADDL
+    ldx.w #$0000
+    ldy.w #$0000
+    lda.b #$03
+    sta.b ZP.R0			;Trophy index
+    .TextEntryLoop:
+	;Upper char
+	tdc
+	sep #$20
+	lda.b #!HTextNormal
+	clc
+	adc.b ZP.R1
+	xba	
+	txa
+	clc
+	sed
+	adc.b #$00
+	cld
+	and.b #$F0
+	lsr
+	lsr
+	lsr
+	lsr
+	inc
+	rep #$20
+	sta.w HW_VMDATAL
+	sep #$20
+	;Lower char
+	tdc
+	lda.b #!HTextNormal
+	clc
+	adc.b ZP.R1
+	xba	
+	txa
+	clc
+	inc
+	inc
+	and.b #$0F
+	rep #$20
+	sta.w HW_VMDATAL
+	
+	;Colon
+	sep #$20
+	tdc
+	lda.b #!HTextNormal
+	clc
+	adc.b ZP.R1
+	xba
+	lda.b #$28			; ":"
+	rep #$20
+	sta.w HW_VMDATAL
+	;Space
+	stz.w HW_VMDATAL
+
+	;Name
+	sep #$20
+	lda.b #$0C
+	sta.b ZP.R0
+	.NameLoop:
+	lda.b #!HTextNormal
+	clc
+	adc.b ZP.R1
+	xba
+	lda.w HScoreEntries, Y
+	rep #$20
+	sta.w HW_VMDATAL
+	sep #$20
+	iny
+	dec.b ZP.R0
+	bpl .NameLoop
+	
+	;Space
+	rep #$20
+	stz.w HW_VMDATAL
+	
+	;Score
+	sep #$20
+	lda.b #$02
+	sta.b ZP.R0
+	iny
+	iny
+	.ScoreLoop:
+	lda.b #!HTextNormal
+	clc
+	adc.b ZP.R1
+	xba
+	lda.w HScoreEntries, Y
+	and.b #$F0
+	lsr
+	lsr
+	lsr
+	lsr
+	inc
+	rep #$20
+	sta.w HW_VMDATAL
+	sep #$20
+
+	lda.b #!HTextNormal
+	clc
+	adc.b ZP.R1
+	xba
+	lda.w HScoreEntries, Y
+	and.b #$0F
+	inc
+	rep #$20
+	sta.w HW_VMDATAL
+	sep #$20
+	dey
+	dec.b ZP.R0
+	bpl .ScoreLoop
+	iny
+	iny
+	iny
+	iny
+
+	sep #$20
+	lda.b ZP.R1
+	beq .SkipTrophy
+	tdc
+	lda.b ZP.R1
+	phx
+	lsr
+	lsr
+	tax
+	lda.b #!HTextNormal
+	clc
+	adc.b ZP.R1
+	xba
+	lda.w TrophyChar, X
+	rep #$20
+	sta.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	plx
+	bra .CheckLoop
+	.SkipTrophy:
+	;Spaces
+	rep #$20
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	stz.w HW_VMDATAL
+	.CheckLoop:
+	sep #$20
+	lda.b ZP.R1
+	sec
+	sbc.b #$04
+	bmi +
+	sta.b ZP.R1
+	+
+	inx
+	cpx.w #$000A
+    beq +
+	jmp .TextEntryLoop
+	+
+	plp
+	ply
+	plx
+	pla
+	rts
+
+    ;
+    ;   Finds position to put player highscore
+    ;
+    ;
+Highscore_EvaluatePlayerScorePosition:
+    pha
+    phx
+    phy
+    php
+	sep #$20
+	stz.w HScorePlace
+    sep #$20
+	lda.b #$40
+	sta.b ZP.Score
+	lda.b #$10
+	sta.b ZP.Score+1
+	lda.b #$04
+	sta.b ZP.Score+2
+    ldy.w #$000E
+	ldx.w #$0009
+	.EvalLoop:
+	rep #$20
+    sed
+    lda.w HScoreEntries, Y
+	dey
+    sec
+    sbc.b ZP.Score+1
+    bcs .SkipLoCheck
+    lda.w HScoreEntries, Y
+	dey
+    sec
+    sbc.b ZP.Score
+    bcc .NewHscore      ;Jump out if the hi byte currently checked is higher than the score hi byte
+	.SkipLoCheck:
+	sep #$20
+	cld
+	tdc
+	tya
+	clc
+	adc.b #$11
+	tay
+	inc.w HScorePlace
+	dex
+	bpl .EvalLoop
+	.NewHscore:
+	;Shift every score below the found position if one has been found
+	cld
+	tdc
+	sep #$20
+    lda.w HScorePlace
+	cmp.b #$0A
+	beq .SkipShuffle
+	lda.w HScorePlace
+	asl
+	asl
+	asl
+	asl
+	sta.b ZP.R0
+	lda.b #$A0
+	sec
+	sbc.b ZP.R0
+	sta.b ZP.R0
+	rep #$20
+	clc
+	lda.w #HScoreEntries+$A0
+	tay
+	sec
+	sbc.w #$0010
+	tax
+	sep #$20
+	tdc
+	lda.b ZP.R0
+	mvp $00, $00
+
+	;Erase current entry for new highscore
+	tdc
+	lda.b #$AF
+	sec
+	sbc.b ZP.R0
+	rep #$20
+	tax
+	sep #$20
+	lda.b #$0F
+	sta.b ZP.R1
+	lda.b #$00
+	.EraseCurrent:
+	sta.w HScoreEntries, X
+	dex
+	dec.b ZP.R1
+	bpl .EraseCurrent
+	txa
+	adc.b #$0D
+	tax
+	lda.b ZP.Score
+	sta.w HScoreEntries, X
+	inx
+	lda.b ZP.Score+1
+	sta.w HScoreEntries, X
+	inx
+	lda.b ZP.Score+2
+	sta.w HScoreEntries, X
+	inx
+	.SkipShuffle:
+    plp
+    ply
+    plx
+    pla
     rts
 
     ;-------------------;
@@ -5777,6 +6202,7 @@ BGLoad:
     dw BG_Surfboard     ;BG-4
     dw BG_Volcano       ;BG-5
     dw BG_Wetlands      ;BG-6
+    dw BG_Tundra      	;BG-7
 
 BG_City:
     ;Setup video display
@@ -5921,7 +6347,7 @@ BG_Mountains:
     sta.w TMMirror
     lda.b #$04
     sta.w TSMirror
-    lda.b #$8A
+    lda.b #$AA
     sta.w CGWSELMirror
     lda.b #$5F
     sta.w CGADSUBMirror
@@ -6454,13 +6880,13 @@ BG_Wetlands:
     sta.w HW_BG34NBA
     ;Load Graphics
     ldy.w #$0000
-    lda.b #(BG6)&$FF
+    lda.b #(BG6Gfx)&$FF
     sta.b (ZP.VrDmaListPtr), Y
     iny
-    lda.b #(BG6>>8)&$FF
+    lda.b #(BG6Gfx>>8)&$FF
     sta.b (ZP.VrDmaListPtr), Y
     iny
-    lda.b #(BG6>>16)&$FF
+    lda.b #(BG6Gfx>>16)&$FF
     sta.b (ZP.VrDmaListPtr), Y
     iny
     lda.b #$01
@@ -6473,7 +6899,7 @@ BG_Wetlands:
     iny
     iny
     rep #$20
-    lda.w #BG6End-BG6
+    lda.w #BG6GfxEnd-BG6Gfx
     sta.b (ZP.VrDmaListPtr), Y
     lda.b ZP.VrDmaListPtr
     clc
@@ -6516,7 +6942,6 @@ BG_Wetlands:
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
 
-    
     ;Transfer palette data
     ldy.w #BG6_L2_Pal_End-BG6_L2_Pal
     -
@@ -6532,6 +6957,161 @@ BG_Wetlands:
     bne -
     rts
 
+BG_Tundra:
+    ;Setup Video info
+	sep #$20
+    tdc
+    lda.b #$09
+    sta.w HW_BGMODE
+    lda.b #$FB
+    sta.w TMMirror
+    lda.b #$04
+    sta.w TSMirror
+    lda.b #$AA
+    sta.w CGWSELMirror
+    lda.b #$7F
+    sta.w CGADSUBMirror
+    lda.b #$E0
+    sta.w COLDATAMirror
+    sta.w COLDATAMirror+1
+    lda.b #$40
+    sta.w WH0Mirror
+    lda.b #$FF
+    sta.w WH1Mirror
+
+    lda.b #$00
+    sta.w WH2Mirror
+    lda.b #$FF
+    sta.w WH3Mirror
+
+    lda.b #$1F
+    sta.w TMWMirror
+    lda.b #$04
+    sta.w TSWMirror
+
+    stz.w HW_BG12NBA
+    lda.b #$02
+    sta.w HW_BG34NBA
+
+	sep #$20
+	tdc
+	ldx.w #$0009
+	.ScrollClear:
+	stz.w BGScrollOff, X
+	stz.w BGScrollVal, X
+	dex
+	bpl .ScrollClear
+    ;Load Graphics
+    ldy.w #$0000
+    lda.b #(BG7Gfx)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG7Gfx>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG7Gfx>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #!BGTileDest
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG7GfxEnd-BG7Gfx
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+
+    ldy.w #$0000
+    lda.b #(BG7Gfx_L3)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG7Gfx_L3>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG7Gfx_L3>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #!BG3TileDest
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG7Gfx_L3End-BG7Gfx_L3
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    ;Load Tilemaps
+    ldy.w #$0000
+    lda.b #(BG7_TM)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG7_TM>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(BG7_TM>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L2Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #BG7_TM_End-BG7_TM
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+
+    ;Transfer palette data
+    ldy.w #BG7_L2_Pal_End-BG7_L2_Pal
+    -
+    lda.w BG7_L2_Pal, Y
+    sta.w PalMirror+32, Y
+    dey
+    bne -
+    ldy.w #BG7_L3_Pal_End-BG7_L3_Pal
+    -
+    lda.w BG7_L3_Pal, Y
+    sta.w PalMirror, Y
+    dey
+    bne -
+
+	rts
 GameLoop_UpdateBG:
     php
     pha
@@ -6593,6 +7173,8 @@ BGList:
     dw BG3
     dw BG4
     dw BG5
+    dw BG6
+    dw BG7
 
 BG0:
     tdc
@@ -7447,6 +8029,75 @@ BG5:
     sta.w HDMAMirror1+4
     rts
 
+BG6:
+	rep #$20
+	lda.w BG3HOffMirror
+	clc
+	adc.w #$0008
+	sta.w BG3HOffMirror
+	lda.w BG3VOffMirror
+	clc
+	adc.w #$FFFC
+	sta.w BG3VOffMirror
+
+	ldx.w #HDMAScrollBuffer2
+	stx.w HW_WMADDL
+	lda.b #(HDMAScrollBuffer2>>16)
+	sta.w HW_WMADDH
+
+	sep #$20
+	tdc
+	ldx.w #$0006
+	.TundraScroll:
+	lda.w BGScrollOff, X
+	inc
+	sta.w BGScrollOff, X
+	cmp.w BG7ScrollDiv, X
+	bne .SkipMov
+	txa
+	beq .SkipRegular
+	inc.w BGScrollVal, X
+	stz.w BGScrollOff, X
+	bra .SkipMov
+	.SkipRegular:
+	lda.w BGScrollVal, X
+	clc
+	adc.b #$03
+	sta.w BGScrollVal, X
+	stz.w BGScrollOff, X
+	.SkipMov:
+	lda.w BG7ScrollScan, X
+	sta.w HW_WMDATA
+	lda.w BGScrollVal, X
+	sta.w HW_WMDATA
+	stz.w HW_WMDATA
+	dex
+	bpl .TundraScroll
+	stz.w HW_WMDATA
+
+	sep #$20
+    lda.b #$03
+    sta.w HDMAMirror
+    lda.b #(HW_CGADD)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #BG7ColTable
+    stx.w HDMAMirror+2
+    lda.b #$80
+    sta.w HDMAMirror+4
+	
+    lda.b #$02
+    sta.w HDMAMirror1
+    lda.b #(HW_BG2HOFS)&$FF
+    sta.w HDMAMirror1+1
+    ldx.w #HDMAScrollBuffer2
+    stx.w HDMAMirror1+2
+    lda.b #$7E
+    sta.w HDMAMirror1+4
+	rts
+
+BG7:
+	rts
+
 GameLoop_UpdateBG_OBJ:
     php
     pha
@@ -7471,6 +8122,7 @@ BGOBJList:
     dw OBJ_Surfboard    ;BG-4
     dw OBJ_Volcano      ;BG-5
     dw OBJ_Wetlands     ;BG-6
+    dw OBJ_Tundra     	;BG-7
 
 OBJ_City:
     rts
@@ -7529,6 +8181,9 @@ OBJ_Volcano:
 
 OBJ_Wetlands:
     rts
+	
+OBJ_Tundra:
+	rts
 
 GameLoop_HandleUFOParticles:
     pha
@@ -7908,6 +8563,27 @@ AddSprite:
     ;   Clobberlist
     ;       ZP.R0
     ;       ZP.R1
+
+ClearL1Vram:
+	php
+	rep #$10
+	sep #$20    ;Clear tilemap 1
+    ldx.w #L1Ram
+    stx.w HW_VMADDL             ;Set VRAM address to L1RAM
+    lda.b #$09
+    sta.w HW_DMAP7              ;Setup DMAP0
+    lda.b #$18                  ;Grab Video mem data lo addr
+    sta.w HW_BBAD7              ;Set bus addr    
+	stz.w HW_A1B7
+    ldx.w #ZVal                 ;Grab 0 val data to clear vram
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    ldx.w #$1000                ;Set to fill 400 words
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM [0 just means all of vram]
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+	plp
+	rts
+
 HandlePaletteFade:
     php
     ldy.w #$0200
@@ -8001,21 +8677,44 @@ HighscoreHeader:
 HighscoreUnderline:
     dw "''''''''''''''''''''''''"
 HighscoreText:
-    dw "01: LOREM IPSUM!! 100000"
-    dw "02: LOREM IPSUM!! 090000"
-    dw "03: LOREM IPSUM!! 080000"
-    dw "04: LOREM IPSUM!! 070000"
-    dw "05: LOREM IPSUM!! 060000"
-    dw "06: LOREM IPSUM!! 050000"
-    dw "07: LOREM IPSUM!! 040000"
-    dw "08: LOREM IPSUM!! 030000"
-    dw "09: LOREM IPSUM!! 020000"
-    dw "10: LOREM IPSUM!! 010000"
+    dw "01: HIGHSCORE N01 100000"
+    dw "02: HIGHSCORE N02 090000"
+    dw "03: HIGHSCORE N03 080000"
+    dw "04: HIGHSCORE N04 070000"
+    dw "05: HIGHSCORE N05 060000"
+    dw "06: HIGHSCORE N06 050000"
+    dw "07: HIGHSCORE N07 040000"
+    dw "08: HIGHSCORE N08 030000"
+    dw "09: HIGHSCORE N09 020000"
+    dw "10: HIGHSCORE N10 010000"
     dw "''''''''''''''''''''''''"
     dw "                        "
     dw "  PRESS START TO EXIT!  "
     dw "  ''''''''''''''''''''  "
 HighscoreTextEnd:
+
+HighscoreValuesInit:
+	db "HIGHSCORE N01"		;13 bytes
+	dl $100000				;03 bytes
+	db "HIGHSCORE N02"		;13 bytes
+	dl $090000				;03 bytes
+	db "HIGHSCORE N03"		;13 bytes
+	dl $080000				;03 bytes
+	db "HIGHSCORE N04"		;13 bytes
+	dl $070000				;03 bytes
+	db "HIGHSCORE N05"		;13 bytes
+	dl $060000				;03 bytes
+	db "HIGHSCORE N06"		;13 bytes
+	dl $050000				;03 bytes
+	db "HIGHSCORE N07"		;13 bytes
+	dl $040000				;03 bytes
+	db "HIGHSCORE N08"		;13 bytes
+	dl $030000				;03 bytes
+	db "HIGHSCORE N09"		;13 bytes
+	dl $020000				;03 bytes
+	db "HIGHSCORE N10"		;13 bytes
+	dl $010000				;03 bytes
+HighscoreValuesInitEnd:
 
 StageText:
     db "NIGHTIME CITY       "
@@ -8948,6 +9647,72 @@ BG6ColTable:
     db $00
 BG6ColTableEnd:
 
+BG7ColTable:
+	db $01
+    dw $0000    ;Address
+	dw $3D29
+	db $01
+    dw $0000    ;Address
+	dw $3909
+	db $01
+    dw $0000    ;Address
+	dw $3508
+	db $01
+    dw $0000    ;Address
+	dw $34E7
+	db $01
+    dw $0000    ;Address
+	dw $30C7
+	db $01
+    dw $0000    ;Address
+	dw $2CC6
+	db $01
+    dw $0000    ;Address
+	dw $28A5
+	db $01
+    dw $0000    ;Address
+	dw $2885
+	db $01
+    dw $0000    ;Address
+	dw $2884
+	db $01
+    dw $0000    ;Address
+	dw $2063
+	db $01
+    dw $0000    ;Address
+	dw $1C43
+	db $01
+    dw $0000    ;Address
+	dw $1C42
+	db $01
+    dw $0000    ;Address
+	dw $1821
+	db $01
+    dw $0000    ;Address
+	dw $1401
+	db $01
+    dw $0000    ;Address
+	dw $1000
+	db $00
+
+BG7ScrollScan:
+	db $01
+	db $0A
+	db $18
+	db $20
+	db $18
+	db $20
+	db $10
+
+BG7ScrollDiv:
+	db $01
+	db $06
+	db $0C
+	db $10
+	db $20
+	db $60
+	db $70
+
 HScoreWindow:
     db $0C
     dw $00FF
@@ -9226,10 +9991,10 @@ HighscoreTextBG:
     db $00
 
 TrophyChar:
-    dw $0000
-    dw $0029
-    dw $002A
-    dw $002B
+    db $00
+    db $29
+    db $2A
+    db $2B
 
 TwinkleFrame3rd:
     db $04
@@ -9424,6 +10189,16 @@ BG3StartY:
     db $21
     db $1C
     db $19
+
+HscoreCursorX:
+	for t = 0..14
+		db ($07+!t)*8
+	endfor
+
+HscoreCursorY:
+	for t = 0..10
+		db (($06+!t)*8)-1
+	endfor
 
 BHoleFrameTable:
     db !BHoleT8     ;Frame - 00
@@ -10193,9 +10968,9 @@ db 0,0,0,0
                                 ;Second half of header
 db "BORED ALIENS IN SPACE"      ;Program name [21 characters long]
 db $31                          ;Set ROM identification and speed
-db 0                            ;Set what we have available [in this case ROM]
-db 8                            ;Set ROM size [256k]
-db 0                            ;Set RAM size [0k]
+db 2                            ;Set what we have available [in this case ROM + RAM + Battery]
+db 10                           ;Set ROM size [1024k]
+db 1                            ;Set RAM size [0k]
 db 2                            ;Set region [2 for PAL]
 db $33                          ;Old ID code [replaced with new value]
 db 0                            ;ROM version

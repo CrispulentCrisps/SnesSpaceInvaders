@@ -105,8 +105,8 @@ EnemyBulletSine =   $0448
 EnemyBulletWait =   $044A   ;Time to wait between movement when homing
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
-!BGCountInitVal =   $00
-!MaxBG =            $06
+!BGCountInitVal =   $07
+!MaxBG =            $07
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
@@ -172,8 +172,6 @@ EnemyTileBuffer =   $7E8000
 TextDispBuffer =    $7E8400   ;Takes up [score text] + 6 bytes for score display
 HDMAScrollBuffer =  $7E8A00
 HDMAScrollBuffer2 = $7E8E00
-HDMAMode7Buffer =   $7E9280
-HDMAMode7Buffer2 =  $7E9480
 
 BGScrollOff =       $06C0     ;Scrolling offsets for background elements
 BGScrollVal =       $06D0
@@ -279,14 +277,42 @@ ContinueCount =     $1188
 
 EPlaneTopW =        $1186   ;Max height enemies go to
 PalOut =            $1200   ;Output palette
-SpiralGalX =        $1400   ;64 word values
-SpiralGalY =        $1480   ;64 byte values
-SpiralGalZ =        $1580   ;64 byte values
-SpiralTimer =       $1600   ;64 Timer values
-SpiralXScale =      $1700   ;1 byte scaling factor X
-SpiralYScale =      $1701   ;1 byte scaling factor Y
-BHoleFrame =        $1702   ;1 byte frame index for black hole
-BHoleTimer =        $1703   ;1 byte timer value for black hole
+SpiralGalX =        $1400   ;32 word values
+SpiralGalY =        $1440   ;32 byte values
+SpiralGalZ =        $1460   ;32 byte values
+SpiralTimer =       $1480   ;32 Timer values
+SpiralXScale =      $14A0   ;1 byte scaling factor X
+SpiralYScale =      $14A1   ;1 byte scaling factor Y
+BHoleFrame =        $14A2   ;1 byte frame index for black hole
+BHoleTimer =        $14A3   ;1 byte timer value for black hole
+
+HScorePlace =       $14A4   ;1 byte entry byte for what placing the player got
+HScoreTextCursor =  $14A5   ;1 byte position for the cursor when entering in highscore
+HScoreCursorFrame = $14A6   ;1 byte frame index for cursor frame
+HScoreCursorTimer = $14A7   ;1 byte frame index for cursor timer
+HScoreTextBlink =   $14A8   ;1 byte timer for blinking the currently selected character
+HScoreCursorChar =  $14A9   ;1 byte index for current character
+;Each entry contains:
+;       4 number characters
+;       13 name characters
+;       1 space character
+;       6 score characters
+;Thus making a single entry 24 bytes large
+;10 entries means 240 [$1E0] bytes
+HScoreEntries =     $14B0   ;$0100 byte list of highscore entries
+
+SRam =              $306000 ;Save data storage
+
+!HScoreEntrySize =  $03
+!HScoreEntrySizeW = $0003
+!HScoreTextSize =   $30
+!HScoreTextSizeW =  $0030
+!HscoreDispSize =   $0030*10
+
+!HScoreCursorSpr =  $70
+!HScoreCursorAttr = $3C
+
+!HScoreCursorMax =  $2D
 
 !SpiralArmCount =   $05
 !SpiralArmOffset =  $04
@@ -323,7 +349,7 @@ BHoleTimer =        $1703   ;1 byte timer value for black hole
 
 !ShieldStartHP =    $08
 !PlayerDieReset =   50
-!WaveInit =         $0A
+!WaveInit =         $00
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions
@@ -382,6 +408,7 @@ LaserOAM =          $0810
 
 !EnemyTileDest =    $0600
 !BGTileDest =       $0800
+!BG3TileDest =      $2000
 
 EnemyMax =          $04E7   ;R boundaries
 EnemyMin =          $04E8   ;L boundaries
@@ -434,10 +461,10 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !PlanetsAttr =      $06
 !PlanetsHiAttr =    $36
 
-!HTextNormal =      $2000
-!HText3rd =         $2400
-!HText2nd =         $2800
-!HText1st =         $2C00
+!HTextNormal =      $20
+!HText3rd =         $24
+!HText2nd =         $28
+!HText1st =         $2C
 
 !SprVram =          $4000
 !Spr2Vram =         $5000 ;Second sprite table
