@@ -644,6 +644,7 @@ SelectScene:
     dw HighscoreScene
     dw OptionsScene
     dw ContinueScene
+    dw IntroScene
 
 NMIHandler:
     rep #%00110000      ;Reset X + M flags to set X to 16 bit mode
@@ -4720,6 +4721,10 @@ ContinueScene:
     rep #$20
     rts
 
+IntroScene:
+    rep #$20
+	rts
+
 HighscoreScene:
     sep #$20
     lda.b ZP.ChangeScene
@@ -6226,7 +6231,8 @@ BG_City:
 
     stz.w HW_BG12NBA
     stz.w HW_BG34NBA
-
+	stz.w BG3VOffMirror
+	stz.w BG3VOffMirror+1
     ;Load Graphics
     ldy.w #$0000
     lda.b #(BG1_L2)&$FF
@@ -8762,6 +8768,88 @@ ExitText:
     db "EXIT"
 ExitTextEnd:
 
+;Intro text, each line is 28 characters long, text is padded by one row/column for the X and Y axis
+;Each intro text entry has 8 lines of text to work with, 2 lines for padding
+Intro1_1:
+	db "                            "
+	db " FOR A MILLENNIUM ALIEN     "
+	db " RACES HAD FOUGHT AND DIED  "
+	db " IN A VAIN WAR FOR TOTAL    "
+	db " POWER. BY LAND OR SEA OR	"
+	db " BY AIR THERE WAS NO RELIEF "
+	db " FROM WHAT WAS FELT...      "
+	db "                            "
+
+Intro1_2:
+	db "                            "
+	db " EVENTUALLY AFTER MUCH TALK "
+	db " AND DELEGATION A PEACEFUL  "
+	db " RESOLUTION WAS MADE.       "
+	db " THERE WAS PEACE ONCE MORE. "
+	db "                            "
+	db " A PEACE NOT FELT FOR YEARS "
+	db "                            "
+
+Intro1_3:
+	db "                            "
+	db " THE PEACE WAS GRAND AND    "
+	db " PROSPEROUS. FINALLY THEY   "
+	db " HAD THE CHANCE TO DO WHAT  "
+	db " THEY TRULY WANTED TO.      "
+	db "                            "
+	db " FOR FUN AND FOR GLORY!     "
+	db "                            "
+	
+Intro1_4:
+	db "                            "
+	db " ONE WEEK LATER AND THE     "
+	db " ALIENS ARE NOW BORED. TOO  "
+	db " MUCH FREE TIME HAS LET     "
+	db " THEM GROW WEARY AND        "
+	db " AIMLESS. NOW WITH NO FIGHT "
+	db " THERE IS SIMPLY NO FUN.    "
+	db "                            "
+
+Intro1_5:
+	db "                            "
+	db " ONE ALIEN HAS AN IDEA...   "
+	db "                            "
+	db "     WHAT ABOUT A NEW WAR?	"
+	db "                            "
+	db " WITH NO ALTERNATIVE THE    "
+	db " OTHER ALIENS AGREE.        "
+	db "                            "
+	
+Intro1_6:
+	db "                            "
+	db " WITH NO TARGET IN MIND THE "
+	db " ALIENS AGREE TO INVADE THE "
+	db " CLOSEST PLANET THEY SEE.	"
+	db "                            "
+	db " THEY OPEN A PORTAL AND GO  "
+	db " THROUGH TO INVADE...       "
+	db "                            "
+	
+Intro1_7:
+	db "                            "
+	db " WITH NO TARGET IN MIND THE "
+	db " ALIENS AGREE TO INVADE THE "
+	db " CLOSEST PLANET THEY SEE.	"
+	db "                            "
+	db " THEY OPEN A PORTAL AND GO  "
+	db " THROUGH TO INVADE...       "
+	db "                            "
+
+Intro1_8:
+	db "                            "
+	db "                            "
+	db "                            "
+	db "                            "
+	db "                            "
+	db "                            "
+	db "                            "
+	db "                            "
+	
 ;Game modifiers
 Op0Text:
     db "00: 2X HEALTH ENEMIES "     ;2x enemy health
@@ -9698,7 +9786,7 @@ BG7ColTable:
 BG7ScrollScan:
 	db $01
 	db $0A
-	db $18
+	db $0C
 	db $20
 	db $18
 	db $20

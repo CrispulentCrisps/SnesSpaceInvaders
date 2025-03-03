@@ -54,7 +54,10 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\f
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\fonts\HSFont.png -t bin\gfx\HScoreFont.bin -p bin\gfx\pal\HScoreFont-Pal.bin --no-remap
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Stars.png -t bin\gfx\Stars.bin -p bin\gfx\pal\StarsPal.bin -v
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\PlanetSprites.png -t bin\gfx\PlanetSprites.bin -p bin\gfx\pal\PlanetSprites.bin -v
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\PlanetSprites.png -t bin\gfx\PlanetSprites.bin -p bin\gfx\pal\PlanetSprites.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -W 16 -H 16 -i res\img\Invaders.png -t bin\gfx\Invaders.bin -p bin\gfx\pal\InvadersPal.bin --palette-base-offset 1 --no-remap
+
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Intro\IntroTemplatePal.png -t bin\gfx\IntroTemplatePal.bin -p bin\gfx\pal\IntroTemplatePal.bin -m bin\gfx\tilemap\IntroTemplatePal.bin --palette-base-offset 1
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Intro\IntroPanel1.png -t bin\gfx\IntroPanel1.bin -p bin\gfx\pal\IntroPanel1.bin -m bin\gfx\tilemap\IntroPanel1.bin --palette-base-offset 2 --no-discard
 
 C:\Users\david\Documents\Tools\ASAR-Assembler\asar.exe --no-title-check --symbols=wla --symbols-path=BoredAliens.sym Main.asm BoredAliens.sfc
