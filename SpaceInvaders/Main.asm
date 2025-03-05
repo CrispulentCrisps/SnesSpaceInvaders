@@ -114,6 +114,7 @@ org !GfxBank3
 
 HScoreBG:
     incbin "bin/gfx/HScoreFont.bin"
+HScoreFontEnd:
     incbin "bin/gfx/HighscoreL1.bin"
     incbin "bin/gfx/HighscoreL2.bin"
 HScoreBGEnd:
@@ -143,7 +144,53 @@ StageTextSpr:
     incbin "bin/gfx/StageText.bin"
 StageTextSprEnd:
 
+IntroPanel1:
+	incbin "bin/gfx/IntroPanel1.bin"
+IntroPanel1End:
+
 org !GfxBank5
+
+IntroPanel2:
+	incbin "bin/gfx/IntroPanel2.bin"
+IntroPanel2End:
+
+IntroPanel3:
+	incbin "bin/gfx/IntroPanel3.bin"
+IntroPanel3End:
+
+IntroPanel4:
+	incbin "bin/gfx/IntroPanel4.bin"
+IntroPanel4End:
+
+IntroPanel5:
+	incbin "bin/gfx/IntroPanel5.bin"
+IntroPanel5End:
+
+IntroPanel6:
+	incbin "bin/gfx/IntroPanel6.bin"
+IntroPanel6End:
+
+IntroPanel7:
+	incbin "bin/gfx/IntroPanel7.bin"
+IntroPanel7End:
+
+IntroPanel8:
+	incbin "bin/gfx/IntroPanel8.bin"
+IntroPanel8End:
+
+IntroPanel9:
+	incbin "bin/gfx/IntroPanel9.bin"
+IntroPanel9End:
+
+IntroPanel10:
+	incbin "bin/gfx/IntroPanel10.bin"
+IntroPanel10End:
+
+IntroPanel11:
+	incbin "bin/gfx/IntroPanel11.bin"
+IntroPanel11End:
+
+org !GfxBank6
 
 GameOverSpr:
     incbin "bin/gfx/GameOverText.bin"
@@ -215,6 +262,50 @@ Options2_TM_End:
 
 org !TilemapBank2
 
+IntroPanel1TM:
+	incbin "bin/gfx/tilemap/IntroPanel1.bin"
+IntroPanel1TMEnd:
+
+IntroPanel2TM:
+	incbin "bin/gfx/tilemap/IntroPanel2.bin"
+IntroPanel2TMEnd:
+
+IntroPanel3TM:
+	incbin "bin/gfx/tilemap/IntroPanel3.bin"
+IntroPanel3TMEnd:
+
+IntroPanel4TM:
+	incbin "bin/gfx/tilemap/IntroPanel4.bin"
+IntroPanel4TMEnd:
+
+IntroPanel5TM:
+	incbin "bin/gfx/tilemap/IntroPanel5.bin"
+IntroPanel5TMEnd:
+
+IntroPanel6TM:
+	incbin "bin/gfx/tilemap/IntroPanel6.bin"
+IntroPanel6TMEnd:
+
+IntroPanel7TM:
+	incbin "bin/gfx/tilemap/IntroPanel7.bin"
+IntroPanel7TMEnd:
+
+IntroPanel8TM:
+	incbin "bin/gfx/tilemap/IntroPanel8.bin"
+IntroPanel8TMEnd:
+
+IntroPanel9TM:
+	incbin "bin/gfx/tilemap/IntroPanel9.bin"
+IntroPanel9TMEnd:
+
+IntroPanel10TM:
+	incbin "bin/gfx/tilemap/IntroPanel10.bin"
+IntroPanel10TMEnd:
+
+IntroPanel11TM:
+	incbin "bin/gfx/tilemap/IntroPanel11.bin"
+IntroPanel11TMEnd:
+
 HScoreBG_TM:
     incbin "bin/gfx/tilemap/HighscoreL1.bin"
 HScoreBG_TM_2:
@@ -225,8 +316,7 @@ GameOverTM:
     incbin "bin/gfx/tilemap/GameOverL1.bin"
 GameOverTMEnd:
 
-org !CodeBank
-
+org !PalBank
 ;---------------;
 ;   Palette's   ;
 ;---------------;
@@ -382,6 +472,21 @@ HScoreSpr_Pal:
     incbin "bin/gfx/pal/SpiralGalaxy-Pal.bin"
 HScoreSpr_PalEnd:
 
+IntroPanelPal:
+	incbin "bin/gfx/pal/IntroPanel1Pal.bin"
+	incbin "bin/gfx/pal/IntroPanel2Pal.bin"
+	incbin "bin/gfx/pal/IntroPanel3Pal.bin"
+	incbin "bin/gfx/pal/IntroPanel4Pal.bin"
+	incbin "bin/gfx/pal/IntroPanel5Pal.bin"
+	incbin "bin/gfx/pal/IntroPanel6Pal.bin"
+	incbin "bin/gfx/pal/IntroPanel7Pal.bin"
+	incbin "bin/gfx/pal/IntroPanel8Pal.bin"
+	incbin "bin/gfx/pal/IntroPanel9Pal.bin"
+	incbin "bin/gfx/pal/IntroPanel10Pal.bin"
+	incbin "bin/gfx/pal/IntroPanel11Pal.bin"
+
+org !CodeBank
+
 ZVal:
     dw $0000
 
@@ -438,7 +543,7 @@ Reset:
     dey
     bne -
     
-    lda.b #$8F                  ;Set master brightness to 15 & forces blanking
+    lda.b #$80                  ;Set master brightness to 15 & forces blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.w HW_CGADD              ;Reset CGRAM addr
 
@@ -458,6 +563,9 @@ Reset:
     lda.b #$55
     sta.w WOBJLOGMirror
     
+    lda.b #$AA
+    sta.w CGWSELMirror
+
     ldx.w #$0000
     stx.w HW_VMADDL             ;Set VRAM address to $0000
     lda.b #$80
@@ -473,64 +581,6 @@ Reset:
     stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM [0 just means all of vram]
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
-    
-    ;Load Game BG tiles
-    lda.b #$02
-    sta.w HW_DMAP1              ;Setup DMAP1
-    ldx.w #GamePal&$FFFF        ;Grab palette addr
-    stx.w HW_A1T1L              ;Shove lo+mid addr byte
-    lda.b #GamePal>>16&$FF
-    sta.w HW_A1B1               ;Store bank
-    ldx.w #GamePalEnd-GamePal
-    stx.w HW_DAS1L              ;Return amount of bytes to be written in VRAM
-    lda.b #HW_CGDATA&$FF        ;Grab Video mem data lo addr
-    sta.w HW_BBAD1              ;Set bus addr
-
-    ;Load Game BG Palette
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #GameGfx&$FFFF        ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #GameGfx>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #GameGfxEnd-GameGfx
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #$03
-    sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
-
-    ;Load Game Sprite Palette
-    lda.b #$02
-    sta.w HW_DMAP1              ;Setup DMAP1
-    ldx.w #GameSprPal&$FFFF     ;Grab palette addr
-    stx.w HW_A1T1L              ;Shove lo+mid addr byte
-    lda.b #GameSprPal>>16&$FF
-    sta.w HW_A1B1               ;Store bank
-    ldx.w #GameSprPalEnd-GameSprPal
-    stx.w HW_DAS1L              ;Return amount of bytes to be written in VRAM
-    lda.b #HW_CGDATA&$FF        ;Grab Video mem data lo addr
-    sta.w HW_BBAD1              ;Set bus addr
-
-    ;Load Game Sprites
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #GameSpr&$FFFF        ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #GameSpr>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #GameSprEnd-GameSpr
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #$03
-    sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
-
-    ldy.w #$0000
-    -
-    lda.w GamePal, Y
-    sta.w PalMirror, Y
-    lda.w GameSprPal, Y
-    sta.w PalMirror+384, Y
-    iny
-    cpy #$100
-    bne -
 
     sep #%00100000              ;Enter Memory mode
     lda.b #$70
@@ -582,7 +632,7 @@ Reset:
     stz.w HW_BG2VOFS            ;Apply scroll
     stz.w HW_BG2VOFS            ;Apply scroll
 
-    lda.b #$00
+    lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
     lda.b #$06
     sta.w BGIndex
@@ -972,8 +1022,25 @@ TitleScene:
     stz.w HW_HDMAEN
     stz.w HW_OBSEL
     
+    jsl ClearHDMA
+
+	jsr ClearLTileVram
+
+    lda.w W12SELMirror
+    and.b #$CC
+    sta.w W12SELMirror
+    lda.w WOBJSELMirror
+    and.b #$CC
+    sta.w WOBJSELMirror
+    
+    lda.b #$8F                  ;Set master brightness to 15 & forces blanking
+    sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.w WBGLOGMirror
     stz.w WOBJLOGMirror
+    lda.b #$00
+    sta.w CGWSELMirror
+    lda.b #$00
+    sta.w CGADSUBMirror
     ;Transfer Title graphics
     ldx.w #$0000
     stx.w HW_VMADDL
@@ -1047,25 +1114,25 @@ TitleScene:
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
     
-    ldy.w #SPRFont_Pal_End-SPRFont_Pal
+    ldx.w #SPRFont_Pal_End-SPRFont_Pal
     -
-    lda.w SPRFont_Pal, Y
-    sta.w PalMirror+256, Y
-    dey
+    lda.l SPRFont_Pal, X
+    sta.w PalMirror+256, X
+    dex
     bpl -
 
-    ldy.w #Title_L2_Pal_End-Title_L2_Pal
+    ldx.w #Title_L2_Pal_End-Title_L2_Pal
     -
-    lda.w Title_L2_Pal, Y
-    sta.w PalMirror, Y
-    dey
+    lda.l Title_L2_Pal, X
+    sta.w PalMirror, X
+    dex
     bpl -
 
-    ldy.w #Title_L1_Pal_End-Title_L1_Pal
+    ldx.w #Title_L1_Pal_End-Title_L1_Pal
     -
-    lda.w Title_L1_Pal, Y
-    sta.w PalMirror+$20, Y
-    dey
+    lda.l Title_L1_Pal, X
+    sta.w PalMirror+$20, X
+    dex
     bpl -
 
     ldy.w #EndTitleTextPosX-TitleTextPosX
@@ -1274,8 +1341,6 @@ GameScene:
     stz.w HW_HDMAEN
     stz.w HW_MDMAEN
     jsr TransitionIn
-    
-	jsr ClearL1Vram
 
     lda.b #$02
     sta.w HW_OBSEL
@@ -1337,24 +1402,24 @@ GameScene:
 
     ldx.w #$0000
     stx.b ZP.R0
-    jsr LoadEnemyGFX
+    jsl LoadEnemyGFX
 
-    ldy.w #$0000
+    ldx.w #$0000
     -
-    lda.w GamePal, Y
-    sta.w PalMirror, Y
-    lda.w InvadersPal, Y
-    lda.w GameSprPal, Y
-    sta.w PalMirror+384, Y
-    iny
-    cpy #$100
+    lda.l GamePal, X
+    sta.w PalMirror, X
+    lda.l InvadersPal, X
+    lda.l GameSprPal, X
+    sta.w PalMirror+384, X
+    inx
+    cpx #$100
     bne -
     
-    ldy.w #StageTextPalEnd-StageTextPal
+    ldx.w #StageTextPalEnd-StageTextPal
     -
-    lda.w StageTextPal, Y
-    sta.w PalMirror+$140, Y
-    dey
+    lda.l StageTextPal, X
+    sta.w PalMirror+$140, X
+    dex
     bpl -
 
     ;Clear tilemap 1
@@ -1510,7 +1575,7 @@ GameScene:
     stx.w BG1VOffMirror
     ;Write enemy entries into Enemy struct array
     jsr GameLoop_UpdateEnemyArray
-    jsr GameLoop_DrawEnemies
+    jsl GameLoop_DrawEnemies
     jsr GameLoop_FindMaxRowBounds
     lda.b #!GameState_Play
     sta.w GameState
@@ -1824,7 +1889,7 @@ GameScene:
     sta.b ZP.BulletColTile
     lda.b #!EnemyHurtTimer
     sta.w EnemyHurtTable, Y
-    jsr GameLoop_DrawEnemies
+    jsl GameLoop_DrawEnemies
     .SkipEnemyHurt:
 
     .SkipBullet0Logic:
@@ -1965,7 +2030,7 @@ GameScene:
     dec
     bne ++
     sta.w EnemyHurtTable, Y
-    jsr GameLoop_DrawEnemies
+    jsl GameLoop_DrawEnemies
     ++
     sta.w EnemyHurtTable, Y
     +
@@ -2089,7 +2154,7 @@ GameScene:
     sta.w BG1VOffMirror+1
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
-    jsr GameLoop_DrawEnemies_FrameDecider
+    jsl GameLoop_DrawEnemies_FrameDecider
     .SkipMove:
     dec.b ZP.EnemyTimer
     .SkipEnemy
@@ -2771,254 +2836,8 @@ GameLoop_SendWave:
     bpl -
     
     jsr GameLoop_UpdateEnemyArray
-    jsr GameLoop_DrawEnemies
+    jsl GameLoop_DrawEnemies
     jsr GameLoop_FindMaxRowBounds
-    rts
-
-LoadEnemyGFX:
-    php    
-    ldy.w #$0000
-    rep #$20
-    lda.w #Invaders&$FFFF       ;Grab graphics addr
-    clc
-    adc.b ZP.R0
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    iny
-    sep #$20
-    lda.b #(Invaders>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    rep #$20
-    lda.w #!EnemyTileDest
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
-    lda.w #$0400
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
-    plp
-    rts
-    
-    ;-------------------------------;
-    ;   Enemy Drawing Subroutine    ;
-    ;-------------------------------;
-    ;
-    ;   Usage
-    ;       Draws enemies from VRAM tile by tile to the screen tilemap
-    ;
-    ;   Clobber list:
-    ;       
-    ;
-GameLoop_DrawEnemies:
-    ;Enemy Load loop
-    pha
-    phx
-    phy
-    sep #$20
-    stz.w HW_WMADDH
-    lda.b #(EnemyTileBuffer>>8)&$FF
-    sta.w HW_WMADDM                     ;Set up Work ram pointer
-    lda.b #(EnemyTileBuffer)&$FF
-    sta.w HW_WMADDL                     ;Set up Work ram pointer
-    rep #$20
-    ldy.w #$0005
-    lda.w #EnemyType
-    sta.b ZP.MemPointer                 ;Set up EnemyType pointer
-    lda.w #EnemyHurtTable
-    sta.b ZP.MemPointer2                ;Set up EnemyHurtTimer table
-    ldx.w #$0000
-    .RowLoop:
-    ;Top row
-    tdc
-    sep #$20
-    for t = 0..8
-        lda.b (ZP.MemPointer)           ;Grab type table data
-        beq +
-        asl
-        asl
-        tax
-        lda.w EnemyDrawTop+0, X
-        sta.w HW_WMDATA
-        lda.b (ZP.MemPointer2)          ;Grab hurt timer
-        bne +++
-        lda.w EnemyDrawTop+1, X
-        bra ++++
-        +++
-        lda.b #!EnemyHurtPal
-        ++++
-        sta.w HW_WMDATA
-        lda.w EnemyDrawTop+2, X
-        sta.w HW_WMDATA
-        lda.b (ZP.MemPointer2)          ;Grab hurt timer
-        bne +++
-        lda.w EnemyDrawTop+3, X
-        bra ++++
-        +++
-        lda.b #!EnemyHurtPalFlip
-        ++++
-        sta.w HW_WMDATA
-        bra ++
-        +
-        stz.w HW_WMDATA
-        stz.w HW_WMDATA
-        stz.w HW_WMDATA
-        stz.w HW_WMDATA
-        ++
-        ;Write empty tile
-        stz.w HW_WMDATA
-        stz.w HW_WMDATA
-        ;Increment pointer
-        rep #$20
-        inc.b ZP.MemPointer
-        inc.b ZP.MemPointer2
-        sep #$20
-    endfor
-
-    for t = 0..8
-        stz.w HW_WMDATA                 ;Write empty tile
-        stz.w HW_WMDATA                 ;Write empty tile
-    endfor
-    rep #$20
-    lda.b ZP.MemPointer
-    sec
-    sbc.w #$0008
-    sta.b ZP.MemPointer
-    lda.b ZP.MemPointer2
-    sec
-    sbc.w #$0008
-    sta.b ZP.MemPointer2
-    tdc
-    sep #$20
-    for t = 0..8
-        lda.b (ZP.MemPointer)           ;Grab type table data
-        beq +
-        asl
-        asl
-        tax
-        lda.w EnemyDrawBot+0, X
-        sta.w HW_WMDATA
-        lda.b (ZP.MemPointer2)          ;Grab hurt timer
-        bne +++
-        lda.w EnemyDrawBot+1, X
-        bra ++++
-        +++
-        lda.b #!EnemyHurtPal
-        ++++
-        sta.w HW_WMDATA
-        lda.w EnemyDrawBot+2, X
-        sta.w HW_WMDATA
-        lda.b (ZP.MemPointer2)          ;Grab hurt timer
-        bne +++
-        lda.w EnemyDrawBot+3, X
-        bra ++++
-        +++
-        lda.b #!EnemyHurtPalFlip
-        ++++
-        sta.w HW_WMDATA
-        bra ++
-        +
-        stz.w HW_WMDATA
-        stz.w HW_WMDATA
-        stz.w HW_WMDATA
-        stz.w HW_WMDATA
-        ++
-        ;Write empty tile
-        stz.w HW_WMDATA
-        stz.w HW_WMDATA
-        ;Increment pointer
-        rep #$20
-        inc.b ZP.MemPointer
-        inc.b ZP.MemPointer2
-        sep #$20
-    endfor
-
-    for t = 0..40
-        stz.w HW_WMDATA                 ;Write empty tile
-        stz.w HW_WMDATA                 ;Write empty tile
-    endfor
-    
-    dey
-    beq +
-    jmp .RowLoop
-    +
-
-    ldy.w #$0000
-    lda.b #(EnemyTileBuffer)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(EnemyTileBuffer>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(EnemyTileBuffer>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    rep #$20
-    lda.w #L1Ram
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
-    lda.w #940
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
-    ply
-    plx
-    pla
-    rts
-    
-    ;-----------------------------------;
-    ;   Enemy Frame decider subroutine  ;
-    ;-----------------------------------;
-    ;
-    ;   Usage
-    ;       A register will hold the tile index, will output the corrected tile index frame
-    ;
-    ;   Clobber list:
-    ;       A register
-    ;
-GameLoop_DrawEnemies_FrameDecider:
-    pha
-    php
-    rep #$20
-    stz.b ZP.R0
-    stz.b ZP.R1
-    ldx.w #$0000
-    tdc
-    sep #$30
-    ldx.b ZP.EnemyFrame
-    lda.w EnemyFrameOffset, X
-    tax
-    rep #$20
-    lda.w EnemyVramOff, X
-    sta.b ZP.R0
-    sep #$20
-    plp
-    jsr LoadEnemyGFX
-    pla
     rts
 
 GameLoop_Spawn_Enemy_Bullet:
@@ -3676,50 +3495,50 @@ OptionsScene:
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
 
-    ldy.w #OptionsBG_Pal_End-OptionsBG_Pal
+    ldx.w #OptionsBG_Pal_End-OptionsBG_Pal
     -
-    lda.w OptionsBG_Pal, Y
-    sta.w PalMirror+32, Y
-    dey
+    lda.l OptionsBG_Pal, X
+    sta.w PalMirror+32, X
+    dex
     bpl -
 
-    ldy.w #SPRFont2BPP_Pal_End-SPRFont2BPP_Pal
+    ldx.w #SPRFont2BPP_Pal_End-SPRFont2BPP_Pal
     -
-    lda.w SPRFont2BPP_Pal, Y
-    sta.w PalMirror, Y
-    dey
+    lda.l SPRFont2BPP_Pal, X
+    sta.w PalMirror, X
+    dex
     bpl -
 
-    ldy.w #ArrowSpr_Pal_End-ArrowSpr_Pal
+    ldx.w #ArrowSpr_Pal_End-ArrowSpr_Pal
     -
-    lda.w ArrowSpr_Pal, Y
-    sta.w PalMirror+$0100, Y
-    dey
+    lda.l ArrowSpr_Pal, X
+    sta.w PalMirror+$0100, X
+    dex
     bpl -
     
-    ldy.w #StarsPalEnd-StarsPal
+    ldx.w #StarsPalEnd-StarsPal
     -
-    lda.w StarsPal, Y
-    sta.w PalMirror+$0120, Y
+    lda.l StarsPal, X
+    sta.w PalMirror+$0120, X
     
-    lda.w SmallUFOPal, Y
-    sta.w PalMirror+$0140, Y
+    lda.l SmallUFOPal, X
+    sta.w PalMirror+$0140, X
 
-    lda.w OptionPlanetPal, Y
-    sta.w PalMirror+$0160, Y
-    dey
+    lda.l OptionPlanetPal, X
+    sta.w PalMirror+$0160, X
+    dex
     bpl -
     
-    ldy.w #StarsPalEnd-StarsPal
+    ldx.w #StarsPalEnd-StarsPal
     -
-    lda.w StarsPal, Y
-    sta.w PalMirror+$0120, Y
+    lda.l StarsPal, X
+    sta.w PalMirror+$0120, X
     
-    lda.w SmallUFOPal, Y
-    sta.w PalMirror+$0140, Y
+    lda.l SmallUFOPal, X
+    sta.w PalMirror+$0140, X
     
-    lda.w OptionPlanetPal, Y
-    sta.w PalMirror+$0160, Y
+    lda.l OptionPlanetPal, X
+    sta.w PalMirror+$0160, X
     dey
     bpl -
     
@@ -4722,8 +4541,433 @@ ContinueScene:
     rts
 
 IntroScene:
+    sep #%00100000              ;Set A to 8 bit mode
+    lda.b ZP.ChangeScene
+    bne .DoIntroLoad
+    jmp .SkipIntroLoad
+    .DoIntroLoad:
+    lda.b #$8F                  ;Set master brightness to 15 & forces blanking
+    sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
+    stz.b ZP.ChangeScene        ;Reset flag
+    stz.w HW_VMADDL
+    stz.w HW_VMADDH
+    lda.b #HW_VMDATAL&$FF        ;Grab Video mem data lo addr
+    sta.w HW_BBAD0              ;Set bus addr
+    stz.w HW_HDMAEN
+    stz.w HW_MDMAEN
+    lda.b #$04
+    sta.w HW_BGMODE
+    ;jsr TransitionIn
+        
+    ldx.w #$0020
+    stx.b ZP.PalFadeStart
+    ldx.w #$0200
+    stx.b ZP.PalFadeEnd
+
+
+    lda.b #$10
+    sta.w CGWSELMirror
+    lda.b #$41
+    sta.w CGADSUBMirror
+    lda.b #$20
+    sta.w WOBJSELMirror
+
+    ldx.w #$0455
+    stx.w WBGLOGMirror
+
+    lda.b #$02
+    sta.w HW_OBSEL
+
+    ldx.w #$0010
+    stx.w HW_VMADDL
+
+    lda.b #$18
+    sta.w HW_BBAD7
+    lda.b #$01
+    sta.w HW_DMAP7              ;Setup DMAP0
+    ldx.w #HScoreBG&$FFFF     ;Grab graphics addr
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    lda.b #HScoreBG>>16&$FF
+    sta.w HW_A1B7               ;Store bank
+    ldx.w #HScoreFontEnd-HScoreBG
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 7
+        
+    ;Load BG characters
+    ldx.w #!IntroPanelVram
+    stx.w HW_VMADDL
+    lda.b #$18
+    sta.w HW_BBAD7
+    lda.b #$01
+    sta.w HW_DMAP7              ;Setup DMAP0
+    ldx.w #IntroPanel1&$FFFF     ;Grab graphics addr
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    lda.b #IntroPanel1>>16&$FF
+    sta.w HW_A1B7               ;Store bank
+    ldx.w #IntroPanel1End-IntroPanel1
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 7
+
+    lda.b #$FF
+    sta.w TMMirror
+    
+    ldx.w #HScoreTextPalEnd-HScoreTextPal
+    -
+    lda.l HScoreTextPal, X
+    sta.w PalMirror, x
+    dex
+    bpl -
+
+    lda.b #$01
+    sta.w HW_INIDISP
+    
+    lda.b #$00
+    sta.w IntroTextInd
+    jsr Intro_DrawText
+    jsr IntroLoadNewPanel
+
+    rep #$20
+    sep #$20
+    lda.b #$1F
+    sta.b ZP.PalFadeInd
+
+    stz.w IntroStart
+    
+    lda.b #$01
+    sta.w HDMAMirror3
+    lda.b #(HW_WH0)&$FF
+    sta.w HDMAMirror3+1
+    ldx.w #IntroWindow&$FFFF
+    stx.w HDMAMirror3+2
+    lda.b #(IntroWindow>>16)&$FF
+    sta.w HDMAMirror3+4
+
+    lda.b #$30
+    sta.w W12SELMirror
+
+    ldx.w #$0000+!IntroBG2Restart
+    stx.w BG2VOffMirror
+
+	.SkipIntroLoad:
+
+    rep #$20
+    inc.w IntroTimer
+    ;Handling initial fade in
+    sep #$20
+    lda.w IntroStart
+    bne .SkipIntroFade
+    rep #$20
+    inc.w IntroTimer
+    lda.w IntroTimer
+    bit.w #$0008
+    beq ++
+    stz.w IntroTimer
+    sep #$20
+    dec.b ZP.PalFadeInd
+    ++
+    lda.b ZP.PalFadeInd
+    bne +
+    inc.w IntroStart
+    +
+    .SkipIntroFade:
+
+    sep #$20
+    lda.b ZP.Controller+1
+    and #$10                    ;Check START
+    beq .SkipExit
+    lda.b ZP.InputFlag
+    bne .SkipExit
+    tdc
+    sep #$20
+    lda.w BG2VOffMirror
+    bne .SkipExit
+    stz.b ZP.SceneGoto
+    inc.w BG2VOffMirror
+    inc.w BG2VOffMirror
+    lda.b #!MaxPanel-1
+    sta.w IntroTextInd
+    inc.w IntoMoveFlag
+    .SkipExit:
+    
+    lda.b ZP.Controller+1
+    and #$40                    ;Check A button
+    beq .SkipNewText
+    lda.b ZP.InputFlag
+    bne .SkipNewText
+    lda.w BG2VOffMirror
+    bne .SkipNewText
+    rep #$20
+    lda.w #!TextTime
+    sta.w IntroTimer
+    sep #$20
+    lda.b #$01
+    sta.b ZP.InputFlag
+    .SkipNewText:
+
+    lda.w BG2VOffMirror
+    beq .SKipBG2Move
+    clc
+    adc.b #$02
+    sta.w BG2VOffMirror
+    .SKipBG2Move:
+
+    lda.w BG2VOffMirror
+    cmp.b #!Intro2MaxY
+    bne .SkipBG2Reset
+    lda.b #!IntroBG2Restart
+    sta.w BG2VOffMirror
+    inc.w IntroTextInd
+    jsr Intro_DrawText
+    
+    lda.b ZP.ChangeScene
+    bne +
+    jsr IntroLoadNewPanel
+    +
+
+    stz.w IntoMoveFlag
+    .SkipBG2Reset:
+
+    rep #$20
+    lda.w IntroTimer
+    cmp.w #!TextTime
+    bne .SkipChange
+    sep #$20
+    lda.w IntoMoveFlag
+    bne .SkipChange
+    lda.b #$01 
+    sta.w IntoMoveFlag
+    inc.w BG2VOffMirror
+    inc.w BG2VOffMirror
+    rep #$20
+    stz.w IntroTimer
+    .SkipChange:
+
+    sep #$20
+    lda.w IntoMoveFlag
+    beq .SkipFadeOut
+    inc.b ZP.PalFadeInd
+    bra .ExitFadeHandle
+    .SkipFadeOut:
+    dec.b ZP.PalFadeInd
+    .ExitFadeHandle:
+
+
+    lda.b ZP.PalFadeInd
+    bpl .SkipLoClamp
+    stz.b ZP.PalFadeInd
+    .SkipLoClamp:
+
+    lda.b ZP.PalFadeInd
+    bit.b #$E0
+    beq +
+    lda.b #$1F
+    sta.b ZP.PalFadeInd
+    +
+
     rep #$20
 	rts
+
+Intro_DrawText:
+    pha
+    phx
+    phy
+    php
+    tdc
+    sep #$20
+    lda.w IntroTextInd
+    cmp.b #!MaxPanel
+    bne .SkipTitleJump
+    lda.b #$00
+    sta.b ZP.SceneIndex
+    lda.b #$01
+    sta.b ZP.ChangeScene
+    .SkipTitleJump:
+    lda.b #$8F
+    sta.w HW_INIDISP
+    ldx.w #$0000
+    lda.w IntroTextInd
+    asl
+    tax
+    rep #$20
+    lda.w IntroText, X
+    sta.b ZP.MemPointer
+    ldx.w #!IntroL2Start
+    stx.w HW_VMADDL
+    stx.b ZP.R0
+    ldx.w #$0007
+    .OuterTextLoop:
+    ldy.w #$001B
+    .InnerTextLoop:
+    sep #$20
+    lda.b #$20
+    xba
+    lda.b (ZP.MemPointer)
+    inc
+    inc
+    rep #$20
+    sta.w HW_VMDATAL
+    inc.w ZP.MemPointer
+    dey
+    bpl .InnerTextLoop
+    lda.b ZP.R0
+    clc
+    adc.w #$0020
+    sta.b ZP.R0
+    sta.w HW_VMADDL
+    dex
+    bpl .OuterTextLoop
+    sep #$20
+    lda.b #$0F
+    sta.w HW_INIDISP
+    plp
+    ply
+    plx
+    pla
+    rts
+
+IntroLoadNewPanel:
+    ldx.w #!IntroPanelVram
+    stx.w HW_VMADDL
+    sep #$20
+    lda.b #$80
+    sta.w HW_INIDISP
+
+    tdc
+    ldx.w #$0000
+    ldy.w #$0000
+    lda.w IntroTextInd
+    asl
+    tay                     ;Word addressing
+    lsr
+    sta.w HW_M7A
+    stz.w HW_M7A
+    lda.b #$03
+    sta.w HW_M7B
+    lda.w HW_MPYL           ;Long address index
+    tax
+
+    lda.b #$18
+    sta.w HW_BBAD7
+    lda.b #$01
+    sta.w HW_DMAP7              ;Setup DMAP0
+    rep #$20
+    lda.w IntroPanelGfx, X
+    sta.w HW_A1T7L              ;Shove lo+mid addr byte
+    sep #$20
+    lda.w IntroPanelGfx+2, X
+    sta.w HW_A1B7               ;Store bank
+    rep #$20
+    lda.w IntroPanelGfxSize, Y
+    sta.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
+    sep #$20
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 7
+    
+    rep #$20
+    lda.w #L1Ram
+    sta.w HW_VMADDL
+    sep #$20
+    lda.b #$18
+    sta.w HW_BBAD7
+    lda.b #$01
+    sta.w HW_DMAP7              ;Setup DMAP0
+    rep #$20
+    lda.w IntroPanelTM, X
+    sta.w HW_A1T7L              ;Shove lo+mid addr byte
+    sep #$20
+    lda.w IntroPanelTM+2, X
+    sta.w HW_A1B7               ;Store bank
+    rep #$20
+    lda.w IntroPanelTMSize, Y
+    sta.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
+    sep #$20
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 7
+
+    sep #$20
+    tdc
+    ldx.w #$0000
+    ldy.w #$0000
+    lda.w IntroTextInd
+    asl
+    xba
+    rep #$20
+    clc
+    adc.w #$00FF
+    tax
+    sep #$20
+    ldy.w #$00FF
+    -
+    lda.l IntroPanelPal, X
+    sta.w PalMirror, Y
+    dex
+    dey
+    bpl -
+
+    ldx.w #HScoreTextPalEnd-HScoreTextPal
+    -
+    lda.l HScoreTextPal, X
+    sta.w PalMirror, X
+    dex
+    bpl -
+
+    lda.b #$0F
+    sta.w HW_INIDISP
+    rts
+
+IntroPanelGfx:
+    dl IntroPanel1
+    dl IntroPanel2
+    dl IntroPanel3
+    dl IntroPanel4
+    dl IntroPanel5
+    dl IntroPanel6
+    dl IntroPanel7
+    dl IntroPanel8
+    dl IntroPanel9
+    dl IntroPanel10
+    dl IntroPanel11
+
+IntroPanelGfxSize:
+    dw IntroPanel1End-IntroPanel1
+    dw IntroPanel2End-IntroPanel2
+    dw IntroPanel3End-IntroPanel3
+    dw IntroPanel4End-IntroPanel4
+    dw IntroPanel5End-IntroPanel5
+    dw IntroPanel6End-IntroPanel6
+    dw IntroPanel7End-IntroPanel7
+    dw IntroPanel8End-IntroPanel8
+    dw IntroPanel9End-IntroPanel9
+    dw IntroPanel10End-IntroPanel10
+    dw IntroPanel11End-IntroPanel11
+
+IntroPanelTM:
+    dl IntroPanel1TM
+    dl IntroPanel2TM
+    dl IntroPanel3TM
+    dl IntroPanel4TM
+    dl IntroPanel5TM
+    dl IntroPanel6TM
+    dl IntroPanel7TM
+    dl IntroPanel8TM
+    dl IntroPanel9TM
+    dl IntroPanel10TM
+    dl IntroPanel11TM
+    
+IntroPanelTMSize:
+    dw IntroPanel1TMEnd-IntroPanel1TM
+    dw IntroPanel2TMEnd-IntroPanel2TM
+    dw IntroPanel3TMEnd-IntroPanel3TM
+    dw IntroPanel4TMEnd-IntroPanel4TM
+    dw IntroPanel5TMEnd-IntroPanel5TM
+    dw IntroPanel6TMEnd-IntroPanel6TM
+    dw IntroPanel7TMEnd-IntroPanel7TM
+    dw IntroPanel8TMEnd-IntroPanel8TM
+    dw IntroPanel9TMEnd-IntroPanel9TM
+    dw IntroPanel10TMEnd-IntroPanel10TM
+    dw IntroPanel11TMEnd-IntroPanel11TM
 
 HighscoreScene:
     sep #$20
@@ -4825,23 +5069,23 @@ HighscoreScene:
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 7
 
-    ldy.w #HScoreBGL1_Pal_End-HScoreBGL1_Pal
+    ldx.w #HScoreBGL1_Pal_End-HScoreBGL1_Pal
     -
-    lda.w HScoreTextPal, Y
-    sta.w PalMirror, Y
-    lda.w HScoreBGL1_Pal, Y
-    sta.w PalMirror+$20, Y
-    lda.w HScoreBGL2_Pal, Y
-    sta.w PalMirror+$40, Y
-    lda.w HScoreBGL2_Pal, Y
-    sta.w PalMirror+$00C0, Y
-    lda.w SpiralBlackHole, Y
-    sta.w PalMirror+$01E0, Y
-    lda.w TwinklePal, Y
-    sta.w PalMirror+$01C0, Y
-    lda.w HScoreSpr_Pal, Y
-    sta.w PalMirror+$0100, Y
-    dey
+    lda.l HScoreTextPal, X
+    sta.w PalMirror, X
+    lda.l HScoreBGL1_Pal, X
+    sta.w PalMirror+$20, X
+    lda.l HScoreBGL2_Pal, X
+    sta.w PalMirror+$40, X
+    lda.l HScoreBGL2_Pal, X
+    sta.w PalMirror+$00C0, X
+    lda.l SpiralBlackHole, X
+    sta.w PalMirror+$01E0, X
+    lda.l TwinklePal, X
+    sta.w PalMirror+$01C0, X
+    lda.l HScoreSpr_Pal, X
+    sta.w PalMirror+$0100, X
+    dex
     bpl -
 
     sep #$20
@@ -6330,17 +6574,17 @@ BG_City:
     sta.b (ZP.VrDmaListPtr), Y
 
     ;Transfer palette data
-    ldy.w #BG1_L2_Pal_End-BG1_L2_Pal
+    ldx.w #BG1_L2_Pal_End-BG1_L2_Pal
     -
-    lda.w BG1_L2_Pal, Y
-    sta.w PalMirror+32, Y
-    dey
+    lda.l BG1_L2_Pal, X
+    sta.w PalMirror+32, X
+    dex
     bne -
-    ldy.w #BG1_L3_Pal_End-BG1_L3_Pal
+    ldx.w #BG1_L3_Pal_End-BG1_L3_Pal
     -
-    lda.w BG1_L3_Pal, Y
-    sta.w PalMirror, Y
-    dey
+    lda.l BG1_L3_Pal, X
+    sta.w PalMirror, X
+    dex
     bne -
     rts
 
@@ -6476,18 +6720,18 @@ BG_Mountains:
     sta.b (ZP.VrDmaListPtr), Y
 
     ;Transfer palette data
-    ldy.w #BG2_L2_Pal_End-BG2_L2_Pal
+    ldx.w #BG2_L2_Pal_End-BG2_L2_Pal
     -
-    lda.w BG2_L2_Pal, Y
-    sta.w PalMirror+32, Y
-    dey
+    lda.l BG2_L2_Pal, X
+    sta.w PalMirror+32, X
+    dex
     bne -
     
-    ldy.w #BG2_L3_Pal_End-BG2_L3_Pal
+    ldx.w #BG2_L3_Pal_End-BG2_L3_Pal
     -
-    lda.w BG2_L3_Pal, Y
-    sta.w PalMirror, Y
-    dey
+    lda.l BG2_L3_Pal, X
+    sta.w PalMirror, X
+    dex
     bne -    
     stz.w BG3VOffMirror
     stz.w BG3VOffMirror+1
@@ -6664,24 +6908,24 @@ BG_Computer:
     bpl -
 
     ;Transfer palette data
-    ldy.w #BG3_L2_Pal_End-BG3_L2_Pal
+    ldx.w #BG3_L2_Pal_End-BG3_L2_Pal
     -
-    lda.w BG3_L2_Pal, Y
-    sta.w PalMirror+$20, Y
-    dey
+    lda.l BG3_L2_Pal, X
+    sta.w PalMirror+$20, X
+    dex
     bne -
-    ldy.w #BG3_L3_Pal_End-BG3_L3_Pal
+    ldx.w #BG3_L3_Pal_End-BG3_L3_Pal
     -
-    lda.w BG3_L3_Pal, Y
-    sta.w PalMirror, Y
-    dey
+    lda.l BG3_L3_Pal, X
+    sta.w PalMirror, X
+    dex
     bne -
     
-    ldy.w #BG3_OBJ_Pal_End-BG3_OBJ_Pal
+    ldx.w #BG3_OBJ_Pal_End-BG3_OBJ_Pal
     -
-    lda.w BG3_OBJ_Pal, Y
-    sta.w PalMirror+$0100, Y
-    dey
+    lda.l BG3_OBJ_Pal, X
+    sta.w PalMirror+$0100, X
+    dex
     bne -
     rts
 
@@ -6839,23 +7083,23 @@ BG_Surfboard:
     stz.w BG3VOffMirror
     stz.w BG3VOffMirror+1
     ;Transfer palette data
-    ldy.w #BG4_L2_Pal_End-BG4_L2_Pal
+    ldx.w #BG4_L2_Pal_End-BG4_L2_Pal
     -
-    lda.w BG4_L2_Pal, Y
-    sta.w PalMirror+32, Y
-    dey
+    lda.l BG4_L2_Pal, X
+    sta.w PalMirror+32, X
+    dex
     bne -
-    ldy.w #BG4_L3_Pal_End-BG4_L3_Pal
+    ldx.w #BG4_L3_Pal_End-BG4_L3_Pal
     -
-    lda.w BG4_L3_Pal, Y
-    sta.w PalMirror, Y
-    dey
+    lda.l BG4_L3_Pal, X
+    sta.w PalMirror, X
+    dex
     bne -
-    ldy.w #Surfboard_Pal_End-Surfboard_Pal
+    ldx.w #Surfboard_Pal_End-Surfboard_Pal
     -
-    lda.w Surfboard_Pal, Y
-    sta.w PalMirror+(144*2), Y
-    dey
+    lda.l Surfboard_Pal, X
+    sta.w PalMirror+(144*2), X
+    dex
     bne -
     rts
 
@@ -6949,17 +7193,17 @@ BG_Wetlands:
     sta.b (ZP.VrDmaListPtr), Y
 
     ;Transfer palette data
-    ldy.w #BG6_L2_Pal_End-BG6_L2_Pal
+    ldx.w #BG6_L2_Pal_End-BG6_L2_Pal
     -
-    lda.w BG6_L2_Pal, Y
-    sta.w PalMirror+32, Y
-    dey
+    lda.l BG6_L2_Pal, X
+    sta.w PalMirror+32, X
+    dex
     bne -
-    ldy.w #BG6_L3_Pal_End-BG6_L3_Pal
+    ldx.w #BG6_L3_Pal_End-BG6_L3_Pal
     -
-    lda.w BG6_L3_Pal, Y
-    sta.w PalMirror, Y
-    dey
+    lda.l BG6_L3_Pal, X
+    sta.w PalMirror, X
+    dex
     bne -
     rts
 
@@ -7104,17 +7348,17 @@ BG_Tundra:
     sta.b (ZP.VrDmaListPtr), Y
 
     ;Transfer palette data
-    ldy.w #BG7_L2_Pal_End-BG7_L2_Pal
+    ldx.w #BG7_L2_Pal_End-BG7_L2_Pal
     -
-    lda.w BG7_L2_Pal, Y
-    sta.w PalMirror+32, Y
-    dey
+    lda.l BG7_L2_Pal, X
+    sta.w PalMirror+32, X
+    dex
     bne -
-    ldy.w #BG7_L3_Pal_End-BG7_L3_Pal
+    ldx.w #BG7_L3_Pal_End-BG7_L3_Pal
     -
-    lda.w BG7_L3_Pal, Y
-    sta.w PalMirror, Y
-    dey
+    lda.l BG7_L3_Pal, X
+    sta.w PalMirror, X
+    dex
     bne -
 
 	rts
@@ -8308,7 +8552,7 @@ Enemy_Descend:
     dey
     bpl -
     jsr GameLoop_UpdateEnemyArray
-    jsr GameLoop_DrawEnemies
+    jsl GameLoop_DrawEnemies
     dec.b ZP.EnemyWaveCount
     stz.w EnemyTransSetup    
     +
@@ -8573,13 +8817,14 @@ AddSprite:
 ClearL1Vram:
 	php
 	rep #$10
-	sep #$20    ;Clear tilemap 1
+	sep #$20    				;Clear tilemap 1
     ldx.w #L1Ram
     stx.w HW_VMADDL             ;Set VRAM address to L1RAM
     lda.b #$09
     sta.w HW_DMAP7              ;Setup DMAP0
     lda.b #$18                  ;Grab Video mem data lo addr
-    sta.w HW_BBAD7              ;Set bus addr    
+    sta.w HW_BBAD7              ;Set bus addr  
+    lda.b #(ZVal>>16)&$FF
 	stz.w HW_A1B7
     ldx.w #ZVal                 ;Grab 0 val data to clear vram
     stx.w HW_A1T7L              ;Shove lo+mid addr byte
@@ -8587,6 +8832,31 @@ ClearL1Vram:
     stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM [0 just means all of vram]
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 0
+	plp
+	rts
+
+ClearLTileVram:
+	php
+	rep #$10
+	sep #$20    				;Clear tilemap 1
+    lda.b #$80
+    sta.w HW_INIDISP
+    ldx.w #L1Ram
+    stx.w HW_VMADDL             ;Set VRAM address to L1RAM
+    lda.b #$09
+    sta.w HW_DMAP7              ;Setup DMAP0
+    lda.b #$18                  ;Grab Video mem data lo addr
+    sta.w HW_BBAD7              ;Set bus addr    
+    lda.b #(ZVal>>16)&$FF
+	sta.w HW_A1B7
+    ldx.w #ZVal                 ;Grab 0 val data to clear vram
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    ldx.w #$1FFF
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM [0 just means all of vram]
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+    lda.b #$0F
+    sta.w HW_INIDISP
 	plp
 	rts
 
@@ -8768,88 +9038,123 @@ ExitText:
     db "EXIT"
 ExitTextEnd:
 
+IntroText:
+	dw Intro1_1
+	dw Intro1_2
+	dw Intro1_3
+	dw Intro1_4
+	dw Intro1_5
+	dw Intro1_6
+	dw Intro2_1
+	dw Intro2_2
+	dw Intro2_3
+	dw Intro2_4
+	dw Intro2_5
+
 ;Intro text, each line is 28 characters long, text is padded by one row/column for the X and Y axis
 ;Each intro text entry has 8 lines of text to work with, 2 lines for padding
+;Each section is E0 bytes large
 Intro1_1:
 	db "                            "
-	db " FOR A MILLENNIUM ALIEN     "
-	db " RACES HAD FOUGHT AND DIED  "
-	db " IN A VAIN WAR FOR TOTAL    "
-	db " POWER. BY LAND OR SEA OR	"
-	db " BY AIR THERE WAS NO RELIEF "
-	db " FROM WHAT WAS FELT...      "
+	db " FOR A THOUSAND YEARS A SET "
+	db " OF ALIEN SPECIES HAVE BEEN "
+	db " AT WAR. THIS WAS           "
+	db " FOR POWER! FOR GLORY! FOR  "
+	db " TOTAL. ABSOLUTE. VICTORY!  "
+	db " HOWEVER IT WAS NOT FATE... "
 	db "                            "
-
 Intro1_2:
 	db "                            "
 	db " EVENTUALLY AFTER MUCH TALK "
 	db " AND DELEGATION A PEACEFUL  "
 	db " RESOLUTION WAS MADE.       "
-	db " THERE WAS PEACE ONCE MORE. "
+	db " NO MORE FIGHTING. NO MORE  "
+	db " BLOODSHED.                 "
+	db " A NEW AGE WAS DELCARED!    "
 	db "                            "
-	db " A PEACE NOT FELT FOR YEARS "
-	db "                            "
-
 Intro1_3:
 	db "                            "
-	db " THE PEACE WAS GRAND AND    "
-	db " PROSPEROUS. FINALLY THEY   "
-	db " HAD THE CHANCE TO DO WHAT  "
-	db " THEY TRULY WANTED TO.      "
-	db "                            "
-	db " FOR FUN AND FOR GLORY!     "
-	db "                            "
-	
+	db " A GRAND COLLABERATION WAS  "
+	db " ESTABLISHED TO MAINTAIN A  "
+	db " EVERLASTING AND PROSPEROUS "
+	db " STATE OF PLENTY AND BLISS. "
+	db " SUCH PEACE WAS SURE TO     "
+	db " LAST FOR CENTURIES!        "
+	db "                            "	
 Intro1_4:
 	db "                            "
 	db " ONE WEEK LATER AND THE     "
-	db " ALIENS ARE NOW BORED. TOO  "
-	db " MUCH FREE TIME HAS LET     "
+	db " ALIENS ARE NOW BORED.      "
+	db " TOO MUCH FREE TIME HAS LET "
 	db " THEM GROW WEARY AND        "
 	db " AIMLESS. NOW WITH NO FIGHT "
 	db " THERE IS SIMPLY NO FUN.    "
 	db "                            "
-
 Intro1_5:
 	db "                            "
 	db " ONE ALIEN HAS AN IDEA...   "
 	db "                            "
-	db "     WHAT ABOUT A NEW WAR?	"
+	db "  |WHAT ABOUT A NEW WAR?    "
+	db "  WITH A STUPIDER SPECIES?| "
 	db "                            "
 	db " WITH NO ALTERNATIVE THE    "
 	db " OTHER ALIENS AGREE.        "
-	db "                            "
-	
+	db "                            "	
 Intro1_6:
 	db "                            "
 	db " WITH NO TARGET IN MIND THE "
 	db " ALIENS AGREE TO INVADE THE "
-	db " CLOSEST PLANET THEY SEE.	"
+	db " CLOSEST PLANET THEY SEE.   "
 	db "                            "
 	db " THEY OPEN A PORTAL AND GO  "
-	db " THROUGH TO INVADE...       "
+	db " THROUGH TO FIND A TARGET.  "
+	db "                            "	
+Intro2_1:                               ;Panel 7
 	db "                            "
-	
-Intro1_7:
+	db " PRESENT DAY EARTH WAS NOT  "
+	db " PREPARED TO MEET THE ALIEN "
+	db " THREAT. WITH NO TIME TO    "
+	db " SPARE EVERY GOVERNMENT NOW "
+	db " CALLS FOR A HERO TO SAVE   "
+	db " THE EARTH ITSELF...        "
 	db "                            "
-	db " WITH NO TARGET IN MIND THE "
-	db " ALIENS AGREE TO INVADE THE "
-	db " CLOSEST PLANET THEY SEE.	"
+Intro2_2:
 	db "                            "
-	db " THEY OPEN A PORTAL AND GO  "
-	db " THROUGH TO INVADE...       "
+	db " |ANYONE HERE WHO STEPS UP  "
+	db " AND DESTROYS THE ALIEN     "
+	db " THREAT WILL BE REWARDED A  "
+	db " MASSIVE SUM OF MONEY...    "
+	db "                            "
+	db "        5 POUNDS!|          "
+	db "                            "
+Intro2_3:
+	db "                            "
+	db " |WOW! 5 WHOLE POUNDS!      "
+	db " I CAN BUY A SWEET BAG WITH "
+	db " THAT MUCH MONEY!|          "
+	db "                            "
+	db " AND SO OUR HERO JOINS THE  "
+	db " FIGHT!!!                   "
+	db "                            "
+Intro2_4:
+	db "                            "
+	db " OFF THEY GO INTO DANGER    "
+	db " SO THAT THEY MAY GET THEIR "
+	db " GRAND PRIZE. WITH A HARD   "
+	db " HEAD AND A WILL OF IRON    "
+	db " ONLY EMBOLDENED BY THEIR   "
+	db " TANTALISING OFFER!         "
+	db "                            "
+Intro2_5:
+	db "                            "
+	db "                            "
+	db "''''''''''''''''''''''''''''"
+	db "                            "
+	db " GO FORTH YOU PLUCKY HUMAN! "
+	db "                            "
+	db "''''''''''''''''''''''''''''"
 	db "                            "
 
-Intro1_8:
-	db "                            "
-	db "                            "
-	db "                            "
-	db "                            "
-	db "                            "
-	db "                            "
-	db "                            "
-	db "                            "
-	
 ;Game modifiers
 Op0Text:
     db "00: 2X HEALTH ENEMIES "     ;2x enemy health
@@ -9814,6 +10119,17 @@ HScoreWindow:
     dw $00FF
     db $10
     dw $CC24
+    db $01
+    dw $00FF
+    db $00
+
+IntroWindow:
+    db $7F
+    dw $00FF
+    db $18
+    dw $00FF
+    db $49
+    dw $F010
     db $01
     dw $00FF
     db $00
@@ -11084,3 +11400,272 @@ dw $FFFF
 dw $FFFF
 dw Reset
 dw $FFFF
+
+org !CodeBank2
+
+   	;-------------------------------;
+    ;   Enemy Drawing Subroutine    ;
+    ;-------------------------------;
+    ;
+    ;   Usage
+    ;       Draws enemies from VRAM tile by tile to the screen tilemap
+    ;
+    ;   Clobber list:
+    ;       
+    ;
+GameLoop_DrawEnemies:
+    ;Enemy Load loop
+    pha
+    phx
+    phy
+    sep #$20
+    stz.w HW_WMADDH
+    lda.b #(EnemyTileBuffer>>8)&$FF
+    sta.w HW_WMADDM                     ;Set up Work ram pointer
+    lda.b #(EnemyTileBuffer)&$FF
+    sta.w HW_WMADDL                     ;Set up Work ram pointer
+    rep #$20
+    ldy.w #$0005
+    lda.w #EnemyType
+    sta.b ZP.MemPointer                 ;Set up EnemyType pointer
+    lda.w #EnemyHurtTable
+    sta.b ZP.MemPointer2                ;Set up EnemyHurtTimer table
+    ldx.w #$0000
+    .RowLoop:
+    ;Top row
+    tdc
+    sep #$20
+    for t = 0..8
+        lda.b (ZP.MemPointer)           ;Grab type table data
+        beq +
+        asl
+        asl
+        tax
+        lda.w EnemyDrawTop+0, X
+        sta.w HW_WMDATA
+        lda.b (ZP.MemPointer2)          ;Grab hurt timer
+        bne +++
+        lda.w EnemyDrawTop+1, X
+        bra ++++
+        +++
+        lda.b #!EnemyHurtPal
+        ++++
+        sta.w HW_WMDATA
+        lda.w EnemyDrawTop+2, X
+        sta.w HW_WMDATA
+        lda.b (ZP.MemPointer2)          ;Grab hurt timer
+        bne +++
+        lda.w EnemyDrawTop+3, X
+        bra ++++
+        +++
+        lda.b #!EnemyHurtPalFlip
+        ++++
+        sta.w HW_WMDATA
+        bra ++
+        +
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        ++
+        ;Write empty tile
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        ;Increment pointer
+        rep #$20
+        inc.b ZP.MemPointer
+        inc.b ZP.MemPointer2
+        sep #$20
+    endfor
+
+    for t = 0..8
+        stz.w HW_WMDATA                 ;Write empty tile
+        stz.w HW_WMDATA                 ;Write empty tile
+    endfor
+    rep #$20
+    lda.b ZP.MemPointer
+    sec
+    sbc.w #$0008
+    sta.b ZP.MemPointer
+    lda.b ZP.MemPointer2
+    sec
+    sbc.w #$0008
+    sta.b ZP.MemPointer2
+    tdc
+    sep #$20
+    for t = 0..8
+        lda.b (ZP.MemPointer)           ;Grab type table data
+        beq +
+        asl
+        asl
+        tax
+        lda.w EnemyDrawBot+0, X
+        sta.w HW_WMDATA
+        lda.b (ZP.MemPointer2)          ;Grab hurt timer
+        bne +++
+        lda.w EnemyDrawBot+1, X
+        bra ++++
+        +++
+        lda.b #!EnemyHurtPal
+        ++++
+        sta.w HW_WMDATA
+        lda.w EnemyDrawBot+2, X
+        sta.w HW_WMDATA
+        lda.b (ZP.MemPointer2)          ;Grab hurt timer
+        bne +++
+        lda.w EnemyDrawBot+3, X
+        bra ++++
+        +++
+        lda.b #!EnemyHurtPalFlip
+        ++++
+        sta.w HW_WMDATA
+        bra ++
+        +
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        ++
+        ;Write empty tile
+        stz.w HW_WMDATA
+        stz.w HW_WMDATA
+        ;Increment pointer
+        rep #$20
+        inc.b ZP.MemPointer
+        inc.b ZP.MemPointer2
+        sep #$20
+    endfor
+
+    for t = 0..40
+        stz.w HW_WMDATA                 ;Write empty tile
+        stz.w HW_WMDATA                 ;Write empty tile
+    endfor
+    
+    dey
+    beq +
+    jmp .RowLoop
+    +
+
+    ldy.w #$0000
+    lda.b #(EnemyTileBuffer)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(EnemyTileBuffer>>8)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #(EnemyTileBuffer>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #L1Ram
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #940
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+    ply
+    plx
+    pla
+    rtl
+    
+    ;-----------------------------------;
+    ;   Enemy Frame decider subroutine  ;
+    ;-----------------------------------;
+    ;
+    ;   Usage
+    ;       A register will hold the tile index, will output the corrected tile index frame
+    ;
+    ;   Clobber list:
+    ;       A register
+    ;
+GameLoop_DrawEnemies_FrameDecider:
+    pha
+    php
+    rep #$20
+    stz.b ZP.R0
+    stz.b ZP.R1
+    ldx.w #$0000
+    tdc
+    sep #$30
+    ldx.b ZP.EnemyFrame
+    lda.w EnemyFrameOffset, X
+    tax
+    rep #$20
+    lda.w EnemyVramOff, X
+    sta.b ZP.R0
+    sep #$20
+    plp
+    jsl LoadEnemyGFX
+    pla
+    rtl
+
+
+LoadEnemyGFX:
+    php    
+    ldy.w #$0000
+    rep #$20
+    lda.w #Invaders&$FFFF       ;Grab graphics addr
+    clc
+    adc.b ZP.R0
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    iny
+    sep #$20
+    lda.b #(Invaders>>16)&$FF
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    lda.b #$01
+    sta.b (ZP.VrDmaListPtr), Y
+    iny
+    rep #$20
+    lda.w #!EnemyTileDest
+    sta.b (ZP.VrDmaListPtr), Y
+    sep #$20
+    iny
+    iny
+    rep #$20
+    lda.w #$0400
+    sta.b (ZP.VrDmaListPtr), Y
+    lda.b ZP.VrDmaListPtr
+    clc
+    adc #$0008
+    sta.b ZP.VrDmaListPtr
+    sep #$20
+    ldy.w #$0003
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y
+    plp
+    rtl
+
+ClearHDMA:
+    pha
+    phx
+    phy
+    php
+    rep #$20
+    stz.w HDMAMirror
+    stz.w HDMAMirror+2
+    stz.w HDMAMirror1
+    stz.w HDMAMirror1+2
+    stz.w HDMAMirror2
+    stz.w HDMAMirror2+2
+    stz.w HDMAMirror3
+    stz.w HDMAMirror3+2
+    plp
+    ply
+    plx
+    pla
+    rtl

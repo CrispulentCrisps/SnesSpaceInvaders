@@ -57,10 +57,13 @@ endstruct
 !GfxBank3 =     $038000 ;Holds GFX data
 !GfxBank4 =     $048000 ;Holds GFX data
 !GfxBank5 =     $058000 ;Holds GFX data
-!TilemapBank2 = $068000 ;Holds tilemap
-!TilemapBank =  $078000 ;Holds tilemap
-!MusicBank =    $088000 ;Holds music data
-!MusicBank2 =   $098000 ;Holds music data
+!GfxBank6 =     $068000 ;Holds GFX data
+!PalBank =      $078000 ;Holds palette info
+!TilemapBank2 = $088000 ;Holds tilemap
+!TilemapBank =  $098000 ;Holds tilemap
+!MusicBank =    $0A8000 ;Holds music data
+!MusicBank2 =   $0B8000 ;Holds music data
+!CodeBank2 =    $0C8000 ;Hold long functions
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -111,6 +114,7 @@ BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
 PalMaskInd =        $04F3
+
 ;(8 columns * 5 rows)
 EnemyResetMove  =   $04FE
 EnemyResetFlag  =   $04FF
@@ -293,14 +297,23 @@ HScoreCursorTimer = $14A7   ;1 byte frame index for cursor timer
 HScoreTextBlink =   $14A8   ;1 byte timer for blinking the currently selected character
 HScoreCursorChar =  $14A9   ;1 byte index for current character
 ;Each entry contains:
-;       4 number characters
-;       13 name characters
-;       1 space character
-;       6 score characters
-;Thus making a single entry 24 bytes large
-;10 entries means 240 [$1E0] bytes
+;       13 name bytes
+;       3 score bytes
+;Thus making a single entry 16 bytes large
+;10 entries means 160 [$A0] bytes
 HScoreEntries =     $14B0   ;$0100 byte list of highscore entries
 
+IntroTimer =        $1550   ;2 byte timer for intro text
+IntroTextInd =      $1552   ;1 byte index into text
+IntoMoveFlag =      $1553   ;1 byte flag to move onto next panel
+IntroStart =        $1554   ;1 byte flag to do the main palette fade
+
+!IntroL2Start =     $7A62
+!TextTime =         $01F4    ;Approximately 10 seconds PAL time
+!IntroBG2Restart =  $B0
+!Intro2MaxY =       $40
+!IntroPanelVram =   $0400
+!MaxPanel =         $0B
 SRam =              $306000 ;Save data storage
 
 !HScoreEntrySize =  $03
@@ -539,3 +552,5 @@ EnemyFloor =        $04E9   ;Floor boundaries
 '>' = $28+1
 '@' = $29+1 ;Trophy character 2
 '~' = $2A+1 ;Trophy character 3
+'.' = $2B+1 ;Full stop
+'|' = $2C+1 ;Quotation mark
