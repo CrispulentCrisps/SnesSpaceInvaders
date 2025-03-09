@@ -23,7 +23,6 @@ struct ZP $00
 .AddSprAttr     skip 1  ;Attribute for add spr
 .AddSprBigFlag  skip 1  ;XPos for add spr
 .NMIDone        skip 2  ;NMI Flag for graphics/logic control
-.VrDmaListPtr   skip 2  ;Pointer to current position in list
 .SceneIndex     skip 1  ;Current scene we are in
 .SceneGoto      skip 1  ;Byte to hold which scene to go to while transitioning
 .ChangeScene    skip 1  ;Tell the scenes to load/deload data
@@ -49,6 +48,11 @@ struct ZP $00
 .PalFadeStart   skip 2  ;Pointer to start of palette fade
 .PalFadeEnd     skip 2  ;Pointer to end of palette fade
 .PalFadeTimer   skip 1  ;Timer to wait for palette index
+.VrDmaListPtr   skip 2  ;Pointer to current position in list
+.DMAQSrc        skip 3  ;DMA Queue source address
+.DMAQFlags      skip 1  ;DMA Queue flags
+.DMAQDest       skip 2  ;DMA Queue destination address
+.DMAQLength     skip 2  ;Data size of transfer
 endstruct
 
 !CodeBank =     $008000 ;Hold game code + palettes
@@ -61,9 +65,9 @@ endstruct
 !PalBank =      $078000 ;Holds palette info
 !TilemapBank2 = $088000 ;Holds tilemap
 !TilemapBank =  $098000 ;Holds tilemap
-!MusicBank =    $0A8000 ;Holds music data
-!MusicBank2 =   $0B8000 ;Holds music data
-!CodeBank2 =    $0C8000 ;Hold long functions
+!CodeBank2 =    $0A8000 ;Hold long functions
+!MusicBank =    $0B8000 ;Holds music data
+!MusicBank2 =   $0C8000 ;Holds music data
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -81,10 +85,12 @@ struct Player $0400
 .X      skip 1
 .Frame  skip 1          ;Current player frame
 .State  skip 1          ;Player animation states
-.Dead   skip 1          
+.Dead   skip 1     
+.FTime  skip 1          ;Firing timer
 endstruct
+!PlayerFTimeReset =     $1C
 
-struct Bullet $0405
+struct Bullet $0406
 .X          skip 2
 .Y          skip 1
 .Frame      skip 1  ;Current animation frame
@@ -108,7 +114,7 @@ EnemyBulletSine =   $0448
 EnemyBulletWait =   $044A   ;Time to wait between movement when homing
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
-!BGCountInitVal =   $00
+!BGCountInitVal =   $07
 !MaxBG =            $07
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
@@ -176,6 +182,7 @@ EnemyTileBuffer =   $7E8000
 TextDispBuffer =    $7E8400   ;Takes up [score text] + 6 bytes for score display
 HDMAScrollBuffer =  $7E8A00
 HDMAScrollBuffer2 = $7E8E00
+HDMAScrollBuffer3 = $7EA000
 
 BGScrollOff =       $06C0     ;Scrolling offsets for background elements
 BGScrollVal =       $06D0
@@ -194,6 +201,8 @@ HDMAMirror =        $0E10
 HDMAMirror1 =       $0E20
 HDMAMirror2 =       $0E30
 HDMAMirror3 =       $0E40
+HDMAMirror4 =       $0E50
+HDMAMirror5 =       $0E60
 
 INIDSPMirror =      $0EA0
 BGMODEMirror =      $0EA1
@@ -308,6 +317,8 @@ IntroTextInd =      $1552   ;1 byte index into text
 IntoMoveFlag =      $1553   ;1 byte flag to move onto next panel
 IntroStart =        $1554   ;1 byte flag to do the main palette fade
 
+HDMAColTableRAM =   $1600   ;160 byte [$A0] list of colour table entries
+
 !IntroL2Start =     $7A62
 !TextTime =         $01F4    ;Approximately 10 seconds PAL time
 !IntroBG2Restart =  $B0
@@ -323,9 +334,10 @@ SRam =              $306000 ;Save data storage
 !HscoreDispSize =   $0030*10
 
 !HScoreCursorSpr =  $70
-!HScoreCursorAttr = $3C
+!HScoreCursorAttr = $32
 
 !HScoreCursorMax =  $2D
+!HScoreCursorXMax = $0D
 
 !SpiralArmCount =   $05
 !SpiralArmOffset =  $04

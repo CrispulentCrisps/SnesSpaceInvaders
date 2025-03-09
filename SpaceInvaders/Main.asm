@@ -128,6 +128,11 @@ HScoreSprEnd:
 
 org !GfxBank4
 
+BG5Gfx:
+    incbin "bin/gfx/BG-5-L2.bin"
+    incbin "bin/gfx/BG-5-L3.bin"
+BG5GfxEnd:
+
 BG6Gfx:
     incbin "bin/gfx/BG-6-L2.bin"
     incbin "bin/gfx/BG-6-L3.bin"
@@ -144,11 +149,11 @@ StageTextSpr:
     incbin "bin/gfx/StageText.bin"
 StageTextSprEnd:
 
+org !GfxBank5
+
 IntroPanel1:
 	incbin "bin/gfx/IntroPanel1.bin"
 IntroPanel1End:
-
-org !GfxBank5
 
 IntroPanel2:
 	incbin "bin/gfx/IntroPanel2.bin"
@@ -238,6 +243,13 @@ BG4_L3_TM:
     incbin "bin/gfx/tilemap/BG-4-L3.bin"
 BG4_L3_TM_End:
 
+BG5_L2_TM:
+    incbin "bin/gfx/tilemap/BG-5-L2.bin"
+BG5_L2_TM_End:
+BG5_L3_TM:
+    incbin "bin/gfx/tilemap/BG-5-L3.bin"
+BG5_L3_TM_End:
+
 BG6_TM:
     incbin "bin/gfx/tilemap/BG-6-L2.bin"
     incbin "bin/gfx/tilemap/BG-6-L3.bin"
@@ -254,13 +266,13 @@ Title1_TM_End:
     incbin "bin/gfx/tilemap/Title-BG-L2.bin"
 Title2_TM_End:
 
+org !TilemapBank2
+
 Options_TM:
     incbin "bin/gfx/tilemap/OptionsBG.bin"
 Options_TM_End:
     incbin "bin/gfx/tilemap/OptionsBG2.bin"
 Options2_TM_End:
-
-org !TilemapBank2
 
 IntroPanel1TM:
 	incbin "bin/gfx/tilemap/IntroPanel1.bin"
@@ -406,9 +418,18 @@ BG4_L2_Pal:
     incbin "bin/gfx/pal/BG-4-L2-Pal.bin"
 BG4_L2_Pal_End:
 
+BG5_L2_Pal:
+    incbin "bin/gfx/pal/BG-5-L2-Pal.bin"
+BG5_L2_Pal_End:
+
+BG5_L3_Pal:
+    incbin "bin/gfx/pal/BG-5-L3-Pal.bin"
+BG5_L3_Pal_End:
+
 BG6_L2_Pal:
     incbin "bin/gfx/pal/BG-6-L2-Pal.bin"
 BG6_L2_Pal_End:
+
 BG6_L3_Pal:
     incbin "bin/gfx/pal/BG-6-L3-Pal.bin"
 BG6_L3_Pal_End:
@@ -416,6 +437,7 @@ BG6_L3_Pal_End:
 BG7_L2_Pal:
     incbin "bin/gfx/pal/BG-7-L2-Pal.bin"
 BG7_L2_Pal_End:
+
 BG7_L3_Pal:
     incbin "bin/gfx/pal/BG-7-L3-Pal.bin"
 BG7_L3_Pal_End:
@@ -439,7 +461,9 @@ OptionsGrad:
     incbin "bin/gfx/pal/OptionsBGGalaxyGrad.bin"
 OptionsGrad_End:
 
-;   Options screen Gradient
+BG5Grad:
+    incbin "bin/gfx/pal/BG5Grad.bin"
+
 BG6Grad:
     incbin "bin/gfx/pal/BG6-Grad.bin"
 
@@ -634,7 +658,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$06
+    lda.b #$03
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -978,6 +1002,43 @@ NMIHandler:
     txa
     clc
     adc.b #$08                     ;X being used as our bitfield for HDMA
+    tax
+    +    
+    lda.w HDMAMirror4+1
+    beq +
+    lda.w HDMAMirror4
+    sta.w HW_DMAP4
+    lda.w HDMAMirror4+1
+    sta.w HW_BBAD4
+    rep #$20
+    lda.w HDMAMirror4+2
+    sta.w HW_A1T4L
+    tdc
+    sep #$20
+    lda.w HDMAMirror4+4
+    sta.w HW_A1B4
+    txa
+    clc
+    adc.b #$10                     ;X being used as our bitfield for HDMA
+    tax
+    +
+    
+    lda.w HDMAMirror5+1
+    beq +
+    lda.w HDMAMirror5
+    sta.w HW_DMAP5
+    lda.w HDMAMirror5+1
+    sta.w HW_BBAD5
+    rep #$20
+    lda.w HDMAMirror5+2
+    sta.w HW_A1T5L
+    tdc
+    sep #$20
+    lda.w HDMAMirror5+4
+    sta.w HW_A1B5
+    txa
+    clc
+    adc.b #$20                     ;X being used as our bitfield for HDMA
     tax
     +
 
@@ -1485,7 +1546,7 @@ GameScene:
     bit.w #!Mod5
     sep #$20
     beq +
-    lda.b #$61
+    lda.b #$51
     sta.w HW_MOSAIC
     +
     
@@ -1584,13 +1645,23 @@ GameScene:
     sep #$20
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
+    
+    lda.b #$00
+    sta.b ZP.PalFadeInd
+    ldx.w #$0000
+    stx.b ZP.PalFadeStart
+    ldx.w #$0000
+    stx.b ZP.PalFadeEnd
     .SkipLoad:
 
     jsr GameLoop_DrawScore
 
     ;-------------------;
     ;   Player Logic    ;
-    ;-------------------;
+    ;-------------------;    
+    lda.w GameState
+    cmp.b #!GameState_Dead
+    beq .SkipLeftInput
     lda.b ZP.Controller+1
     and #$01                    ;Check Right DPAD
     beq .SkipRightInput
@@ -1611,9 +1682,16 @@ GameScene:
     sta.w Player.X
     .SkipLeftInput:
 
+    lda.w Player.FTime
+    beq +
+    dec.w Player.FTime
+    +
+
     lda.w GameState
     cmp.b #!GameState_Dead
     beq .SkipShoot
+    lda.w Player.FTime
+    bne .SkipShoot
     lda.b ZP.Controller+1
     and #$40                    ;Check A button
     beq .SkipShoot
@@ -1622,6 +1700,8 @@ GameScene:
     ;Enable bullet
     lda.b #$01
     sta.w Bullet.Enabled
+    lda.b #!PlayerFTimeReset
+    sta.w Player.FTime
     ;Set Bullet position to the player's
     lda.w Player.X
     clc
@@ -4985,6 +5065,14 @@ HighscoreScene:
     stz.w HW_HDMAEN
     jsr TransitionIn
     
+    jsl ClearHDMA
+
+    lda.b #$00
+    ldy.w #$000F
+    -
+    sta.w VrDmaPtr, Y
+    dey
+    bpl -
     ldx.w #$1440
     stx.w COLDATAMirror
     lda.b #$80
@@ -5050,8 +5138,6 @@ HighscoreScene:
     stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 7
-    ldx.w #L1Ram
-    stx.w HW_VMADDL
 
     ldx.w #L2Ram
     stx.w HW_VMADDL
@@ -5062,7 +5148,7 @@ HighscoreScene:
     sta.w HW_DMAP7              ;Setup DMAP0
     ldx.w #HScoreBG_TM_2&$FFFF     ;Grab graphics addr
     stx.w HW_A1T7L              ;Shove lo+mid addr byte
-    lda.b #HScoreBG_TM_2>>16&$FF
+    lda.b #(HScoreBG_TM_2>>16)&$FF
     sta.w HW_A1B7               ;Store bank
     ldx.w #HScoreBG_TM_End-HScoreBG_TM_2
     stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
@@ -5082,7 +5168,7 @@ HighscoreScene:
     lda.l SpiralBlackHole, X
     sta.w PalMirror+$01E0, X
     lda.l TwinklePal, X
-    sta.w PalMirror+$01C0, X
+    sta.w PalMirror+$0120, X
     lda.l HScoreSpr_Pal, X
     sta.w PalMirror+$0100, X
     dex
@@ -5109,6 +5195,8 @@ HighscoreScene:
     jsr Highscore_EvaluatePlayerScorePosition
 	jsr Highscore_ConstructHighscore
 
+    stz.w BG3VOffMirror
+    stz.w BG3VOffMirror+1
 
     sep #$20
     lda.b #$FF
@@ -5573,7 +5661,9 @@ Highscore_HandleEntryInput:
     sta.b ZP.InputFlag
 	lda.w HScoreTextCursor
 	dec
-	and.b #$0F
+    bpl .SkipMinX
+    lda.b #!HScoreCursorXMax-1
+    .SkipMinX:
 	sta.w HScoreTextCursor
 	and.b #$0F
 	tdc
@@ -5597,7 +5687,10 @@ Highscore_HandleEntryInput:
     sta.b ZP.InputFlag
 	lda.w HScoreTextCursor
 	inc
-	and.b #$0F
+    cmp.b #!HScoreCursorXMax
+    bne .SkipMax
+    lda.b #$00
+    .SkipMax:
 	sta.w HScoreTextCursor
 	tdc
 	ldx.w #$0000
@@ -5621,7 +5714,6 @@ Highscore_HandleEntryInput:
 	inc.w HScoreTextCursor
 	.SkipSelect:
 
-	
     lda.b ZP.InputFlag
     beq .SkipTextUpdate
 	tdc
@@ -5640,6 +5732,7 @@ Highscore_HandleEntryInput:
 	.SkipTextUpdate:
 
 	;Cursor sprite
+    tdc
 	ldx.w #$0000
 	ldy.w #$0000
 	lda.w HScoreCursorTimer
@@ -5699,7 +5792,7 @@ Highscore_ConstructHighscore:
     sta.w HW_VMDATAL
     iny
     iny
-    cpy #HighscoreText-HighscoreUnderline
+    cpy #HighscoreUnderline-HighscoreHeader
     bne -
 
     stz.w WH0Mirror
@@ -6449,7 +6542,7 @@ BGLoad:
     dw BG_Mountains     ;BG-2
     dw BG_Computer      ;BG-3
     dw BG_Surfboard     ;BG-4
-    dw BG_Volcano       ;BG-5
+    dw BG_Desert        ;BG-5
     dw BG_Wetlands      ;BG-6
     dw BG_Tundra      	;BG-7
 
@@ -6953,133 +7046,68 @@ BG_Surfboard:
     stz.w HW_BG34NBA
 
     ;Load Graphics
+    
     ldy.w #$0000
-    lda.b #(BG4_L2)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(BG4_L2>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    rep #$20
+    lda.w #(BG4_L2)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
     lda.b #(BG4_L2>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #!BGTileDest
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
+    sta.b ZP.DMAQDest
     lda.w #BG4_L3_End-BG4_L2
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
-
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    
     ;Load Tilemaps
-    ldy.w #$0000
-    lda.b #(BG4_L2_TM)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(BG4_L2_TM>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    lda.w #(BG4_L2_TM)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
     lda.b #(BG4_L2_TM>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #L2Ram
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
+    sta.b ZP.DMAQDest
     lda.w #BG4_L2_TM_End-BG4_L2_TM
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
     
-    ;Layer 3
-    ldy.w #$0000
-    lda.b #(BG4_L3_TM)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(BG4_L3_TM>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    lda.w #(BG4_L3_TM)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
     lda.b #(BG4_L3_TM>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #L3Ram
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
+    sta.b ZP.DMAQDest
     lda.w #BG4_L3_TM_End-BG4_L3_TM
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
 
-    ;Load Objects
-    ldy.w #$0000
-    lda.b #(BG4_OBJ)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(BG4_OBJ>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    ;Load Objects    
+    lda.w #(BG4_OBJ)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
     lda.b #(BG4_OBJ>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #!SprVram+(GameSprEnd-GameSpr)
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
+    sta.b ZP.DMAQDest
     lda.w #BG4_OBJ_End-BG4_OBJ
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
 
+    sep #$20
     stz.w BG3VOffMirror
     stz.w BG3VOffMirror+1
     ;Transfer palette data
@@ -7103,8 +7131,104 @@ BG_Surfboard:
     bne -
     rts
 
-BG_Volcano:
+BG_Desert:
+    php
+    stz.w HDMAMirror2
+    stz.w HDMAMirror2+1
+    stz.w HDMAMirror2+2
+    stz.w HDMAMirror2+3
+    ;Setup video display
+    lda.b #$01
+    sta.w HW_BGMODE
+    lda.b #$1F
+    sta.w TMMirror
+    sta.w TSMirror
+    sta.w TMWMirror
+    sta.w TSWMirror
+    stz.w CGWSELMirror
+    stz.w CGADSUBMirror
+    stz.w COLDATAMirror
+    stz.w COLDATAMirror+1
+    stz.w WH0Mirror
+    stz.w WH1Mirror
+    
+    stz.w HW_BG12NBA
+    stz.w HW_BG34NBA
+
+    ;Load Graphics    
+    ldy.w #$0000
+    rep #$20
+    lda.w #(BG5Gfx)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG5Gfx>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!BGTileDest
+    sta.b ZP.DMAQDest
+    lda.w #BG5GfxEnd-BG5Gfx
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    
+    ;Load Tilemaps
+    lda.w #(BG5_L2_TM)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG5_L2_TM>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #L2Ram
+    sta.b ZP.DMAQDest
+    lda.w #BG5_L2_TM_End-BG5_L2_TM
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    
+    lda.w #(BG5_L3_TM)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG5_L3_TM>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #L3Ram
+    sta.b ZP.DMAQDest
+    lda.w #BG5_L3_TM_End-BG5_L3_TM
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    
+    sep #$20
+    ;Transfer palette data
+    ldx.w #BG5_L2_Pal_End-BG5_L2_Pal
+    -
+    lda.l BG5_L2_Pal, X
+    sta.w PalMirror+32, X
+    dex
+    bne -
+    ldx.w #BG5_L3_Pal_End-BG5_L3_Pal
+    -
+    lda.l BG5_L3_Pal, X
+    sta.w PalMirror, X
+    dex
+    bne -
+
+    ldx.w #((BG5Grad)&$FFFF)+$02
+    stx.b ZP.MemPointer
+    lda.b #(BG5Grad>>16)&$FF
+    sta.b ZP.MemPointer+2
+    ldx.w #BG5ColTable
+    stx.w ZP.MemPointer2
+    lda.b #52*2
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsl ConstructGradientTable
+    plp
     rts
+
 BG_Wetlands:
     ;Setup video display
     stz.w HDMAMirror2
@@ -7130,67 +7254,36 @@ BG_Wetlands:
     sta.w HW_BG34NBA
     ;Load Graphics
     ldy.w #$0000
-    lda.b #(BG6Gfx)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(BG6Gfx>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    rep #$20
+    lda.w #(BG6Gfx)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
     lda.b #(BG6Gfx>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #!BGTileDest
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
+    sta.b ZP.DMAQDest
     lda.w #BG6GfxEnd-BG6Gfx
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
-
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    
     ;Load Tilemaps
-    ldy.w #$0000
-    lda.b #(BG6_TM)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(BG6_TM>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    lda.w #(BG6_TM)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
     lda.b #(BG6_TM>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #L2Ram
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
+    sta.b ZP.DMAQDest
     lda.w #BG6_TM_End-BG6_TM
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
     sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
 
     ;Transfer palette data
     ldx.w #BG6_L2_Pal_End-BG6_L2_Pal
@@ -7253,99 +7346,50 @@ BG_Tundra:
 	bpl .ScrollClear
     ;Load Graphics
     ldy.w #$0000
-    lda.b #(BG7Gfx)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(BG7Gfx>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    rep #$20
+    lda.w #(BG7Gfx)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
     lda.b #(BG7Gfx>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #!BGTileDest
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
+    sta.b ZP.DMAQDest
     lda.w #BG7GfxEnd-BG7Gfx
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+
+    lda.w #(BG7Gfx_L3)&$FFFF
+    sta.b ZP.DMAQSrc
     sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
-
-
-    ldy.w #$0000
-    lda.b #(BG7Gfx_L3)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(BG7Gfx_L3>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
     lda.b #(BG7Gfx_L3>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #!BG3TileDest
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
+    sta.b ZP.DMAQDest
     lda.w #BG7Gfx_L3End-BG7Gfx_L3
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
 
     ;Load Tilemaps
-    ldy.w #$0000
-    lda.b #(BG7_TM)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(BG7_TM>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    lda.w #(BG7_TM)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
     lda.b #(BG7_TM>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #L2Ram
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
+    sta.b ZP.DMAQDest
     lda.w #BG7_TM_End-BG7_TM
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
     sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
 
     ;Transfer palette data
     ldx.w #BG7_L2_Pal_End-BG7_L2_Pal
@@ -8166,6 +8210,207 @@ BG3:
     rts
 
 BG4:
+    php
+    sep #$20
+    ldx.w #HDMAScrollBuffer2
+    stx.w HW_WMADDL
+    lda.b #$7E
+    sta.w HW_WMADDH
+    inc.w SinePtr
+    inc.w SinePtr
+
+    ldx.w #$0000
+    ldy.w #$0000
+    sep #$10
+    ldx.b #$80
+    ldy.w SinePtr
+    -
+    lda.b #$01
+    sta.w HW_WMDATA
+    lda.w HeatDist, Y
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    iny
+    lda.b #$01
+    sta.w HW_WMDATA
+    lda.w HeatDist, Y
+    eor.b #$FF
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    iny
+    dex
+    bne -
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+    rep #$10
+
+    inc.w BGScrollOff
+    lda.w BGScrollOff
+    cmp.b #$20
+    bne +
+    inc.w BGScrollVal
+    stz.w BGScrollOff
+    +
+    
+    inc.w BGScrollOff+1
+    lda.w BGScrollOff+1
+    cmp.b #$10
+    bne +
+    inc.w BGScrollVal+1
+    stz.w BGScrollOff+1
+    +
+    
+    inc.w BGScrollOff+2
+    lda.w BGScrollOff+2
+    cmp.b #$0B
+    bne +
+    inc.w BGScrollVal+2
+    stz.w BGScrollOff+2
+    +
+
+    inc.w BGScrollOff+3
+    lda.w BGScrollOff+3
+    cmp.b #$09
+    bne +
+    inc.w BGScrollVal+3
+    stz.w BGScrollOff+3
+    +
+    
+    inc.w BGScrollOff+4
+    lda.w BGScrollOff+4
+    cmp.b #$06
+    bne +
+    inc.w BGScrollVal+4
+    stz.w BGScrollOff+4
+    +
+
+    inc.w BGScrollOff+5
+    lda.w BGScrollOff+5
+    cmp.b #$02
+    bne +
+    inc.w BGScrollVal+5
+    stz.w BGScrollOff+5
+    +
+
+    inc.w BGScrollOff+6
+    
+    inc.w BGScrollVal+7
+    inc.w BGScrollVal+7
+    inc.w BGScrollVal+7
+
+    sep #$20
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    sta.w HW_WMADDH
+    lda.b #$17          ;Scanline
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$7F          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal   ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$15          ;Scanline
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    stz.w HW_WMDATA     ;End
+    
+    ldx.w #HDMAScrollBuffer3&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer3>>16)&$FF
+    sta.w HW_WMADDH
+    lda.b #$4F          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+1 ;\
+    stz.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$33          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+1 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$14          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+2 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$09          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+3 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$09          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+4 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$0C          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+5 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$0C          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+6 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    lda.b #$2F          ;Scanline
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+7 ;\
+    sta.w HW_WMDATA     ;|  Offsets
+    stz.w HW_WMDATA     ;/
+    stz.w HW_WMDATA     ;End
+
+
+    lda.b #$02
+    sta.w HDMAMirror2
+    lda.b #(HW_BG2VOFS)&$FF
+    sta.w HDMAMirror2+1
+    ldx.w #HDMAScrollBuffer2
+    stx.w HDMAMirror2+2
+    lda.b #$7E
+    sta.w HDMAMirror2+4
+
+    lda.b #$02
+    sta.w HDMAMirror3
+    lda.b #(HW_BG3VOFS)&$FF
+    sta.w HDMAMirror3+1
+    ldx.w #HDMAScrollBuffer2
+    stx.w HDMAMirror3+2
+    lda.b #$7E
+    sta.w HDMAMirror3+4
+
+    lda.b #$03
+    sta.w HDMAMirror
+    lda.b #(HW_CGADD)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #HDMAColTableRAM
+    stx.w HDMAMirror+2
+    lda.b #$80
+    sta.w HDMAMirror+4
+    
+    lda.b #$02
+    sta.w HDMAMirror4
+    lda.b #(HW_BG3HOFS)&$FF
+    sta.w HDMAMirror4+1
+    ldx.w #HDMAScrollBuffer
+    stx.w HDMAMirror4+2
+    lda.b #$7E
+    sta.w HDMAMirror4+4
+    
+    lda.b #$02
+    sta.w HDMAMirror5
+    lda.b #(HW_BG2HOFS)&$FF
+    sta.w HDMAMirror5+1
+    ldx.w #HDMAScrollBuffer3
+    stx.w HDMAMirror5+2
+    lda.b #$7E
+    sta.w HDMAMirror5+4
+    plp
     rts
 
 BG5:
@@ -8813,7 +9058,7 @@ AddSprite:
     ;   Clobberlist
     ;       ZP.R0
     ;       ZP.R1
-
+    
 ClearL1Vram:
 	php
 	rep #$10
@@ -8952,22 +9197,6 @@ HighscoreHeader:
     dw ">@~ THE HALL OF FAME ~@>"
 HighscoreUnderline:
     dw "''''''''''''''''''''''''"
-HighscoreText:
-    dw "01: HIGHSCORE N01 100000"
-    dw "02: HIGHSCORE N02 090000"
-    dw "03: HIGHSCORE N03 080000"
-    dw "04: HIGHSCORE N04 070000"
-    dw "05: HIGHSCORE N05 060000"
-    dw "06: HIGHSCORE N06 050000"
-    dw "07: HIGHSCORE N07 040000"
-    dw "08: HIGHSCORE N08 030000"
-    dw "09: HIGHSCORE N09 020000"
-    dw "10: HIGHSCORE N10 010000"
-    dw "''''''''''''''''''''''''"
-    dw "                        "
-    dw "  PRESS START TO EXIT!  "
-    dw "  ''''''''''''''''''''  "
-HighscoreTextEnd:
 
 HighscoreValuesInit:
 	db "HIGHSCORE N01"		;13 bytes
@@ -8991,28 +9220,6 @@ HighscoreValuesInit:
 	db "HIGHSCORE N10"		;13 bytes
 	dl $010000				;03 bytes
 HighscoreValuesInitEnd:
-
-StageText:
-    db "NIGHTIME CITY       "
-    db "ROCKY ROAD ROUTE    "
-    db "ENERGY SECTOR       "
-    db "NORTH OF THE ISLE   "
-    db "MAGMATIC            "
-    db "VISCOUS MARSHLAND   "
-    db "SNOWSTORM TUNDRA    "
-    db "NO TEXT ATM         "
-
-ScoreText:
-    dw "SCORE: "
-EndScoreText:
-
-WaveText:
-    dw "WAVE: "
-EndWaveText:
-
-LivesText:
-    dw "LIVES: "
-EndLivesText:
 
 StartText:
     db "START GAME"
@@ -9080,7 +9287,7 @@ Intro1_3:
 	db " STATE OF PLENTY AND BLISS. "
 	db " SUCH PEACE WAS SURE TO     "
 	db " LAST FOR CENTURIES!        "
-	db "                            "	
+	db "                            "
 Intro1_4:
 	db "                            "
 	db " ONE WEEK LATER AND THE     "
@@ -9103,8 +9310,8 @@ Intro1_5:
 Intro1_6:
 	db "                            "
 	db " WITH NO TARGET IN MIND THE "
-	db " ALIENS AGREE TO INVADE THE "
-	db " CLOSEST PLANET THEY SEE.   "
+	db " ALIENS AGREE TO INVADE     "
+	db " WHATEVER PLANET THEY SEE.  "
 	db "                            "
 	db " THEY OPEN A PORTAL AND GO  "
 	db " THROUGH TO FIND A TARGET.  "
@@ -9986,6 +10193,37 @@ BG4ColTable:
     dw $0000        ;Address
     dw $0000
     db $00
+
+BG5ColTable:
+    ;Sky
+    db $08      ;Scanline
+    db $08      ;Scanline
+    db $08      ;Scanline
+    db $08      ;Scanline
+    db $07      ;Scanline
+    db $07      ;Scanline
+    db $06      ;Scanline
+    db $06      ;Scanline
+    db $05      ;Scanline
+    db $05      ;Scanline
+    db $04      ;Scanline
+    db $04      ;Scanline
+    db $03      ;Scanline
+    db $02      ;Scanline
+    db $01      ;Scanline
+
+    ;Desert
+    db $02      ;Scanline
+    db $03      ;Scanline
+    db $03      ;Scanline
+    db $04      ;Scanline
+    db $05      ;Scanline
+    db $06      ;Scanline
+    db $07      ;Scanline
+    db $08      ;Scanline
+    db $09      ;Scanline
+    db $0A      ;Scanline
+    db $0C      ;Scanline
 
 BG6ColTable:
     db $20      ;Scanline
@@ -10874,6 +11112,35 @@ dw $0074,$0075,$0076,$0077,$0079,$007A,$007A
 dw $007B,$007C,$007D,$007E,$007E,$007F,$007F
 dw $007F,$0080,$0080,$0080
 
+HeatDist:
+db $00,$00,$00,$00,$00,$00,$01,$01,$01,$01
+db $01,$01,$01,$01,$01,$01,$01,$01,$02,$02
+db $02,$02,$02,$02,$02,$02,$02,$02,$02,$02
+db $02,$02,$02,$02,$02,$02,$02,$02,$02,$02
+db $02,$02,$02,$02,$02,$02,$02,$01,$01,$01
+db $01,$01,$01,$01,$01,$01,$01,$01,$01,$00
+db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+db $FF,$FF,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE
+db $FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE
+db $FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE
+db $FE,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+db $FF,$FF,$FF,$00,$00,$00,$00,$00,$00,$00
+db $00,$00,$00,$00,$01,$01,$01,$01,$01,$01
+db $01,$01,$01,$01,$01,$01,$02,$02,$02,$02
+db $02,$02,$02,$02,$02,$02,$02,$02,$02,$02
+db $02,$02,$02,$02,$02,$02,$02,$02,$02,$02
+db $02,$02,$02,$02,$02,$01,$01,$01,$01,$01
+db $01,$01,$01,$01,$01,$01,$01,$00,$00,$00
+db $00,$00,$00,$00,$00,$00,$00,$00,$FF,$FF
+db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+db $FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE
+db $FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE
+db $FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FF
+db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+db $FF,$00,$00,$00,$00,$00
+
+
 GalRingSinePtr:
     for t = 0..!SpiralArmCount
         dw GalRingX0
@@ -11418,6 +11685,7 @@ GameLoop_DrawEnemies:
     pha
     phx
     phy
+    php
     sep #$20
     stz.w HW_WMADDH
     lda.b #(EnemyTileBuffer>>8)&$FF
@@ -11547,35 +11815,21 @@ GameLoop_DrawEnemies:
     +
 
     ldy.w #$0000
-    lda.b #(EnemyTileBuffer)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    lda.b #(EnemyTileBuffer>>8)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    rep #$20
+    lda.w #(EnemyTileBuffer)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
     lda.b #(EnemyTileBuffer>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #L1Ram
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
-    lda.w #940
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
+    sta.b ZP.DMAQDest
+    lda.w #$0400
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    plp
     ply
     plx
     pla
@@ -11607,46 +11861,32 @@ GameLoop_DrawEnemies_FrameDecider:
     lda.w EnemyVramOff, X
     sta.b ZP.R0
     sep #$20
-    plp
     jsl LoadEnemyGFX
+    plp
     pla
     rtl
 
 
 LoadEnemyGFX:
     php    
+    rep #$30
     ldy.w #$0000
-    rep #$20
     lda.w #Invaders&$FFFF       ;Grab graphics addr
     clc
     adc.b ZP.R0
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
-    iny
+    sta.b ZP.DMAQSrc
     sep #$20
     lda.b #(Invaders>>16)&$FF
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQSrc+2
     lda.b #$01
-    sta.b (ZP.VrDmaListPtr), Y
-    iny
+    sta.b ZP.DMAQFlags
     rep #$20
     lda.w #!EnemyTileDest
-    sta.b (ZP.VrDmaListPtr), Y
-    sep #$20
-    iny
-    iny
-    rep #$20
+    sta.b ZP.DMAQDest
     lda.w #$0400
-    sta.b (ZP.VrDmaListPtr), Y
-    lda.b ZP.VrDmaListPtr
-    clc
-    adc #$0008
-    sta.b ZP.VrDmaListPtr
-    sep #$20
-    ldy.w #$0003
-    lda.b #$00
-    sta.b (ZP.VrDmaListPtr), Y
+    sta.b ZP.DMAQLength
+
+    jsl QueueDMA
     plp
     rtl
 
@@ -11664,6 +11904,92 @@ ClearHDMA:
     stz.w HDMAMirror2+2
     stz.w HDMAMirror3
     stz.w HDMAMirror3+2
+    stz.w HDMAMirror4
+    stz.w HDMAMirror4+2
+    stz.w HDMAMirror5
+    stz.w HDMAMirror5+2
+    plp
+    ply
+    plx
+    pla
+    rtl
+
+
+    ;
+    ; ZP.DMAQSrc        |   Source address
+    ; ZP.DMAQFlags      |   Flags [non-zero for a viable entry]
+    ; ZP.DMAQDest       |   Destination address
+    ; ZP.DMAQLength     |   Size of transfer
+QueueDMA:
+    pha
+    phx
+    phy
+    php
+    rep #$20
+    ldy.w #$0000
+    lda.b ZP.DMAQSrc
+    sta.b (ZP.VrDmaListPtr), Y
+    inc.w ZP.VrDmaListPtr
+    inc.w ZP.VrDmaListPtr
+
+    lda.b ZP.DMAQSrc+2
+    sta.b (ZP.VrDmaListPtr), Y
+    inc.w ZP.VrDmaListPtr
+    inc.w ZP.VrDmaListPtr
+    
+    lda.b ZP.DMAQDest
+    sta.b (ZP.VrDmaListPtr), Y
+    inc.w ZP.VrDmaListPtr
+    inc.w ZP.VrDmaListPtr
+    
+    lda.b ZP.DMAQLength
+    sta.b (ZP.VrDmaListPtr), Y
+    inc.w ZP.VrDmaListPtr
+    inc.w ZP.VrDmaListPtr
+    ldy.w #$0003                ;Clear next entry to prevent harmful DMA's
+    sep #$20
+    lda.b #$00
+    sta.b (ZP.VrDmaListPtr), Y    
+    plp
+    ply
+    plx
+    pla
+    rtl
+
+    ;ZP.MemPointer  |   source palette address
+    ;ZP.MemPointer2 |   source scanline list
+    ;ZP.R0+R1       |   amount of colours to copy
+ConstructGradientTable:
+    pha
+    phx
+    phy
+    php
+    ldy.w #$0000
+    ldx.w #$0000
+    rep #$20
+    .TransferLoop:
+    sep #$20
+    lda.b (ZP.MemPointer2)      ;Grab current scanline
+    sta.w HDMAColTableRAM, X
+    rep #$20
+    inc.w ZP.MemPointer2
+    inx
+    stz.w HDMAColTableRAM, X
+    inx
+    inx
+    lda.b [ZP.MemPointer]       ;Grab current colour
+    sta.w HDMAColTableRAM, X
+    inc.w ZP.MemPointer
+    inc.w ZP.MemPointer
+    inx
+    inx
+    dec.b ZP.R0
+    dec.b ZP.R0
+    bpl .TransferLoop
+    stz.w HDMAColTableRAM, X
+    inx
+    inx
+    stz.w HDMAColTableRAM, X
     plp
     ply
     plx

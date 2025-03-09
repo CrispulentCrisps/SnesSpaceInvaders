@@ -11,6 +11,8 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-3-L3.png -t bin\gfx\BG-3-L3.bin -p bin\gfx\pal\BG-3-L3-Pal.bin -m bin\gfx\tilemap\BG-3-L3.bin --tile-base-offset 374
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-4-L2.png -t bin\gfx\BG-4-L2.bin -p bin\gfx\pal\BG-4-L2-Pal.bin -m bin\gfx\tilemap\BG-4-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-4-L3.png -t bin\gfx\BG-4-L3.bin -p bin\gfx\pal\BG-4-L3-Pal.bin -m bin\gfx\tilemap\BG-4-L3.bin --tile-base-offset 414
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-5-L2.png -t bin\gfx\BG-5-L2.bin -p bin\gfx\pal\BG-5-L2-Pal.bin -m bin\gfx\tilemap\BG-5-L2.bin --tile-base-offset 128 --palette-base-offset 1
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-5-L3.png -t bin\gfx\BG-5-L3.bin -p bin\gfx\pal\BG-5-L3-Pal.bin -m bin\gfx\tilemap\BG-5-L3.bin --tile-base-offset 350
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-6-L2.png -t bin\gfx\BG-6-L2.bin -p bin\gfx\pal\BG-6-L2-Pal.bin -m bin\gfx\tilemap\BG-6-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-6-L3.png -t bin\gfx\BG-6-L3.bin -p bin\gfx\pal\BG-6-L3-Pal.bin -m bin\gfx\tilemap\BG-6-L3.bin --tile-base-offset 444
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-7-L2.png -t bin\gfx\BG-7-L2.bin -p bin\gfx\pal\BG-7-L2-Pal.bin -m bin\gfx\tilemap\BG-7-L2.bin --tile-base-offset 128 --palette-base-offset 1
@@ -20,7 +22,7 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG2-Grad.png -p bin\gfx\pal\BG2-Grad.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG3-Grad.png -p bin\gfx\pal\BG3-Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG4-Grad.png -p bin\gfx\pal\BG4-Grad.bin --no-remap
-
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG5Grad.png -p bin\gfx\pal\BG5Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG6Grad.png -p bin\gfx\pal\BG6-Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG7Grad.png -p bin\gfx\pal\BG7-Grad.bin --no-remap
 
