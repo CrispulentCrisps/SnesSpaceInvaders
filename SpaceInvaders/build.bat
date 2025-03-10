@@ -12,9 +12,9 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-4-L2.png -t bin\gfx\BG-4-L2.bin -p bin\gfx\pal\BG-4-L2-Pal.bin -m bin\gfx\tilemap\BG-4-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-4-L3.png -t bin\gfx\BG-4-L3.bin -p bin\gfx\pal\BG-4-L3-Pal.bin -m bin\gfx\tilemap\BG-4-L3.bin --tile-base-offset 414
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-5-L2.png -t bin\gfx\BG-5-L2.bin -p bin\gfx\pal\BG-5-L2-Pal.bin -m bin\gfx\tilemap\BG-5-L2.bin --tile-base-offset 128 --palette-base-offset 1
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-5-L3.png -t bin\gfx\BG-5-L3.bin -p bin\gfx\pal\BG-5-L3-Pal.bin -m bin\gfx\tilemap\BG-5-L3.bin --tile-base-offset 350
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-5-L3.png -t bin\gfx\BG-5-L3.bin -p bin\gfx\pal\BG-5-L3-Pal.bin -m bin\gfx\tilemap\BG-5-L3.bin --tile-base-offset 342
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-6-L2.png -t bin\gfx\BG-6-L2.bin -p bin\gfx\pal\BG-6-L2-Pal.bin -m bin\gfx\tilemap\BG-6-L2.bin --tile-base-offset 128 --palette-base-offset 1
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-6-L3.png -t bin\gfx\BG-6-L3.bin -p bin\gfx\pal\BG-6-L3-Pal.bin -m bin\gfx\tilemap\BG-6-L3.bin --tile-base-offset 444
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-6-L3.png -t bin\gfx\BG-6-L3.bin -p bin\gfx\pal\BG-6-L3-Pal.bin -m bin\gfx\tilemap\BG-6-L3.bin --tile-base-offset 0
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-7-L2.png -t bin\gfx\BG-7-L2.bin -p bin\gfx\pal\BG-7-L2-Pal.bin -m bin\gfx\tilemap\BG-7-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-7-L3.png -t bin\gfx\BG-7-L3.bin -p bin\gfx\pal\BG-7-L3-Pal.bin -m bin\gfx\tilemap\BG-7-L3.bin --tile-base-offset 0 --no-remap
 
@@ -50,6 +50,9 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Mis
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\SmallUFO.png -t bin\gfx\SmallUFO.bin -p bin\gfx\pal\SmallUFO-Pal.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\SpaceyCharacters.png -t bin\gfx\SpaceyCharacters.bin -p bin\gfx\pal\SpaceyCharacters-Pal.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\HScoreTextHighlight.png -t bin\gfx\HScoreCursor.bin -p bin\gfx\pal\HScoreCursor-Pal.bin --no-remap
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\Rain.png -t bin\gfx\Rain.bin -p bin\gfx\pal\Rain-Pal.bin
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\Boat.png -t bin\gfx\Boat.bin -p bin\gfx\pal\Boat-Pal.bin
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\Clouds.png -t bin\gfx\Clouds.bin -p bin\gfx\pal\Clouds-Pal.bin
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -B 4 -i res\img\fonts\SprFont.png -t bin\gfx\SprFont.bin -p bin\gfx\pal\SprFont-Pal.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\fonts\SprFont2BPP.png -t bin\gfx\SprFont2BPP.bin -p bin\gfx\pal\SprFont2BPP-Pal.bin

@@ -135,15 +135,26 @@ BG5GfxEnd:
 
 BG6Gfx:
     incbin "bin/gfx/BG-6-L2.bin"
+BG6GfxL1End:
     incbin "bin/gfx/BG-6-L3.bin"
 BG6GfxEnd:
+
+BG6_OBJ:
+    incbin "bin/gfx/Rain.bin"
+    incbin "bin/gfx/Boat.bin"
+BG6_OBJ_End:
 
 BG7Gfx:
     incbin "bin/gfx/BG-7-L2.bin"
 BG7GfxEnd:
+
 BG7Gfx_L3:
     incbin "bin/gfx/BG-7-L3.bin"
 BG7Gfx_L3End:
+
+CloudGfx:
+    incbin "bin/gfx/Clouds.bin"
+CloudGfxEnd:
 
 StageTextSpr:
     incbin "bin/gfx/StageText.bin"
@@ -252,6 +263,7 @@ BG5_L3_TM_End:
 
 BG6_TM:
     incbin "bin/gfx/tilemap/BG-6-L2.bin"
+BG6_L3_TM:
     incbin "bin/gfx/tilemap/BG-6-L3.bin"
 BG6_TM_End:
 
@@ -449,6 +461,18 @@ Surfboard_Pal_End:
 OceanRocks_Pal:
     incbin "bin/gfx/pal/OceanRocks-Pal.bin"
 OceanRocks_Pal_End:
+
+CloudsPal:
+    incbin "bin/gfx/pal/Clouds-Pal.bin"
+CloudsPalEnd:
+
+BG6RainPal:
+    incbin "bin/gfx/pal/Rain-Pal.bin"
+BG6RainPalEnd:
+
+BG6BoatPal:
+    incbin "bin/gfx/pal/Boat-Pal.bin"
+BG6BoatPalEnd:
 
 ;   Options screen graphics
 OptionsBG_Pal:
@@ -658,7 +682,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$03
+    lda.b #$05
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -6138,7 +6162,6 @@ PalCycle:
 Rand:
     phy
     phx
-    pha
     php
     rep #$20    
     lda.w RNGSeed       ;Grab seed value
@@ -6182,7 +6205,6 @@ Rand:
     eor.b ZP.R6
     sta.w RNGSeed
     plp
-    pla
     plx
     ply
     rts
@@ -6525,6 +6547,7 @@ GameLoop_LoadBG:
     sta.w BGScrollVal, Y
     dey
     bpl -
+    jsl ClearHDMA
     ldx.w #$0000
     tdc
     lda.w BGIndex
@@ -7201,6 +7224,21 @@ BG_Desert:
     sta.b ZP.DMAQLength
     jsl QueueDMA
     
+    lda.w #(CloudGfx)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(CloudGfx>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!SprVram+(GameSprEnd-GameSpr)
+    sta.b ZP.DMAQDest
+    lda.w #CloudGfxEnd-CloudGfx
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+
+    
     sep #$20
     ;Transfer palette data
     ldx.w #BG5_L2_Pal_End-BG5_L2_Pal
@@ -7215,6 +7253,12 @@ BG_Desert:
     sta.w PalMirror, X
     dex
     bne -
+    ldx.w #CloudsPalEnd-CloudsPal
+    -
+    lda.l CloudsPal, X
+    sta.w PalMirror+$0100, X
+    dex
+    bne -
 
     ldx.w #((BG5Grad)&$FFFF)+$02
     stx.b ZP.MemPointer
@@ -7226,6 +7270,26 @@ BG_Desert:
     sta.b ZP.R0
     stz.b ZP.R1
     jsl ConstructGradientTable
+
+    
+    ldx.w #!MaxClouds*2
+    rep #$20
+    .CloudInit:
+    txa
+    asl
+    asl
+    asl
+    sta.b ZP.R0
+    asl
+    asl
+    clc
+    adc.b ZP.R0
+    and.w #$00FF
+    sta.w SParticleX, X
+    dex
+    dex
+    bpl .CloudInit
+
     plp
     rts
 
@@ -7250,8 +7314,9 @@ BG_Wetlands:
     stz.w WH1Mirror
 
     stz.w HW_BG12NBA
-    lda.b #$01
+    lda.b #$02
     sta.w HW_BG34NBA
+
     ;Load Graphics
     ldy.w #$0000
     rep #$20
@@ -7265,7 +7330,35 @@ BG_Wetlands:
     rep #$20
     lda.w #!BGTileDest
     sta.b ZP.DMAQDest
-    lda.w #BG6GfxEnd-BG6Gfx
+    lda.w #BG6GfxL1End-BG6Gfx
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+
+    lda.w #(BG6GfxL1End)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG6GfxL1End>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!BG3TileDest
+    sta.b ZP.DMAQDest
+    lda.w #BG6GfxEnd-BG6GfxL1End
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    
+    lda.w #(BG6_OBJ)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG6_OBJ>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!SprVram+(GameSprEnd-GameSpr)
+    sta.b ZP.DMAQDest
+    lda.w #BG6_OBJ_End-BG6_OBJ
     sta.b ZP.DMAQLength
     jsl QueueDMA
     
@@ -7298,6 +7391,49 @@ BG_Wetlands:
     sta.w PalMirror, X
     dex
     bne -
+    ldx.w #BG6RainPalEnd-BG6RainPal
+    -
+    lda.l BG6RainPal, X
+    sta.w PalMirror+$0100, X
+    dex
+    bne -
+    ldx.w #BG6BoatPalEnd-BG6BoatPal
+    -
+    lda.l BG6BoatPal, X
+    sta.w PalMirror+$0120, X
+    dex
+    bne -
+    
+    
+    ldy.w #!RainCount
+    ldx.w #!RainCount*2
+    .RainInit:
+    sep #$20
+    jsr Rand
+    xba
+    sta.w SParticleY, Y
+    jsr Rand
+    rep #$20
+    xba
+    and.w #$01FF
+    sta.w SParticleX, X
+    dex
+    dex
+    dey
+    bpl .RainInit
+
+    sep #$20
+    ldx.w #((BG6Grad)&$FFFF)+$02
+    stx.b ZP.MemPointer
+    lda.b #(BG6Grad>>16)&$FF
+    sta.b ZP.MemPointer+2
+    ldx.w #BG6ColTable
+    stx.w ZP.MemPointer2
+    lda.b #52*2
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsl ConstructGradientTable
+
     rts
 
 BG_Tundra:
@@ -8414,6 +8550,7 @@ BG4:
     rts
 
 BG5:
+    sep #$20
     ;Pillars
     inc.w BGScrollOff
     lda.w BGScrollOff
@@ -8425,33 +8562,28 @@ BG5:
     ;Water
     inc.w BGScrollOff+1
     lda.w BGScrollOff+1
-    bit #$10
+    bit #$08
     beq +
     inc.w BGScrollVal+1
     stz.w BGScrollOff+1
     +
     ;Grass1
-    inc.w BGScrollOff+2
-    lda.w BGScrollOff+2
-    bit #$04
-    beq +
     inc.w BGScrollVal+2
-    stz.w BGScrollOff+2
-    +
     ;Grass2
-    inc.w BGScrollOff+3
-    lda.w BGScrollOff+3
-    bit #$02
-    beq +
     inc.w BGScrollVal+3
-    stz.w BGScrollOff+3
-    inc.w SinePtr
-    +
+    inc.w BGScrollVal+3
+    ;Mud
+    inc.w BGScrollVal+9
+    inc.w BGScrollVal+9
+    inc.w BGScrollVal+9
+
 
     ldx.w #HDMAScrollBuffer&$FFFF
     stx.w HW_WMADDL
     lda.b #(HDMAScrollBuffer>>16)&$FF
     sta.w HW_WMADDH
+
+    inc.w SinePtr
 
     rep #$10
     lda.b #$7F
@@ -8461,26 +8593,18 @@ BG5:
     stz.w HW_WMDATA
     lda.b #$B0
     sta.w HW_WMDATA
-    ldy.w #$0018
+    ldy.w #$0017
     sep #$30
     ldx.w SinePtr
     -
     inx
     lda.w WaterDist, X
-    lsr
-    lsr
-    lsr
-    lsr
     clc
     adc.w BGScrollVal+1
     sta.w HW_WMDATA
     stz.w HW_WMDATA
     inx
     lda.w WaterDist, X
-    lsr
-    lsr
-    lsr
-    lsr
     eor.b #$FF
     clc
     adc.w BGScrollVal+1
@@ -8489,27 +8613,110 @@ BG5:
     dey
     bpl -
 
-    stz.w HW_WMDATA
-
     lda.b #$10
     sta.w HW_WMDATA
     lda.w BGScrollVal+2
     sta.w HW_WMDATA
     stz.w HW_WMDATA
+
     lda.b #$10
     sta.w HW_WMDATA
     lda.w BGScrollVal+3
     sta.w HW_WMDATA
     stz.w HW_WMDATA
 
+    lda.b #$0C
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+9
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+
     stz.w HW_WMDATA
 
     rep #$10
+    ;BG3 Grass 1
+    inc.w BGScrollOff+4
+    lda.w BGScrollOff+4
+    cmp #$78
+    bne +
+    inc.w BGScrollVal+4
+    stz.w BGScrollOff+4
+    +
+    ;BG3 Grass 2
+    inc.w BGScrollOff+5
+    lda.w BGScrollOff+5
+    cmp #$60
+    bne +
+    inc.w BGScrollVal+5
+    stz.w BGScrollOff+5
+    +
+    ;BG3 Grass 3
+    inc.w BGScrollOff+6
+    lda.w BGScrollOff+6
+    cmp #$40
+    bne +
+    inc.w BGScrollVal+6
+    stz.w BGScrollOff+6
+    +
+    ;BG3 Grass 4
+    inc.w BGScrollOff+7
+    lda.w BGScrollOff+7
+    cmp #$30
+    bne +
+    inc.w BGScrollVal+7
+    stz.w BGScrollOff+7
+    +
+    ;BG3 Grass 5
+    inc.w BGScrollOff+8
+    lda.w BGScrollOff+8
+    cmp #$20
+    bne +
+    inc.w BGScrollVal+8
+    stz.w BGScrollOff+8
+    +
+
+    ldx.w #HDMAScrollBuffer2&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer2>>16)&$FF
+    sta.w HW_WMADDH
+
+    lda.b #$52
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+4
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+
+    lda.b #$0D
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+5
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    
+    lda.b #$08
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+6
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    
+    lda.b #$0A
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+7
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    
+    lda.b #$01
+    sta.w HW_WMDATA
+    lda.w BGScrollVal+8
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+
+    stz.w HW_WMDATA
+
     lda.b #$03
     sta.w HDMAMirror
     lda.b #(HW_CGADD)&$FF
     sta.w HDMAMirror+1
-    ldx.w #BG6ColTable
+    ldx.w #HDMAColTableRAM
     stx.w HDMAMirror+2
     lda.b #$80
     sta.w HDMAMirror+4
@@ -8522,6 +8729,15 @@ BG5:
     stx.w HDMAMirror1+2
     lda.b #$7E
     sta.w HDMAMirror1+4
+    
+    lda.b #$02
+    sta.w HDMAMirror2
+    lda.b #(HW_BG3HOFS)&$FF
+    sta.w HDMAMirror2+1
+    ldx.w #HDMAScrollBuffer2
+    stx.w HDMAMirror2+2
+    lda.b #$7E
+    sta.w HDMAMirror2+4
     rts
 
 BG6:
@@ -8594,20 +8810,20 @@ BG7:
 	rts
 
 GameLoop_UpdateBG_OBJ:
-    php
     pha
     phx
     phy
+    php
     ldx.w #$0000
     tdc
     lda.w BGIndex
     asl
     tax
     jsr (BGOBJList, X)
+    plp
     ply
     plx
     pla
-    plp
     rts
 
 BGOBJList:
@@ -8615,7 +8831,7 @@ BGOBJList:
     dw OBJ_Mountains    ;BG-2
     dw OBJ_Computer     ;BG-3
     dw OBJ_Surfboard    ;BG-4
-    dw OBJ_Volcano      ;BG-5
+    dw OBJ_Desert       ;BG-5
     dw OBJ_Wetlands     ;BG-6
     dw OBJ_Tundra     	;BG-7
 
@@ -8671,10 +8887,127 @@ OBJ_Computer:
 OBJ_Surfboard:
     rts
 
-OBJ_Volcano:
+OBJ_Desert:
+    ldx.w #!MaxClouds*2
+    ldy.w #!MaxClouds
+    .CloudLoop:
+    sep #$20
+    lda.w SParticleTimer, Y
+    inc
+    cmp.w CloudWait, Y
+    bne +
+    rep #$20
+    dec.w SParticleX, X
+    cmp.w #$01E0
+    bne ++
+    lda.w #$0120
+    sta.w SParticleX, X
+    ++
+    sep #$20
+    lda.b #$00
+    +
+    sta.w SParticleTimer, Y
+    rep #$20
+    lda.w SParticleX, X
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w CloudYPos, Y
+    sta.b ZP.AddSprY
+    lda.w CloudTileList, X
+    sta.b ZP.AddSprTile
+    lda.b #!CloudAttrHi
+    sta.b ZP.AddSprAttr
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    
+    rep #$20
+    lda.w SParticleX, X
+    clc
+    adc.w #$0010
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w CloudYPos, Y
+    sta.b ZP.AddSprY
+    lda.w CloudTileList+1, X
+    sta.b ZP.AddSprTile
+    lda.b #!CloudAttrHi
+    sta.b ZP.AddSprAttr
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    dex
+    dex
+    dey
+    bpl .CloudLoop
     rts
 
 OBJ_Wetlands:
+    ldy.w #!RainCount
+    ldx.w #!RainCount*2
+    .RainLoop:
+    rep #$20
+    lda.w SParticleX, X
+    sec
+    sbc.w #$0003
+    sta.w SParticleX, X
+    and.w #$00FF
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w SParticleY, Y
+    clc
+    adc.b #$07
+    sta.w SParticleY, Y
+    sta.b ZP.AddSprY
+    lda.b #$C0
+    sta.b ZP.AddSprTile
+    lda.b #!RainAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+    dex
+    dex
+    dey
+    bpl .RainLoop
+
+    sep #$20
+    inc.w OBJTimers
+    lda.w OBJTimers
+    bit.b #$20
+    beq +
+    stz.w OBJTimers
+    lda.w OBJFrame
+    eor.b #$01
+    sta.w OBJFrame
+    +
+
+    inc.w OBJTimers+1
+    lda.w OBJTimers+1
+    bit.b #$10
+    beq .SkipBoatMove
+    stz.w OBJTimers+1
+    rep #$20
+    dec.w OBJXPos
+    lda.w OBJXPos
+    and.w #$01FF
+    cmp.w #$01F0
+    bne +
+    lda.w #$0100
+    sta.w OBJXPos
+    +
+    .SkipBoatMove:
+    rep #$20
+    lda.w OBJXPos
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.b #$40
+    sta.b ZP.AddSprY
+    lda.b #!BoatTile
+    clc
+    adc.w OBJFrame
+    sta.b ZP.AddSprTile
+    lda.b #!BoatAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
     rts
 	
 OBJ_Tundra:
@@ -10226,55 +10559,39 @@ BG5ColTable:
     db $0C      ;Scanline
 
 BG6ColTable:
-    db $20      ;Scanline
-    dw $0000    ;Addr
-    dw $38C9    ;Data
-    db $18      ;Scanline
-    dw $0000    ;Addr
-    dw $490C    ;Data
-    db $10      ;Scanline
-    dw $0000    ;Addr
-    dw $554E    ;Data
-    db $0A      ;Scanline
-    dw $0000    ;Addr
-    dw $6170    ;Data
     db $08      ;Scanline
-    dw $0000    ;Addr
-    dw $7193    ;Data
     db $08      ;Scanline
-    dw $0000    ;Addr
-    dw $7DD5    ;Data
+    db $07      ;Scanline
+    db $06      ;Scanline
+    db $05      ;Scanline
     db $04      ;Scanline
-    dw $0000    ;Addr
-    dw $7E37    ;Data
-    db $04      ;Scanline
-    dw $0000    ;Addr
-    dw $7E57    ;Data
-    db $04      ;Scanline
-    dw $0000    ;Addr
-    dw $7EB9    ;Data
     db $03      ;Scanline
-    dw $0000    ;Addr
-    dw $7EFB    ;Data
+    db $03      ;Scanline
     db $02      ;Scanline
-    dw $0000    ;Addr
-    dw $7F5C    ;Data
     db $02      ;Scanline
-    dw $0000    ;Addr
-    dw $7F7D    ;Data
+    db $02      ;Scanline
     db $01      ;Scanline
-    dw $0000    ;Addr
-    dw $7F9E    ;Data
     db $01      ;Scanline
-    dw $0000    ;Addr
-    dw $7FBE    ;Data
-    db $08      ;Scanline
-    dw $0000    ;Addr
-    dw $7FFF    ;Data
+    db $01      ;Scanline
+    db $01      ;Scanline
+    db $01      ;Scanline
+    db $01      ;Scanline
+    db $01      ;Scanline
+    db $01      ;Scanline
+    db $01      ;Scanline
+    db $01      ;Scanline
+    db $01      ;Scanline
+    db $01      ;Scanline
+    db $02      ;Scanline
+    db $02      ;Scanline
+    db $02      ;Scanline
+    db $02      ;Scanline
+    db $02      ;Scanline
+    db $02      ;Scanline
+    db $02      ;Scanline
+    db $02      ;Scanline
 
     db $01      ;Scanline
-    dw $0000    ;Address
-    dw $0000    ;Data
     db $00
 BG6ColTableEnd:
 
@@ -10978,6 +11295,61 @@ BHoleFrameAttr:
     db !BHoleAttr2  ;Frame - 1E
     db !BHoleAttr2  ;Frame - 1F
 
+CloudWait:
+    db $36
+    db $30
+    db $2C
+    db $24
+    db $26
+    db $20
+    db $4C
+    db $44
+
+CloudYPos:
+    db $10
+    db $10
+    db $31
+    db $31
+    db $20
+    db $20
+    db $43
+    db $43
+    db $32
+    db $32
+    db $58
+    db $58
+    db $14
+    db $14
+    db $48
+    db $48
+    db $2C
+    db $2C
+
+CloudTileList:  
+    db $C2
+    db $C0
+
+    db $C6
+    db $C4
+
+    db $CA
+    db $C8
+
+    db $CE
+    db $CC
+
+    db $C2
+    db $C0
+
+    db $C6
+    db $C4
+
+    db $CA
+    db $C8
+
+    db $CE
+    db $CC
+
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
 db $1F,$22,$25,$28,$2B,$2E,$31,$33,$36,$39
@@ -11386,34 +11758,34 @@ db $E5,$E7,$E9,$EA,$EC,$EE,$EF,$F0,$F2,$F3
 db $F4,$F5,$F7,$F8,$F9,$F9,$FA,$FB,$FC,$FC
 db $FD,$FD,$FD,$FE,$FE,$FE
 
-;sin(16*pi*t/T)
+;sin(8*pi*t/T)
 WaterDist:
-db $80,$99,$B1,$C7,$DA,$EA,$F5,$FD,$FF,$FD
-db $F5,$EA,$DA,$C7,$B1,$99,$80,$67,$4F,$39
-db $26,$16,$0B,$03,$01,$03,$0B,$16,$26,$39
-db $4F,$67,$80,$99,$B1,$C7,$DA,$EA,$F5,$FD
-db $FF,$FD,$F5,$EA,$DA,$C7,$B1,$99,$80,$67
-db $4F,$39,$26,$16,$0B,$03,$01,$03,$0B,$16
-db $26,$39,$4F,$67,$80,$99,$B1,$C7,$DA,$EA
-db $F5,$FD,$FF,$FD,$F5,$EA,$DA,$C7,$B1,$99
-db $80,$67,$4F,$39,$26,$16,$0B,$03,$01,$03
-db $0B,$16,$26,$39,$4F,$67,$80,$99,$B1,$C7
-db $DA,$EA,$F5,$FD,$FF,$FD,$F5,$EA,$DA,$C7
-db $B1,$99,$80,$67,$4F,$39,$26,$16,$0B,$03
-db $01,$03,$0B,$16,$26,$39,$4F,$67,$80,$99
-db $B1,$C7,$DA,$EA,$F5,$FD,$FF,$FD,$F5,$EA
-db $DA,$C7,$B1,$99,$80,$67,$4F,$39,$26,$16
-db $0B,$03,$01,$03,$0B,$16,$26,$39,$4F,$67
-db $80,$99,$B1,$C7,$DA,$EA,$F5,$FD,$FF,$FD
-db $F5,$EA,$DA,$C7,$B1,$99,$80,$67,$4F,$39
-db $26,$16,$0B,$03,$01,$03,$0B,$16,$26,$39
-db $4F,$67,$80,$99,$B1,$C7,$DA,$EA,$F5,$FD
-db $FF,$FD,$F5,$EA,$DA,$C7,$B1,$99,$80,$67
-db $4F,$39,$26,$16,$0B,$03,$01,$03,$0B,$16
-db $26,$39,$4F,$67,$80,$99,$B1,$C7,$DA,$EA
-db $F5,$FD,$FF,$FD,$F5,$EA,$DA,$C7,$B1,$99
-db $80,$67,$4F,$39,$26,$16,$0B,$03,$01,$03
-db $0B,$16,$26,$39,$4F,$67
+db $04,$04,$05,$05,$06,$06,$06,$07,$07,$07
+db $07,$08,$08,$08,$08,$08,$08,$08,$08,$08
+db $08,$08,$07,$07,$07,$07,$06,$06,$06,$05
+db $05,$04,$04,$04,$03,$03,$02,$02,$02,$01
+db $01,$01,$01,$00,$00,$00,$00,$00,$00,$00
+db $00,$00,$00,$00,$01,$01,$01,$01,$02,$02
+db $02,$03,$03,$04,$04,$04,$05,$05,$06,$06
+db $06,$07,$07,$07,$07,$08,$08,$08,$08,$08
+db $08,$08,$08,$08,$08,$08,$07,$07,$07,$07
+db $06,$06,$06,$05,$05,$04,$04,$04,$03,$03
+db $02,$02,$02,$01,$01,$01,$01,$00,$00,$00
+db $00,$00,$00,$00,$00,$00,$00,$00,$01,$01
+db $01,$01,$02,$02,$02,$03,$03,$04,$04,$04
+db $05,$05,$06,$06,$06,$07,$07,$07,$07,$08
+db $08,$08,$08,$08,$08,$08,$08,$08,$08,$08
+db $07,$07,$07,$07,$06,$06,$06,$05,$05,$04
+db $04,$04,$03,$03,$02,$02,$02,$01,$01,$01
+db $01,$00,$00,$00,$00,$00,$00,$00,$00,$00
+db $00,$00,$01,$01,$01,$01,$02,$02,$02,$03
+db $03,$04,$04,$04,$05,$05,$06,$06,$06,$07
+db $07,$07,$07,$08,$08,$08,$08,$08,$08,$08
+db $08,$08,$08,$08,$07,$07,$07,$07,$06,$06
+db $06,$05,$05,$04,$04,$04,$03,$03,$02,$02
+db $02,$01,$01,$01,$01,$00,$00,$00,$00,$00
+db $00,$00,$00,$00,$00,$00,$01,$01,$01,$01
+db $02,$02,$02,$03,$03,$04 
 
 ;256/(160+(t/-T)*64)
 M7Log:

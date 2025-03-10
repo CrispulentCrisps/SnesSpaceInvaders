@@ -88,7 +88,7 @@ struct Player $0400
 .Dead   skip 1     
 .FTime  skip 1          ;Firing timer
 endstruct
-!PlayerFTimeReset =     $1C
+!PlayerFTimeReset =     $14
 
 struct Bullet $0406
 .X          skip 2
@@ -360,8 +360,8 @@ SRam =              $306000 ;Save data storage
 !BHoleT7 =          $58
 !BHoleT8 =          $5C
 
-!BHoleAttr1 =        $7E
-!BHoleAttr2 =        $3E
+!BHoleAttr1 =       $7E
+!BHoleAttr2 =       $3E
 
 !SpiralGalAttrP0 =  $20
 !SpiralGalAttrP1 =  $30
@@ -485,6 +485,15 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !Planet2 =          $2A
 !PlanetsAttr =      $06
 !PlanetsHiAttr =    $36
+
+!RainCount =        $001F
+!RainAttr =         $30
+
+!BoatTile =         $C1
+!BoatAttr =         $02
+
+!MaxClouds =        $07
+!CloudAttrHi =      $50
 
 !HTextNormal =      $20
 !HText3rd =         $24
