@@ -3520,7 +3520,10 @@ OptionsScene:
     
     lda.b #$02
     sta.w HW_OBSEL
-
+    stz.w BG2HOffMirror
+    stz.w BG2HOffMirror+1
+    stz.w BG2VOffMirror
+    stz.w BG2VOffMirror+1
     ldx.w #!SprVram+$10
     stx.w HW_VMADDL             ;Set VRAM address to Sprite VRAM
     
