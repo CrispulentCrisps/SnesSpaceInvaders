@@ -682,7 +682,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$05
+    lda.b #$04
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
