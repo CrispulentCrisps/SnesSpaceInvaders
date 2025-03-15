@@ -374,7 +374,7 @@ SRam =              $306000 ;Save data storage
 
 !ShieldStartHP =    $08
 !PlayerDieReset =   50
-!WaveInit =         $00
+!WaveInit =         $0A
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions
@@ -489,7 +489,7 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !RainCount =        $001F
 !RainAttr =         $30
 
-!BoatTile =         $C1
+!BoatTile =         $C4
 !BoatAttr =         $02
 
 !MaxClouds =        $07

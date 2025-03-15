@@ -18,7 +18,9 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-7-L2.png -t bin\gfx\BG-7-L2.bin -p bin\gfx\pal\BG-7-L2-Pal.bin -m bin\gfx\tilemap\BG-7-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-7-L3.png -t bin\gfx\BG-7-L3.bin -p bin\gfx\pal\BG-7-L3-Pal.bin -m bin\gfx\tilemap\BG-7-L3.bin --tile-base-offset 0 --no-remap
 
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG1-Grad.png -p bin\gfx\pal\BG-1-L3-Grad.bin
+"C:\Users\david\Documents\ASM-games\snes stuff\SnesGraphics\SpaceInvaders\SNESBGPrio.exe" bin\gfx\tilemap\BG-6-L3.bin bin\gfx\tilemap\BG-6-L3-Prio.bin
+
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG1-Grad.png -p bin\gfx\pal\BG1-Grad.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG2-Grad.png -p bin\gfx\pal\BG2-Grad.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG3-Grad.png -p bin\gfx\pal\BG3-Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG4-Grad.png -p bin\gfx\pal\BG4-Grad.bin --no-remap

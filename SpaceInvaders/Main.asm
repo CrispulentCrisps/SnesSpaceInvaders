@@ -156,11 +156,11 @@ CloudGfx:
     incbin "bin/gfx/Clouds.bin"
 CloudGfxEnd:
 
+org !GfxBank5
+
 StageTextSpr:
     incbin "bin/gfx/StageText.bin"
 StageTextSprEnd:
-
-org !GfxBank5
 
 IntroPanel1:
 	incbin "bin/gfx/IntroPanel1.bin"
@@ -264,7 +264,7 @@ BG5_L3_TM_End:
 BG6_TM:
     incbin "bin/gfx/tilemap/BG-6-L2.bin"
 BG6_L3_TM:
-    incbin "bin/gfx/tilemap/BG-6-L3.bin"
+    incbin "bin/gfx/tilemap/BG-6-L3-Prio.bin"
 BG6_TM_End:
 
 BG7_TM:
@@ -485,6 +485,18 @@ OptionsGrad:
     incbin "bin/gfx/pal/OptionsBGGalaxyGrad.bin"
 OptionsGrad_End:
 
+BG1Grad:
+    incbin "bin/gfx/pal/BG1-Grad.bin"
+
+BG2Grad:
+    incbin "bin/gfx/pal/BG2-Grad.bin"
+
+BG3Grad:
+    incbin "bin/gfx/pal/BG3-Grad.bin"
+
+BG4Grad:
+    incbin "bin/gfx/pal/BG4-Grad.bin"
+    
 BG5Grad:
     incbin "bin/gfx/pal/BG5Grad.bin"
 
@@ -682,7 +694,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$04
+    lda.b #$00
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -6260,7 +6272,7 @@ GameLoop_HandleUFO:
     sta.w UFOTimer
     sep #$20
     bne +
-    lda.w UFOActive
+    lda.w UFOActive 
     bne .SkipUFOInit
     ;Activate UFO if we've reached the timer and it's not currently active
     rep #$20
@@ -6272,22 +6284,30 @@ GameLoop_HandleUFO:
     stz.w UFODeleteFlag
     .SkipUFOInit:
     +
-    ;Check UFO bounds 
+    ;Check UFO bounds
     sep #$20
     lda.w Bullet.Y
     cmp.b #$10          ;BulletY < 16
     bcc +
     jmp .SkipUFOCol
     +
+    rep #$20
     lda.w UFOXPos
     sec
-    sbc.b #$08          ;Adjust to occasional bullet misses
+    sbc.w #$0008        ;Adjust to occasional bullet misses
+    bit.w #$0100
+    beq .SkipLXAdjust
+    clc
+    adc.w #$0020
+    .SkipLXAdjust:
+    and.w #$01FF
     cmp.w Bullet.X
     bcc +               ;BulletX > UFOX
     jmp .SkipUFOCol
     +
     lda.w UFOXPos
-    adc.b #$20
+    adc.w #$0020
+    and.w #$01FF
     cmp.w Bullet.X      ;&& BulletX < UFOX+32
     bcs +
     jmp .SkipUFOCol
@@ -6393,7 +6413,8 @@ GameLoop_HandleUFO:
     sta.w UFOXPos
     sep #$20
     .SkipUFOCol:
-
+    
+    sep #$20
     ;Update if UFO active
     lda.w UFOActive
     beq .InactiveUFO
@@ -6705,6 +6726,18 @@ BG_City:
     sta.w PalMirror, X
     dex
     bne -
+    
+    sep #$20
+    ldx.w #((BG1Grad)&$FFFF)+$02
+    stx.b ZP.MemPointer
+    lda.b #(BG1Grad>>16)&$FF
+    sta.b ZP.MemPointer+2
+    ldx.w #BG1ColTable
+    stx.w ZP.MemPointer2
+    lda.b #52*2
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsl ConstructGradientTable
     rts
 
 BG_Mountains:
@@ -6854,6 +6887,17 @@ BG_Mountains:
     bne -    
     stz.w BG3VOffMirror
     stz.w BG3VOffMirror+1
+
+    ldx.w #((BG2Grad)&$FFFF)+$02
+    stx.b ZP.MemPointer
+    lda.b #(BG2Grad>>16)&$FF
+    sta.b ZP.MemPointer+2
+    ldx.w #BG2ColTable
+    stx.w ZP.MemPointer2
+    lda.b #52*2
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsl ConstructGradientTable
 
     rts
 BG_Computer:
@@ -7046,6 +7090,18 @@ BG_Computer:
     sta.w PalMirror+$0100, X
     dex
     bne -
+    
+    
+    ldx.w #((BG3Grad)&$FFFF)+$02
+    stx.b ZP.MemPointer
+    lda.b #(BG3Grad>>16)&$FF
+    sta.b ZP.MemPointer+2
+    ldx.w #BG3ColTable
+    stx.w ZP.MemPointer2
+    lda.b #52*2
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsl ConstructGradientTable
     rts
 
 BG_Surfboard:
@@ -7155,6 +7211,17 @@ BG_Surfboard:
     sta.w PalMirror+(144*2), X
     dex
     bne -
+    
+    ldx.w #((BG4Grad)&$FFFF)+$02
+    stx.b ZP.MemPointer
+    lda.b #(BG4Grad>>16)&$FF
+    sta.b ZP.MemPointer+2
+    ldx.w #BG4ColTable
+    stx.w ZP.MemPointer2
+    lda.b #52*2
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsl ConstructGradientTable
     rts
 
 BG_Desert:
@@ -7415,6 +7482,10 @@ BG_Wetlands:
     jsr Rand
     xba
     sta.w SParticleY, Y
+    tya
+    and.b #$03
+    sta.w SParticleState, Y
+
     jsr Rand
     rep #$20
     xba
@@ -7726,7 +7797,7 @@ BG0:
     sta.w HDMAMirror
     lda.b #(HW_CGADD)&$FF
     sta.w HDMAMirror+1
-    ldx.w #BG1ColTable
+    ldx.w #HDMAColTableRAM
     stx.w HDMAMirror+2
     lda.b #$80
     sta.w HDMAMirror+4
@@ -7900,7 +7971,7 @@ BG1:
     sta.w HDMAMirror
     lda.b #(HW_CGADD)&$FF
     sta.w HDMAMirror+1
-    ldx.w #BG2ColTable
+    ldx.w #HDMAColTableRAM
     stx.w HDMAMirror+2
     lda.b #$80
     sta.w HDMAMirror+4
@@ -8139,7 +8210,7 @@ BG2:
     sta.w HDMAMirror
     lda.b #(HW_CGADD)&$FF
     sta.w HDMAMirror+1
-    ldx.w #BG3ColTable
+    ldx.w #HDMAColTableRAM
     stx.w HDMAMirror+2
     lda.b #$80
     sta.w HDMAMirror+4
@@ -8293,7 +8364,7 @@ BG3:
     sta.w HDMAMirror
     lda.b #(HW_CGADD)&$FF
     sta.w HDMAMirror+1
-    ldx.w #BG4ColTable
+    ldx.w #HDMAColTableRAM
     stx.w HDMAMirror+2
     lda.b #$80
     sta.w HDMAMirror+4
@@ -8701,7 +8772,7 @@ BG5:
     sta.w HW_WMDATA
     stz.w HW_WMDATA
     
-    lda.b #$0A
+    lda.b #$08
     sta.w HW_WMDATA
     lda.w BGScrollVal+7
     sta.w HW_WMDATA
@@ -8961,6 +9032,8 @@ OBJ_Wetlands:
     sta.w SParticleY, Y
     sta.b ZP.AddSprY
     lda.b #$C0
+    clc
+    adc.w SParticleState, Y
     sta.b ZP.AddSprTile
     lda.b #!RainAttr
     sta.b ZP.AddSprAttr
@@ -10371,163 +10444,66 @@ BulletTypeTiles:
     db !EBullet3F1+1
 
 BG1ColTable:
-    db $40          ;Scanline counter
-    dw $0000        ;Address
-    dw $0821        ;Colour value
-    
+    db $40          ;Scanline counter    
     db $20          ;Scanline counter
-    dw $0000        ;Address
-    dw $1021
-
     db $20          ;Scanline counter
-    dw $0000
-    dw $1842
-
-    db $10          ;Scanline counter
-    dw $0000
-    dw $2063
-    
+    db $10          ;Scanline counter    
     db $08          ;Scanline counter
-    dw $0000
-    dw $2884
-
     db $08          ;Scanline counter
-    dw $0000
-    dw $30A5
-
     db $08          ;Scanline counter
-    dw $0000
-    dw $38C6
-
     db $08          ;Scanline counter
-    dw $0000
-    dw $44E7
-
     db $08          ;Scanline counter
-    dw $0000
-    dw $4D08
-
     db $40          ;Scanline counter
-    dw $0000
-    dw $0000
+    db $00
     
 BG2ColTable:
     db $10          ;Scanline counter
-    dw $0000        ;Address
-    dw $6F7B
-
     db $0C          ;Scanline counter
-    dw $0000        ;Address
-    dw $3188
-
     db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $39CA
-
     db $06          ;Scanline counter
-    dw $0000        ;Address
-    dw $420C
-
     db $04          ;Scanline counter
-    dw $0000        ;Address
-    dw $462C
-
     db $04          ;Scanline counter
-    dw $0000        ;Address
-    dw $4A4E
-
     db $03          ;Scanline counter
-    dw $0000        ;Address
-    dw $4E6E
-
     db $02          ;Scanline counter
-    dw $0000        ;Address
-    dw $5290
-
     db $01          ;Scanline counter
-    dw $0000        ;Address
-    dw $56B1
-
     db $40          ;Scanline counter
-    dw $0000
-    dw $0000
-    
-    dw $0000
-
+    db $00
     
 BG3ColTable:
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $692B
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $652A
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $5D09
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $5909
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $54E8
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $50E7
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $4CC7
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $48C6
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $44A6
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $40A5
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $3C84
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $3884
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $3463
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $3063
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $2842
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
+    db $0A          ;Scanline counter
     db $00
 
 BG4ColTable:
-    db $10          ;Scanline counter
-    dw $0000        ;Address
-    dw $5294
-    db $10          ;Scanline counter
-    dw $0000        ;Address
-    dw $4A52
-    db $10          ;Scanline counter
-    dw $0000        ;Address
-    dw $420F
-    db $10          ;Scanline counter
-    dw $0000        ;Address
-    dw $39CB
-    db $10          ;Scanline counter
-    dw $0000        ;Address
-    dw $3188
-    db $10          ;Scanline counter
-    dw $0000        ;Address
-    dw $2947
-    db $08          ;Scanline counter
-    dw $0000        ;Address
-    dw $2946
-    db $04          ;Scanline counter
-    dw $0000        ;Address
-    dw $0000
+    db $05          ;Scanline counter
+    db $05          ;Scanline counter
+    db $05          ;Scanline counter
+    db $05          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
+    db $06          ;Scanline counter
     db $00
 
 BG5ColTable:
