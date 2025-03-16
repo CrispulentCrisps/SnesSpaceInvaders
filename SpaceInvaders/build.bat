@@ -20,8 +20,8 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\B
 
 "C:\Users\david\Documents\ASM-games\snes stuff\SnesGraphics\SpaceInvaders\SNESBGPrio.exe" bin\gfx\tilemap\BG-6-L3.bin bin\gfx\tilemap\BG-6-L3-Prio.bin
 
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG1-Grad.png -p bin\gfx\pal\BG1-Grad.bin
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG2-Grad.png -p bin\gfx\pal\BG2-Grad.bin
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG1-Grad.png -p bin\gfx\pal\BG1-Grad.bin --no-remap
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG2-Grad.png -p bin\gfx\pal\BG2-Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG3-Grad.png -p bin\gfx\pal\BG3-Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG4-Grad.png -p bin\gfx\pal\BG4-Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG5Grad.png -p bin\gfx\pal\BG5Grad.bin --no-remap

@@ -740,7 +740,7 @@ MainLoop:
     +
 
     jsr HandlePaletteFade
-
+    jsl FadeGradientTable
     lda.w #$FFFF
     sta.b ZP.NMIDone
     -                           ;Infinite loop to
@@ -1688,6 +1688,18 @@ GameScene:
     stx.b ZP.PalFadeStart
     ldx.w #$0000
     stx.b ZP.PalFadeEnd
+    
+    jsl ClearHDMAGameScene
+
+    lda.b #$03
+    sta.w HDMAMirror
+    lda.b #(HW_CGADD)&$FF
+    sta.w HDMAMirror+1
+    ldx.w #HDMAColTableOut
+    stx.w HDMAMirror+2
+    lda.b #$80
+    sta.w HDMAMirror+4
+    
     .SkipLoad:
 
     jsr GameLoop_DrawScore
@@ -6284,6 +6296,10 @@ GameLoop_HandleUFO:
     stz.w UFODeleteFlag
     .SkipUFOInit:
     +
+    lda.w UFOActive
+    bne ++
+    jmp .SkipUFOCol
+    ++
     ;Check UFO bounds
     sep #$20
     lda.w Bullet.Y
@@ -6571,7 +6587,7 @@ GameLoop_LoadBG:
     sta.w BGScrollVal, Y
     dey
     bpl -
-    jsl ClearHDMA
+    jsl ClearHDMAGameScene
     ldx.w #$0000
     tdc
     lda.w BGIndex
@@ -7792,15 +7808,6 @@ BG0:
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
     stz.w HW_WMDATA     ;End flag
-    
-    lda.b #$03
-    sta.w HDMAMirror
-    lda.b #(HW_CGADD)&$FF
-    sta.w HDMAMirror+1
-    ldx.w #HDMAColTableRAM
-    stx.w HDMAMirror+2
-    lda.b #$80
-    sta.w HDMAMirror+4
 
     sep #$20
     lda.b #$02
@@ -7966,15 +7973,6 @@ BG1:
     stz.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
     stz.w HW_WMDATA     ;End flag
-
-    lda.b #$03
-    sta.w HDMAMirror
-    lda.b #(HW_CGADD)&$FF
-    sta.w HDMAMirror+1
-    ldx.w #HDMAColTableRAM
-    stx.w HDMAMirror+2
-    lda.b #$80
-    sta.w HDMAMirror+4
 
     ldx.w #HDMAScrollBuffer2&$FFFF
     stx.w HW_WMADDL
@@ -8206,15 +8204,6 @@ BG2:
     lda.b #(HDMAScrollBuffer2>>16)&$FF
     sta.w HDMAMirror2+4
 
-    lda.b #$03
-    sta.w HDMAMirror
-    lda.b #(HW_CGADD)&$FF
-    sta.w HDMAMirror+1
-    ldx.w #HDMAColTableRAM
-    stx.w HDMAMirror+2
-    lda.b #$80
-    sta.w HDMAMirror+4
-
     rts
 
 BG3:
@@ -8359,15 +8348,6 @@ BG3:
     stx.w HDMAMirror2+2
     lda.b #(HDMAScrollBuffer2>>16)&$FF
     sta.w HDMAMirror2+4
-
-    lda.b #$03
-    sta.w HDMAMirror
-    lda.b #(HW_CGADD)&$FF
-    sta.w HDMAMirror+1
-    ldx.w #HDMAColTableRAM
-    stx.w HDMAMirror+2
-    lda.b #$80
-    sta.w HDMAMirror+4
 
     ;Surfboard frames
     lda.w OBJTimers+15
@@ -8593,15 +8573,6 @@ BG4:
     stx.w HDMAMirror3+2
     lda.b #$7E
     sta.w HDMAMirror3+4
-
-    lda.b #$03
-    sta.w HDMAMirror
-    lda.b #(HW_CGADD)&$FF
-    sta.w HDMAMirror+1
-    ldx.w #HDMAColTableRAM
-    stx.w HDMAMirror+2
-    lda.b #$80
-    sta.w HDMAMirror+4
     
     lda.b #$02
     sta.w HDMAMirror4
@@ -8786,15 +8757,6 @@ BG5:
 
     stz.w HW_WMDATA
 
-    lda.b #$03
-    sta.w HDMAMirror
-    lda.b #(HW_CGADD)&$FF
-    sta.w HDMAMirror+1
-    ldx.w #HDMAColTableRAM
-    stx.w HDMAMirror+2
-    lda.b #$80
-    sta.w HDMAMirror+4
-    
     lda.b #$02
     sta.w HDMAMirror1
     lda.b #(HW_BG2HOFS)&$FF
@@ -9528,7 +9490,6 @@ HandlePaletteFade:
     dey
     bpl .TransferPal
     .SkipTransfer:
-
     rep #$20
     lda.b ZP.PalFadeEnd
     beq .SkipFade
@@ -10128,6 +10089,10 @@ EnemyWaveLookup:
     dw EnemyWave20
     dw EnemyWave21
     dw EnemyWave22
+    dw EnemyWave23
+    dw EnemyWave24
+    dw EnemyWave25
+    dw EnemyWave26
 
 ;Enemy wave definitions
 EnemyWave00:
@@ -10340,6 +10305,30 @@ EnemyWave22:
     db $02,$02,$02,$02,$02,$02,$02,$02
     db $03,$03,$03,$03,$03,$03,$03,$03
     db $05,$05,$05,$05,$05,$05,$05,$05
+EnemyWave23:
+    db $00,$05,$05,$05,$05,$05,$05,$00
+    db $05,$05,$04,$04,$04,$04,$05,$05
+    db $05,$04,$03,$02,$02,$03,$04,$05
+    db $05,$05,$04,$04,$04,$04,$05,$05
+    db $00,$05,$05,$05,$05,$05,$05,$00
+EnemyWave24:
+    db $01,$02,$03,$06,$06,$03,$02,$01
+    db $01,$02,$03,$06,$06,$03,$02,$01
+    db $01,$02,$03,$06,$06,$03,$02,$01
+    db $01,$02,$03,$06,$06,$03,$02,$01
+    db $01,$02,$03,$06,$06,$03,$02,$01
+EnemyWave25:
+    db $05,$05,$08,$05,$05,$08,$05,$05
+    db $05,$05,$08,$05,$05,$08,$05,$05
+    db $07,$05,$08,$05,$05,$08,$05,$07
+    db $07,$05,$05,$05,$05,$05,$05,$07
+    db $00,$07,$07,$07,$07,$07,$07,$00
+EnemyWave26:
+    db $05,$01,$05,$01,$01,$05,$01,$05
+    db $01,$02,$01,$02,$02,$01,$02,$01
+    db $05,$01,$03,$01,$01,$03,$01,$05
+    db $00,$05,$01,$05,$05,$01,$05,$00
+    db $00,$00,$05,$00,$00,$05,$00,$00
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:
@@ -10445,16 +10434,21 @@ BulletTypeTiles:
 
 BG1ColTable:
     db $40          ;Scanline counter    
-    db $20          ;Scanline counter
-    db $20          ;Scanline counter
-    db $10          ;Scanline counter    
-    db $08          ;Scanline counter
-    db $08          ;Scanline counter
-    db $08          ;Scanline counter
-    db $08          ;Scanline counter
-    db $08          ;Scanline counter
-    db $40          ;Scanline counter
-    db $00
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter    
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03          ;Scanline counter
+    db $03
     
 BG2ColTable:
     db $10          ;Scanline counter
@@ -12242,9 +12236,6 @@ LoadEnemyGFX:
     rtl
 
 ClearHDMA:
-    pha
-    phx
-    phy
     php
     rep #$20
     stz.w HDMAMirror
@@ -12260,12 +12251,22 @@ ClearHDMA:
     stz.w HDMAMirror5
     stz.w HDMAMirror5+2
     plp
-    ply
-    plx
-    pla
     rtl
 
-
+ClearHDMAGameScene:
+    php
+    rep #$20
+    stz.w HDMAMirror1
+    stz.w HDMAMirror1+2
+    stz.w HDMAMirror2
+    stz.w HDMAMirror2+2
+    stz.w HDMAMirror3
+    stz.w HDMAMirror3+2
+    stz.w HDMAMirror4
+    stz.w HDMAMirror4+2
+    stz.w HDMAMirror5
+    stz.w HDMAMirror5+2
+    plp
     ;
     ; ZP.DMAQSrc        |   Source address
     ; ZP.DMAQFlags      |   Flags [non-zero for a viable entry]
@@ -12341,6 +12342,85 @@ ConstructGradientTable:
     inx
     inx
     stz.w HDMAColTableRAM, X
+
+    ;Transfer to output table
+    rep #$20
+    ldx.w #HDMAColTableRAM
+    ldy.w #HDMAColTableOut
+    lda.w #$00A0
+    mvn (!CodeBank>>16)&$FF, (!CodeBank>>16)&$FF
+    plp
+    ply
+    plx
+    pla
+    rtl
+
+FadeGradientTable:
+    pha
+    phx
+    phy
+    php
+    rep #$20
+    tdc
+    ldy.w #$009E
+    ldx.w #$0000
+    .FadeLoop:
+    rep #$20
+    lda.w HDMAColTableRAM, Y
+    sta.b ZP.R0
+    and.w #$001F
+    sec
+    sbc.b ZP.PalFadeInd
+    bcs +
+    lda.w #$0000
+    +
+    sta.b ZP.R2
+    lda.b ZP.R0
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    sta.b ZP.R0
+    and.w #$001F
+    sec
+    sbc.b ZP.PalFadeInd
+    bcs +
+    lda.w #$0000
+    +
+    asl
+    asl
+    asl
+    asl
+    asl
+    ora.b ZP.R2
+    sta.b ZP.R2
+    lda.b ZP.R0
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    sta.b ZP.R0
+    and.w #$001F
+    sec
+    sbc.b ZP.PalFadeInd
+    bcs +
+    lda.w #$0000
+    +
+    xba
+    asl
+    asl
+    ora.b ZP.R2
+    sta.w HDMAColTableOut, Y
+    sep #$20
+    dey
+    dey
+    dey
+    dey
+    dey
+    bpl .FadeLoop
+    .SkipFade:
     plp
     ply
     plx

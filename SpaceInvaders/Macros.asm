@@ -317,8 +317,8 @@ IntroTextInd =      $1552   ;1 byte index into text
 IntoMoveFlag =      $1553   ;1 byte flag to move onto next panel
 IntroStart =        $1554   ;1 byte flag to do the main palette fade
 
-HDMAColTableRAM =   $1600   ;160 byte [$A0] list of colour table entries
-
+HDMAColTableRAM =   $1600   ;160 byte [$A0] list of colour table entries [32 colours]
+HDMAColTableOut =   $1700   ;160 byte output list of colour table entries
 !IntroL2Start =     $7A62
 !TextTime =         $01F4    ;Approximately 10 seconds PAL time
 !IntroBG2Restart =  $B0
@@ -374,7 +374,7 @@ SRam =              $306000 ;Save data storage
 
 !ShieldStartHP =    $08
 !PlayerDieReset =   50
-!WaveInit =         $0A
+!WaveInit =         $00
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions
