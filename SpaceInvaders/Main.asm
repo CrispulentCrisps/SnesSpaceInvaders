@@ -694,7 +694,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$04
+    lda.b #$01
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -3106,17 +3106,13 @@ GameLoop_SendWave:
     ldy.w #$0003
     .ShieldHRestore:
     lda.w ShieldHealth, Y
-    inc
+    clc
+    adc.b #$03
     cmp.b #!ShieldStartHP+1
-    bpl +
-    sta.w ShieldHealth, Y
+    bmi +
+    lda.b #!ShieldStartHP
     +
-    lda.w ShieldHealth, Y
-    inc
-    cmp.b #!ShieldStartHP+1
-    bpl +
     sta.w ShieldHealth, Y
-    +
     dey
     bpl .ShieldHRestore
 
