@@ -114,7 +114,7 @@ EnemyBulletSine =   $0448
 EnemyBulletWait =   $044A   ;Time to wait between movement when homing
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
-!BGCountInitVal =   $07
+!BGCountInitVal =   $00
 !MaxBG =            $07
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
@@ -135,7 +135,7 @@ UFOFrame =          $06B5
 UFOFrameTimer =     $06B6
 UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOScore =         $0050   ;Score to give to the player when shooting down the UFO
-!UFOSpeed =         $01     ;How fast the UFO moves
+!UFOSpeed =         $02     ;How fast the UFO moves
 !UFOResetTime =     $05DC   ;Timer to wait to make UFO active [30 seconds on PAL, 25 on NTSC]
 !UFOYPos =          $00     ;Y Position of the UFO
 !UFOYPosB =         $08     ;Y Position of the UFO
@@ -161,8 +161,8 @@ OBJActive =         $0750   ;16 byte array of object active states
 ;
 ;   If an explosion has 0 frames then it is "Dead" and can be skipped over
 
-!MaxEpl =           $05
-!MaxEplW =          $0005
+!MaxEpl =           $0A
+!MaxEplW =          $000A
 
 ExplosionTimer =    $0580
 ExplosionX =        $0580+(!MaxEplW*2)
@@ -250,6 +250,7 @@ TransitionState =   $0EF5   ;Value to say which direction we are transitioning [
 !OptionsTextAttr =  $20
 !OptionsTMapAddr =  $7CC5
 
+ShieldSinPtr =      $0EF7   ;Index into sine table
 StageSettings =     $0EF8   ;Settings byte for stage
 MusicSettings =     $0EF9   ;Settings byte for music options
 SinePtr2 =          $0EFA   ;Index into sine table
@@ -445,7 +446,7 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !EnemyRBounds =     $80
 !EnemyLBounds =     $40
 !EnemyFloor =       $40
-!EnemyDownLoop =    $09
+!EnemyDownLoop =    $11
 
 !EnemyMoveL =       $00
 !EnemyMoveR =       $01

@@ -694,7 +694,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$00
+    lda.b #$04
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -1576,13 +1576,13 @@ GameScene:
     sta.w EPlaneTop
     lda.b ZP.EnemyWait
     sta.b ZP.EnemyTimer
-    
+
     rep #$20
     lda.b ZP.Modifiers
     bit.w #!Mod5
     sep #$20
     beq +
-    lda.b #$51
+    lda.b #$41
     sta.w HW_MOSAIC
     +
     
@@ -1661,6 +1661,16 @@ GameScene:
     sta.w ShieldBlinkTimer, Y    
     dey
     bpl -
+    
+    ;Reset shield positions
+    lda.b #$10
+    sta.w ShieldXPos
+    lda.b #$50
+    sta.w ShieldXPos+1
+    lda.b #$90
+    sta.w ShieldXPos+2
+    lda.b #$D0
+    sta.w ShieldXPos+3
     .LoadTilemaps:
     ;-------------------;
     ;   Load tilemaps   ;
@@ -1773,23 +1783,6 @@ GameScene:
     sbc.b #!BulletHSpeed
     sta.w Bullet.Dir
     .SkipR:
-
-    rep #$20
-    lda.b ZP.Modifiers
-    bit.w #!ModD
-    sep #$20
-    beq .SkipShoot
-    jsr Rand
-    xba
-    and.b #$01
-    beq ++
-    lda.b #!BulletHSpeed
-    eor.b #$FF
-    bra .StoreDir
-    ++
-    lda.b #!BulletHSpeed
-    .StoreDir:
-    sta.w Bullet.Dir
     .SkipShoot:
 
     sep #$20
@@ -2342,6 +2335,25 @@ GameScene:
     dey
     bpl -
     
+    jsr GameLoop_UpdateBG_OBJ
+    ;------------------------;
+    ;    Handle Game State   ;
+    ;------------------------;
+    sep #$20
+    lda.w SendWave
+    beq .SkipSend
+    lda.b #!GameState_Play
+    sta.w GameState
+    jsr GameLoop_SendWave
+    stz.w SendWave
+    .SkipSend:
+    sep #$20
+    lda.w GameState
+    cmp.b #!GameState_Stop
+    bne +
+    jsr GameLoop_EnemyTransition
+    +
+    
     ;-----------------------;
     ;    Handle Shields     ;
     ;-----------------------;
@@ -2404,26 +2416,48 @@ GameScene:
     dey
     bpl -
 
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!ModB
+    sep #$20
+    beq .SkipShieldMove    
+    ;Reset shield positions
+    lda.b #$10
+    sta.w ShieldXPos
+    lda.b #$50
+    sta.w ShieldXPos+1
+    lda.b #$90
+    sta.w ShieldXPos+2
+    lda.b #$D0
+    sta.w ShieldXPos+3
+    sep #$10
+    inc.w ShieldSinPtr
+    inc.w ShieldSinPtr
+    inc.w ShieldSinPtr
+    ldx.w ShieldSinPtr
+    ldy.b #$03
+    -
+    lda.w UnSineTable, X
+    lsr
+    lsr
+    lsr
+    lsr
+    clc
+    sbc.b #$08
+    adc.w ShieldXPos, Y
+    sta.w ShieldXPos, Y
+    txa
+    adc.b #$10
+    tax
+    dey
+    bpl -
+    rep #$10
+    .SkipShieldMove:
+
+    ;Must be placed after game state handling to prevent incorrect collisions
+    jsr Gameloop_AlienShieldCollision_FindRow
+
     jsr Gameloop_DrawShields
-    
-    jsr GameLoop_UpdateBG_OBJ
-    ;------------------------;
-    ;    Handle Game State   ;
-    ;------------------------;
-    sep #$20
-    lda.w SendWave
-    beq .SkipSend
-    lda.b #!GameState_Play
-    sta.w GameState
-    jsr GameLoop_SendWave
-    stz.w SendWave
-    .SkipSend:
-    sep #$20
-    lda.w GameState
-    cmp.b #!GameState_Stop
-    bne +
-    jsr GameLoop_EnemyTransition
-    +
     ;-----------------------;
     ;   END OF GAME SCENE   ;
     ;-----------------------;
@@ -2585,14 +2619,14 @@ Gameloop_ShieldCollision:
     adc.b #$04
     cmp.b #$08                  ;Check if bullet calculation <= 8
     bcs .SkipPlayerBulletCheck
-    lda.w ShieldPosTable, X
+    lda.w ShieldXPos, Y
     sec
-    sbc.b #$0C
+    sbc.b #$04
     cmp.b ZP.R0
     bcs .SkipPlayerBulletCheck
-    lda.w ShieldPosTable+3, X
+    lda.w ShieldXPos, Y
     clc
-    adc.b #$0C
+    adc.b #$1C
     cmp.b ZP.R0
     bcc .SkipPlayerBulletCheck
     ;Assume the bullet has hit the shield
@@ -2611,14 +2645,171 @@ Gameloop_ShieldCollision:
     pla
     rts
 
+    ;
+    ;   1) rowpixelpos = 256 - enemypos
+    ;   2) distance = (!ShieldYPos - rowpixelpos)
+    ;   3) index = distance / 24
+    ;
+Gameloop_AlienShieldCollision_FindRow:
+    pha
+    phx
+    phy
+    php
+    rep #$10
+    sep #$20
+    lda.b #$F8
+    sec
+    sbc.b ZP.EnemyPlanePosY
+    sta.b ZP.R0                 ;Row pixel pos Y
+    lda.b #!ShieldYPos
+    sec
+    sbc.b ZP.R0
+    sta.w HW_WRDIVL             ;Distance
+    stz.w HW_WRDIVH
+    lda.b #$18
+    sta.w HW_WRDIVB
+    ;Waste 16 cycles for division
+    jml +
+    +
+    jml +
+    +
+    jml +
+    +
+    jml +
+    +
+    lda.w HW_RDDIVL             ;index
+    sta.b ZP.R0
+    cmp.b #$05                  ;Skip over row counts larger than actual table
+    bpl +
+    jsr Gameloop_AlienShieldCollision
+    +
+    plp
+    ply
+    plx
+    pla
+    rts
+
+    ;ZP.R0  |   Row index
+    ;ZP.R1  \
+    ;ZP.R2  |   General memory
+    ;ZP.R3  |
+    ;ZP.R4  /
+    ;
+    ;   Known bug where the aliens don't get hit for the first half of the first shield
+    ;
+Gameloop_AlienShieldCollision:
+    pha
+    phx
+    phy
+    php
+    tdc
+    sep #$20
+    lda.b #$08
+    sta.w HW_M7A
+    stz.w HW_M7A
+    lda.b ZP.R0
+    sta.w HW_M7B
+    lda.w HW_MPYL           ;Row index
+    clc
+    adc.b #$07
+    tay                     ;Current enemy index
+    lda.b #$07
+    sta.b ZP.R3
+    .EnemyColCheck:
+    lda.w EnemyType, Y
+    beq .SkipEnemyCheck     ;Skip dead enemies    
+    ;Check each shield
+    lda.b #$00
+    sec
+    sbc.b ZP.EnemyPlanePosX
+    sta.b ZP.R2             ;Corrected enemy plane xpos
+    ldx.w #$0003
+    .ShieldColLoop:
+    phx
+    phy
+    lda.w ShieldHealth, X
+    beq .SkipShield
+    tya
+    asl                     ;Align Y to word sized
+    tay
+    ;(EnemyPixelPos + (256-ZP.EnemyPlanePosX) - 16) > ShieldXPos
+    lda.w EnemyPixelPos, Y
+    clc
+    adc.b ZP.R2
+    clc
+    adc.b #$10
+    cmp.w ShieldXPos, X
+    bcc .SkipShield
+    ;(EnemyPixelPos + (256-ZP.EnemyPlanePosX) - 16) < ShieldXPos + 32
+    lda.w EnemyPixelPos, Y
+    clc
+    adc.b ZP.R2
+    sec
+    sbc.b #$20
+    bmi +
+    lda.b #$00
+    +
+    cmp.w ShieldXPos, X
+    bcs .SkipShield
+    lda.b ZP.R0
+    sta.b ZP.R4
+    ;Assume the enemy has hit the current shield
+    phx
+    tya
+    lsr
+    tax
+    lda.w EnemyHealth, X
+    sta.b ZP.R2
+    lda.b #$00
+    sta.w EnemyHealth, X
+    sta.w EnemyType, X
+    plx
+    lda.w ShieldHealth, X
+    sec
+    sbc.b ZP.R2             ;Damage shiled by enemy health value
+    bpl +
+    lda.b #$00
+    +
+    sta.w ShieldHealth, X
+    jsl GameLoop_DrawEnemies    
+    jsr GameLoop_FindMaxRowBounds
+    
+    lda.w EnemyPixelPos, Y
+    sec
+    sbc.b ZP.EnemyPlanePosX
+    sta.b ZP.R0
+    lda.w EnemyPixelPos+1, Y
+    sec
+    sbc.b ZP.EnemyPlanePosY
+    sta.b ZP.R1
+    jsr SpawnExplosive
+    
+    lda.b ZP.R4
+    sta.b ZP.R0
+    ;Skip shield and check loop
+    .SkipShield:
+    ply
+    plx
+    dex
+    bpl .ShieldColLoop
+    .SkipEnemyCheck:
+    dey
+    dec.b ZP.R3
+    bmi +
+    jmp .EnemyColCheck
+    +
+    plp
+    ply
+    plx
+    pla
+    rts
+
 Gameloop_DrawShields:
     pha
     phx
     phy
     php
     ldy.w #$0003
-    ldx.w #ShieldPosTableEnd-1
-    stx.b ZP.MemPointer
     tdc
     .ShieldDrawLoop
     ldx.w #$0000
@@ -2641,7 +2832,7 @@ Gameloop_DrawShields:
     stz.b ZP.R1
     +
 
-    lda.b (ZP.MemPointer)
+    lda.w ShieldXPos, Y
     sta.b ZP.AddSprX
     lda.b #!ShieldYPos
     sta.b ZP.AddSprY
@@ -2656,7 +2847,9 @@ Gameloop_DrawShields:
     dec.b ZP.MemPointer
     sep #$20
     
-    lda.b (ZP.MemPointer)
+    lda.w ShieldXPos, Y
+    clc
+    adc.b #$08
     sta.b ZP.AddSprX
     lda.b #!ShieldYPos
     sta.b ZP.AddSprY
@@ -2671,7 +2864,9 @@ Gameloop_DrawShields:
     dec.b ZP.MemPointer
     sep #$20
     
-    lda.b (ZP.MemPointer)
+    lda.w ShieldXPos, Y
+    clc
+    adc.b #$10
     sta.b ZP.AddSprX
     lda.b #!ShieldYPos
     sta.b ZP.AddSprY
@@ -2686,7 +2881,9 @@ Gameloop_DrawShields:
     dec.b ZP.MemPointer
     sep #$20
     
-    lda.b (ZP.MemPointer)
+    lda.w ShieldXPos, Y
+    clc
+    adc.b #$18
     sta.b ZP.AddSprX
     lda.b #!ShieldYPos
     sta.b ZP.AddSprY
@@ -2784,6 +2981,9 @@ GameLoop_UpdateEnemyArray:
     ;       Y
     ;
 GameLoop_FindMaxRowBounds:
+    pha
+    phx
+    phy
     php
     tdc
     ldy.w #$0000    ;Column index
@@ -2846,6 +3046,9 @@ GameLoop_FindMaxRowBounds:
     sta.w EnemyFloor
     rep #$30
     plp
+    ply
+    plx
+    pla
     rts
 
 GameLoop_SendWave:
@@ -3452,7 +3655,7 @@ GameLoop_KillPlayer:
     sta.w EnemyResetMove
     sta.w Player.Dead
     stz.w EnemyResetFlag
-    ldy.w #!MaxEplW-1
+    ldy.w #$0004
     .WriteExplData:
     ;Fine
     lda.w PlayerExplosionSpeedFineX, Y
@@ -6248,8 +6451,6 @@ Rand:
     ;       ZP.R1   Y position
     ;   
     ;   Clobberlist
-    ;       Y
-    ;       OAMPtr
     ;
 SpawnExplosive:
     pha
@@ -6309,23 +6510,23 @@ GameLoop_HandleUFO:
     +
     rep #$20
     lda.w UFOXPos
+    sta.b ZP.R0
+    bit.w #$0100
+    beq .SkipSignExt
+    ora.w #$FF00
+    sta.b ZP.R0
+    .SkipSignExt:
+    lda.b ZP.R0
     sec
     sbc.w #$0008        ;Adjust to occasional bullet misses
-    bit.w #$0100
-    beq .SkipLXAdjust
-    clc
-    adc.w #$0020
-    .SkipLXAdjust:
-    and.w #$01FF
     cmp.w Bullet.X
-    bcc +               ;BulletX > UFOX
+    bmi +               ;BulletX > UFOX
     jmp .SkipUFOCol
     +
-    lda.w UFOXPos
-    adc.w #$0020
-    and.w #$01FF
-    cmp.w Bullet.X      ;&& BulletX < UFOX+32
-    bcs +
+    lda.b ZP.R0
+    adc.w #$001F
+    cmp.w Bullet.X      ;&& BulletX <= UFOX+31
+    bpl +
     jmp .SkipUFOCol
     +
     
@@ -6622,7 +6823,8 @@ BG_City:
     sta.w TSMirror
     sta.w TMWMirror
     sta.w TSWMirror
-    stz.w CGWSELMirror
+    lda.b #$A8
+    sta.w CGWSELMirror
     stz.w CGADSUBMirror
     stz.w COLDATAMirror
     stz.w COLDATAMirror+1
@@ -6767,7 +6969,7 @@ BG_Mountains:
     sta.w TSMirror
     lda.b #$AA
     sta.w CGWSELMirror
-    lda.b #$5F
+    lda.b #$7F
     sta.w CGADSUBMirror
     lda.b #$E0
     sta.w COLDATAMirror
@@ -6929,7 +7131,8 @@ BG_Computer:
     sta.w TSMirror
     sta.w TMWMirror
     sta.w TSWMirror
-    stz.w CGWSELMirror
+    lda.b #$A8
+    sta.w CGWSELMirror
     stz.w CGADSUBMirror
     stz.w COLDATAMirror
     stz.w COLDATAMirror+1
@@ -7133,7 +7336,8 @@ BG_Surfboard:
     sta.w TSMirror
     sta.w TMWMirror
     sta.w TSWMirror
-    stz.w CGWSELMirror
+    lda.b #$A8
+    sta.w CGWSELMirror
     stz.w CGADSUBMirror
     stz.w COLDATAMirror
     stz.w COLDATAMirror+1
@@ -7254,7 +7458,8 @@ BG_Desert:
     sta.w TSMirror
     sta.w TMWMirror
     sta.w TSWMirror
-    stz.w CGWSELMirror
+    lda.b #$A8
+    sta.w CGWSELMirror
     stz.w CGADSUBMirror
     stz.w COLDATAMirror
     stz.w COLDATAMirror+1
@@ -7392,7 +7597,8 @@ BG_Wetlands:
     sta.w TSMirror
     sta.w TMWMirror
     sta.w TSWMirror
-    stz.w CGWSELMirror
+    lda.b #$A8
+    sta.w CGWSELMirror
     stz.w CGADSUBMirror
     stz.w COLDATAMirror
     stz.w COLDATAMirror+1
@@ -9151,6 +9357,10 @@ Enemy_Descend:
     lda.w EnemyTransSetup
     beq +
     stz.w ShowStageTextOut
+    lda.b #!EnemyPlaneStartX
+    sta.b ZP.EnemyPlanePosX
+    lda.b #!EnemyPlaneStartY
+    sta.b ZP.EnemyPlanePosY
     ldx.w #$0080
     stx.w BG1VOffMirror
     ldx.w #$0100
@@ -9760,7 +9970,7 @@ OpBText:
 OpCText:
     db "12: SHADOW ALIENS     "     ;Alien palette is set to black so only outlines are seen
 OpDText:
-    db "13: BROKEN CANNON     "     ;Bullets have random direction
+    db "13: NA                "     ;To be made
 OpEText:
     db "14: CONFUSED ENEMIES  "     ;Enemy Bullets have a random direction
 OpFText:
@@ -10093,6 +10303,13 @@ EnemyWaveLookup:
     dw EnemyWave24
     dw EnemyWave25
     dw EnemyWave26
+    dw EnemyWave27
+    dw EnemyWave28
+    dw EnemyWave29
+    dw EnemyWave2A
+    dw EnemyWave2B
+    dw EnemyWave2C
+    dw EnemyWave2D
 
 ;Enemy wave definitions
 EnemyWave00:
@@ -10329,6 +10546,48 @@ EnemyWave26:
     db $05,$01,$03,$01,$01,$03,$01,$05
     db $00,$05,$01,$05,$05,$01,$05,$00
     db $00,$00,$05,$00,$00,$05,$00,$00
+EnemyWave27:
+    db $01,$01,$01,$01,$05,$05,$05,$05
+    db $02,$02,$02,$02,$04,$04,$04,$04
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $04,$04,$04,$04,$02,$02,$02,$02
+    db $05,$05,$05,$05,$01,$01,$01,$01
+EnemyWave28:
+    db $05,$05,$02,$02,$02,$02,$05,$05
+    db $05,$05,$02,$02,$02,$02,$05,$05
+    db $05,$05,$02,$02,$02,$02,$05,$05
+    db $05,$05,$02,$02,$02,$02,$05,$05
+    db $05,$05,$02,$02,$02,$02,$05,$05
+EnemyWave29:
+    db $07,$07,$02,$02,$07,$07,$02,$02
+    db $07,$07,$02,$02,$07,$07,$02,$02
+    db $07,$07,$02,$02,$07,$07,$02,$02
+    db $07,$07,$02,$02,$07,$07,$02,$02
+    db $07,$07,$02,$02,$07,$07,$02,$02
+EnemyWave2A:
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $05,$03,$03,$03,$03,$03,$03,$05
+    db $05,$03,$03,$03,$03,$03,$03,$05
+    db $05,$03,$03,$03,$03,$03,$03,$05
+    db $05,$05,$05,$05,$05,$05,$05,$05
+EnemyWave2B:
+    db $02,$02,$02,$08,$08,$02,$02,$02
+    db $02,$02,$02,$08,$08,$02,$02,$02
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $02,$02,$02,$08,$08,$02,$02,$02
+    db $02,$02,$02,$08,$08,$02,$02,$02
+EnemyWave2C:
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $03,$03,$03,$03,$03,$03,$03,$03
+EnemyWave2D:
+    db $03,$03,$02,$02,$02,$02,$04,$04
+    db $03,$03,$02,$02,$02,$02,$04,$04
+    db $03,$03,$02,$02,$02,$02,$04,$04
+    db $03,$03,$02,$02,$02,$02,$04,$04
+    db $03,$03,$02,$02,$02,$02,$04,$04
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:
@@ -10760,18 +11019,6 @@ OptionGrad8:
     dw $0000
     dw $0000
 
-    ;Only for X pos, Y pos is constant
-ShieldPosTable:
-    dw $1018
-    dw $2028
-    dw $5058
-    dw $6068
-    dw $9098
-    dw $A0A8
-    dw $D0D8
-    dw $E0E8
-ShieldPosTableEnd:
-
 ShieldTileTable:
     ;Dead
     db $00
@@ -10779,45 +11026,45 @@ ShieldTileTable:
     db $00
     db $00
     ;Severely damaged
-    db $7F
-    db $7E
     db $7E
     db $7F
+    db $7F
+    db $7E
     ;Severely damaged 2
-    db $7D
-    db $7C
-    db $7C
-    db $7D
+    db $7D^$01
+    db $7C^$01
+    db $7C^$01
+    db $7D^$01
     ;Moderately damaged
-    db $7B
-    db $7A
-    db $7A
-    db $7B
+    db $7B^$01
+    db $7A^$01
+    db $7A^$01
+    db $7B^$01
     ;Moderately damaged
-    db $79
-    db $78
-    db $78
-    db $79
+    db $79^$01
+    db $78^$01
+    db $78^$01
+    db $79^$01
     ;Partially damaged
-    db $77
-    db $76
-    db $76
-    db $77
+    db $77^$01
+    db $76^$01
+    db $76^$01
+    db $77^$01
     ;Partially damaged
-    db $75
-    db $74
-    db $74
-    db $75
+    db $75^$01
+    db $74^$01
+    db $74^$01
+    db $75^$01
     ;Full health
-    db $73
-    db $72
-    db $72
-    db $73
+    db $73^$01
+    db $72^$01
+    db $72^$01
+    db $73^$01
     ;Full health
-    db $71
-    db $70
-    db $70
-    db $71
+    db $71^$01
+    db $70^$01
+    db $70^$01
+    db $71^$01
 
 ShieldExplosionTileTable:
     db $55+45
@@ -12425,4 +12672,10 @@ FadeGradientTable:
     ply
     plx
     pla
+    rtl
+
+ResetOBJ:
+    php
+    
+    plp
     rtl
