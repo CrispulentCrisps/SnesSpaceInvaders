@@ -53,6 +53,8 @@ struct ZP $00
 .DMAQFlags      skip 1  ;DMA Queue flags
 .DMAQDest       skip 2  ;DMA Queue destination address
 .DMAQLength     skip 2  ;Data size of transfer
+.DrawEnemyFlag  skip 1  ;Flag to draw enemies in frame
+.PalFadeFlag    skip 1  ;Flag to fade palette out
 endstruct
 
 !CodeBank =     $008000 ;Hold game code + palettes
@@ -114,7 +116,7 @@ EnemyBulletSine =   $0448
 EnemyBulletWait =   $044A   ;Time to wait between movement when homing
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
-!BGCountInitVal =   $00
+!BGCountInitVal =   $07
 !MaxBG =            $07
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
@@ -375,7 +377,7 @@ SRam =              $306000 ;Save data storage
 
 !ShieldStartHP =    $08
 !PlayerDieReset =   50
-!WaveInit =         $00
+!WaveInit =         $0A
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions
@@ -424,8 +426,8 @@ LaserOAM =          $0810
 !BulletAttr =       %00101110
 !EBullAttr =        %00101110
 !EBull2Attr =       %00101010
-!BulletF1 =         $36
-!BulletF2 =         $37
+!BulletF1 =         $40
+!BulletF2 =         $41
 !EBulletF1 =        $83
 !EBullet2F1 =       $86
 !EBullet3F1 =       $89

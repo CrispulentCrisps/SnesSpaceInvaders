@@ -694,7 +694,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$01
+    lda.b #$04
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -702,15 +702,14 @@ Reset:
     sta.w HW_SETINI
     lda.b #$81
     sta.w HW_NMITIMEN           ;NMI Enabled
-
     rep #%00100000              ;Set A to 16 bit mode
 
 MainLoop:
     stz.b ZP.NMIDone
     lda.w #VrDmaPtr
     sta.w ZP.VrDmaListPtr
-    lda.w #OAMCopy
-    sta.w ZP.OAMPtr
+    ;lda.w #OAMCopy
+    stz.b ZP.OAMPtr
     ldy.w #$220
     lda.w #$0000
     -
@@ -740,7 +739,10 @@ MainLoop:
     +
 
     jsr HandlePaletteFade
+    lda.w ShowStageText
+    beq +
     jsl FadeGradientTable
+    +
     lda.w #$FFFF
     sta.b ZP.NMIDone
     -                           ;Infinite loop to
@@ -1786,14 +1788,16 @@ GameScene:
     .SkipShoot:
 
     sep #$20
+    inc.w Player.Frame
+    lda.w Player.Frame
+    cmp.b #$03
+    bne +
     stz.w Player.Frame
-    lda.w Player.X
-    bit #$4
-    beq +
-    lda.b #$02
-    sta.w Player.Frame
+    inc.w Player.State
+    lda.w Player.State
+    and.b #$03
+    sta.w Player.State
     +
-    stz.w Player.State
 
     jsr HandleStageText
     jsr HandleEBulletCollisions
@@ -1810,9 +1814,10 @@ GameScene:
     sta.b ZP.AddSprX
     lda.b #!PlayerY
     sta.b ZP.AddSprY
-    lda.b #!PlayerTile
-    clc
-    adc.w Player.Frame
+    sep #$10
+    ldy.w Player.State
+    lda.w PlayerFrames, Y
+    rep #$10
     sta.b ZP.AddSprTile
     lda.b #!PlayerAttr
     sta.b ZP.AddSprAttr
@@ -2010,7 +2015,7 @@ GameScene:
     sta.b ZP.BulletColTile
     lda.b #!EnemyHurtTimer
     sta.w EnemyHurtTable, Y
-    jsl GameLoop_DrawEnemies
+    inc.b ZP.DrawEnemyFlag
     .SkipEnemyHurt:
 
     .SkipBullet0Logic:
@@ -2151,7 +2156,7 @@ GameScene:
     dec
     bne ++
     sta.w EnemyHurtTable, Y
-    jsl GameLoop_DrawEnemies
+    inc.b ZP.DrawEnemyFlag
     ++
     sta.w EnemyHurtTable, Y
     +
@@ -2457,6 +2462,13 @@ GameScene:
     ;Must be placed after game state handling to prevent incorrect collisions
     jsr Gameloop_AlienShieldCollision_FindRow
 
+    lda.b ZP.DrawEnemyFlag
+    beq .SkipRedraw    
+    jsl GameLoop_DrawEnemies
+    jsr GameLoop_FindMaxRowBounds
+    .SkipRedraw
+    stz.b ZP.DrawEnemyFlag
+
     jsr Gameloop_DrawShields
     ;-----------------------;
     ;   END OF GAME SCENE   ;
@@ -2704,6 +2716,7 @@ Gameloop_AlienShieldCollision:
     php
     tdc
     sep #$20
+    stz.b ZP.R5
     lda.b #$08
     sta.w HW_M7A
     stz.w HW_M7A
@@ -2746,7 +2759,7 @@ Gameloop_AlienShieldCollision:
     adc.b ZP.R2
     sec
     sbc.b #$20
-    bmi +
+    bpl +
     lda.b #$00
     +
     cmp.w ShieldXPos, X
@@ -2770,10 +2783,7 @@ Gameloop_AlienShieldCollision:
     bpl +
     lda.b #$00
     +
-    sta.w ShieldHealth, X
-    jsl GameLoop_DrawEnemies    
-    jsr GameLoop_FindMaxRowBounds
-    
+    sta.w ShieldHealth, X    
     lda.w EnemyPixelPos, Y
     sec
     sbc.b ZP.EnemyPlanePosX
@@ -2786,6 +2796,7 @@ Gameloop_AlienShieldCollision:
     
     lda.b ZP.R4
     sta.b ZP.R0
+    inc.w ZP.DrawEnemyFlag
     ;Skip shield and check loop
     .SkipShield:
     ply
@@ -2815,6 +2826,7 @@ Gameloop_DrawShields:
     ldx.w #$0000
     tdc
     lda.w ShieldHealth, Y
+    beq .SkipBlink
     asl
     asl
     tax
@@ -2830,8 +2842,13 @@ Gameloop_DrawShields:
     sta.w ShieldBlinkTimer, Y
     stz.b ZP.R0
     stz.b ZP.R1
-    +
+    .SkipBlink:
 
+    
+    lda.w ShieldHealth, Y
+    bne +
+    jmp .SkipDraw
+    +
     lda.w ShieldXPos, Y
     sta.b ZP.AddSprX
     lda.b #!ShieldYPos
@@ -2896,13 +2913,12 @@ Gameloop_DrawShields:
     inx
     rep #$20
     dec.b ZP.MemPointer
-    sep #$20
-
+    sep #$20    
+    .SkipDraw:
     dey
     bmi +
     jmp .ShieldDrawLoop
     +
-
     plp
     ply
     plx
@@ -3163,7 +3179,6 @@ GameLoop_SendWave:
     bpl -
     
     jsr GameLoop_UpdateEnemyArray
-    jsl GameLoop_DrawEnemies
     jsr GameLoop_FindMaxRowBounds
     rts
 
@@ -3324,6 +3339,9 @@ GameLoop_EBulletDraw:
     php
     ldy.w #!EBulLoopCount
     .EBDrawLoop:
+    sep #$20
+    lda.w EnemyBulletActive, Y
+    beq .SkipEBulletDraw
     stz.b ZP.R0
     lda.w EnemyBulletType, Y
     cmp.b #$02
@@ -3362,6 +3380,7 @@ GameLoop_EBulletDraw:
     sta.b ZP.AddSprAttr
     ++
     jsr AddSprite
+    .SkipEBulletDraw:
     dey
     bpl .EBDrawLoop
 
@@ -6720,6 +6739,8 @@ UpdateExplosives:
     ;Write explosion entry into OAM
     stz.b ZP.R2
 
+    lda.w ExplosionTimer, Y
+    beq .SkipExplo
     lda.w ExplosionX, Y
     sta.b ZP.AddSprX
     lda.w ExplosionY, Y
@@ -6742,6 +6763,7 @@ UpdateExplosives:
     sta.b ZP.AddSprAttr
     sta.b ZP.AddSprBigFlag
     jsr AddSprite
+    .SkipExplo:
 
     ;Make sure explosions don't die when player is dead
     lda.w GameState
@@ -9374,7 +9396,7 @@ Enemy_Descend:
     dey
     bpl -
     jsr GameLoop_UpdateEnemyArray
-    jsl GameLoop_DrawEnemies
+    inc.b ZP.DrawEnemyFlag
     dec.b ZP.EnemyWaveCount
     stz.w EnemyTransSetup    
     +
@@ -9418,32 +9440,49 @@ DrawSpriteText:
     .DrawCharacter:
     ;X
     lda.w SPRTextPosX, Y
-    sta.b (ZP.OAMPtr)
-    rep #$20
-    inc.b ZP.OAMPtr
-    sep #$20
+    sta.b ZP.AddSprX
     ;Y
     lda.w SPRTextPosY, Y
-    sta.b (ZP.OAMPtr)
-    rep #$20
-    inc.b ZP.OAMPtr
-    sep #$20
+    sta.b ZP.AddSprY
     ;Tile
     lda.b (ZP.MemPointer)       ;Grab character
-    sta.b (ZP.OAMPtr)
-    rep #$20
-    inc.b ZP.OAMPtr
-    sep #$20
-    ;Attr
-    lda.b #!SprFont1Attr
-    sta.b (ZP.OAMPtr)
-    rep #$20
-    inc.b ZP.OAMPtr
-    sep #$20
-    ;Move onto next character
+    sta.b ZP.AddSprTile
     rep #$20
     inc.b ZP.MemPointer
     sep #$20
+    ;Attr
+    lda.b #!SprFont1Attr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    ;lda.w SPRTextPosX, Y
+    ;sta.b (ZP.OAMPtr)
+    ;rep #$20
+    ;inc.b ZP.OAMPtr
+    ;sep #$20
+    ;;Y
+    ;lda.w SPRTextPosY, Y
+    ;sta.b (ZP.OAMPtr)
+    ;rep #$20
+    ;inc.b ZP.OAMPtr
+    ;sep #$20
+    ;;Tile
+    ;lda.b (ZP.MemPointer)       ;Grab character
+    ;sta.b (ZP.OAMPtr)
+    ;rep #$20
+    ;inc.b ZP.OAMPtr
+    ;sep #$20
+    ;;Attr
+    ;lda.b #!SprFont1Attr
+    ;sta.b (ZP.OAMPtr)
+    ;rep #$20
+    ;inc.b ZP.OAMPtr
+    ;sep #$20
+    ;;Move onto next character
+    ;rep #$20
+    ;inc.b ZP.MemPointer
+    ;sep #$20
     .IncLoop:
     iny
     cpy.b ZP.R1
@@ -9570,49 +9609,43 @@ AddSprite:
     php
     rep #$20
     lda.b ZP.OAMPtr
-    sec
-    sbc.w #OAMCopy
+    ;sec
+    ;sbc.w #OAMCopy
     lsr
     lsr
     and.w #$0003
     tay
     ;Find second table position
     lda.b ZP.OAMPtr
-    sec
-    sbc.w #OAMCopy
+    ;sec
+    ;sbc.w #OAMCopy
     lsr
     lsr
     lsr
     lsr
-    clc
-    adc.w #OAMCopy+$0200
+    ;clc
     sta.b ZP.AddSprPtr
+    ldx.b ZP.OAMPtr
     sep #$20
     lda.b ZP.AddSprX
-    sta.b (ZP.OAMPtr)
-    rep #$20
-    inc.b ZP.OAMPtr
-    sep #$20
+    sta.w OAMCopy, X
+    inx
     lda.b ZP.AddSprY
-    sta.b (ZP.OAMPtr)
+    sta.w OAMCopy, X
+    inx
     rep #$20
-    inc.b ZP.OAMPtr
-    sep #$20
     lda.b ZP.AddSprTile
-    sta.b (ZP.OAMPtr)
-    rep #$20
-    inc.b ZP.OAMPtr
-    sep #$20
-    lda.b ZP.AddSprAttr
-    sta.b (ZP.OAMPtr)
-    rep #$20
-    inc.b ZP.OAMPtr
+    sta.w OAMCopy, X
+    inx
+    inx
+    stx.b ZP.OAMPtr
     sep #$20
     lda.b ZP.AddSprBigFlag
     beq +
-    lda.b (ZP.AddSprPtr)
+    ldx.b ZP.AddSprPtr
+    lda.w OAMCopy+$0200, X
     ora.w SpriteTableMask, Y
-    sta.b (ZP.AddSprPtr)
+    sta.w OAMCopy+$0200, X
     +
     rep #$20
     lda.b ZP.AddSprX
@@ -9620,9 +9653,10 @@ AddSprite:
     beq +
     stz.b ZP.AddSprX
     sep #$20
-    lda.b (ZP.AddSprPtr)
+    ldx.b ZP.AddSprPtr
+    lda.w OAMCopy+$0200, X
     ora.w SpriteTablePosMask, Y
-    sta.b (ZP.AddSprPtr)
+    sta.w OAMCopy+$0200, X
     +
     plp
     ply
@@ -9689,12 +9723,10 @@ HandlePaletteFade:
     lda.b ZP.PalFadeEnd
     bne .SkipTransfer
     rep #$20
-    .TransferPal:
-    lda.w PalMirror, Y
-    sta.w PalOut, Y
-    dey
-    dey
-    bpl .TransferPal
+    ldy.w #PalOut
+    ldx.w #PalMirror
+    lda.w #$0200
+    mvn !CodeBank, !CodeBank
     .SkipTransfer:
     rep #$20
     lda.b ZP.PalFadeEnd
@@ -11565,6 +11597,12 @@ CloudTileList:
 
     db $CE
     db $CC
+
+PlayerFrames:
+    db !PlayerTile
+    db !PlayerTile+2
+    db !PlayerTile+4
+    db !PlayerTile+2
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
