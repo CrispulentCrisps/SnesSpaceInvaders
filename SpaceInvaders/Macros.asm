@@ -67,9 +67,10 @@ endstruct
 !PalBank =      $078000 ;Holds palette info
 !TilemapBank2 = $088000 ;Holds tilemap
 !TilemapBank =  $098000 ;Holds tilemap
-!CodeBank2 =    $0A8000 ;Hold long functions
-!MusicBank =    $0B8000 ;Holds music data
-!MusicBank2 =   $0C8000 ;Holds music data
+!TilemapBank3 = $0A8000 ;Holds tilemap
+!CodeBank2 =    $0B8000 ;Hold long functions
+!MusicBank =    $0C8000 ;Holds music data
+!MusicBank2 =   $0D8000 ;Holds music data
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -117,7 +118,7 @@ EnemyBulletWait =   $044A   ;Time to wait between movement when homing
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
 !BGCountInitVal =   $07
-!MaxBG =            $07
+!MaxBG =            $08
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
@@ -136,7 +137,7 @@ UFOTimer =          $06B3   ;Frames to wait before UFO appears
 UFOFrame =          $06B5
 UFOFrameTimer =     $06B6
 UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
-!UFOScore =         $0050   ;Score to give to the player when shooting down the UFO
+!UFOScore =         $0075   ;Score to give to the player when shooting down the UFO
 !UFOSpeed =         $02     ;How fast the UFO moves
 !UFOResetTime =     $05DC   ;Timer to wait to make UFO active [30 seconds on PAL, 25 on NTSC]
 !UFOYPos =          $00     ;Y Position of the UFO
@@ -378,6 +379,17 @@ SRam =              $306000 ;Save data storage
 !ShieldStartHP =    $08
 !PlayerDieReset =   50
 !WaveInit =         $0A
+
+!BG8SprAttr =       $10
+
+!BG8SprTile1A =     $C0
+!BG8SprTile1B =     $E0
+
+!BG8SprTile2A =     $C2
+!BG8SprTile2B =     $E2
+
+!BG8SprX1 =         $20
+!BG8SprX2 =         $D0
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions

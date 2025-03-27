@@ -17,6 +17,8 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-6-L3.png -t bin\gfx\BG-6-L3.bin -p bin\gfx\pal\BG-6-L3-Pal.bin -m bin\gfx\tilemap\BG-6-L3.bin --tile-base-offset 0
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-7-L2.png -t bin\gfx\BG-7-L2.bin -p bin\gfx\pal\BG-7-L2-Pal.bin -m bin\gfx\tilemap\BG-7-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-7-L3.png -t bin\gfx\BG-7-L3.bin -p bin\gfx\pal\BG-7-L3-Pal.bin -m bin\gfx\tilemap\BG-7-L3.bin --tile-base-offset 0 --no-remap
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-8-L2.png -t bin\gfx\BG-8-L2.bin -p bin\gfx\pal\BG-8-L2-Pal.bin -m bin\gfx\tilemap\BG-8-L2.bin --tile-base-offset 128 --no-remap --palette-base-offset 1
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-8-L3.png -t bin\gfx\BG-8-L3.bin -p bin\gfx\pal\BG-8-L3-Pal.bin -m bin\gfx\tilemap\BG-8-L3.bin --tile-base-offset 320 --no-remap
 
 "C:\Users\david\Documents\ASM-games\snes stuff\SnesGraphics\SpaceInvaders\SNESBGPrio.exe" bin\gfx\tilemap\BG-6-L3.bin bin\gfx\tilemap\BG-6-L3-Prio.bin
 
@@ -41,6 +43,7 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\HSTwinkle.png -t bin\gfx\Twinkle.bin -p bin\gfx\pal\Twinkle-Pal.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\SpiralGalaxy.png -t bin\gfx\SpiralGalaxy.bin -p bin\gfx\pal\SpiralGalaxy-Pal.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\SpiralGalaxyCore.png -t bin\gfx\SpiralGalaxyCore.bin -p bin\gfx\pal\SpiralGalaxyCore-Pal.bin --no-remap
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\BG8Sprite.png -t bin\gfx\BG8Sprite.bin -p bin\gfx\pal\BG8Sprite-Pal.bin --no-remap
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -S -i res\img\ArrowSprite.png -t bin\gfx\Arrow.bin -p bin\gfx\pal\Arrow.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -S -i res\img\Stars.png -t bin\gfx\Stars.bin -p bin\gfx\pal\Stars.bin

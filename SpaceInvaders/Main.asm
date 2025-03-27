@@ -152,6 +152,15 @@ BG7Gfx_L3:
     incbin "bin/gfx/BG-7-L3.bin"
 BG7Gfx_L3End:
 
+BG8Gfx:
+    incbin "bin/gfx/BG-8-L2.bin"
+    incbin "bin/gfx/BG-8-L3.bin"
+BG8GfxEnd:
+
+BG8Spr:
+    incbin "bin/gfx/BG8Sprite.bin"
+BG8SprEnd:
+
 CloudGfx:
     incbin "bin/gfx/Clouds.bin"
 CloudGfxEnd:
@@ -272,13 +281,18 @@ BG7_TM:
     incbin "bin/gfx/tilemap/BG-7-L3.bin"
 BG7_TM_End:
 
+BG8_TM:
+    incbin "bin/gfx/tilemap/BG-8-L2.bin"
+    incbin "bin/gfx/tilemap/BG-8-L3.bin"
+BG8_TM_End:
+
+org !TilemapBank2
+
 Title_TM:
     incbin "bin/gfx/tilemap/Title-BG-L1.bin"
 Title1_TM_End:
     incbin "bin/gfx/tilemap/Title-BG-L2.bin"
 Title2_TM_End:
-
-org !TilemapBank2
 
 Options_TM:
     incbin "bin/gfx/tilemap/OptionsBG.bin"
@@ -329,6 +343,8 @@ IntroPanel10TMEnd:
 IntroPanel11TM:
 	incbin "bin/gfx/tilemap/IntroPanel11.bin"
 IntroPanel11TMEnd:
+
+org !TilemapBank3
 
 HScoreBG_TM:
     incbin "bin/gfx/tilemap/HighscoreL1.bin"
@@ -453,6 +469,14 @@ BG7_L2_Pal_End:
 BG7_L3_Pal:
     incbin "bin/gfx/pal/BG-7-L3-Pal.bin"
 BG7_L3_Pal_End:
+
+BG8_L2_Pal:
+    incbin "bin/gfx/pal/BG-8-L3-Pal.bin"
+    incbin "bin/gfx/pal/BG-8-L2-Pal.bin"
+BG8_L2_Pal_End:
+BG8SprPal:
+    incbin "bin/gfx/pal/BG8Sprite-Pal.bin"
+BG8SprPalEnd:
 
 Surfboard_Pal:
     incbin "bin/gfx/pal/Surfboard-Pal.bin"
@@ -694,7 +718,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$04
+    lda.b #$00
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -739,10 +763,12 @@ MainLoop:
     +
 
     jsr HandlePaletteFade
+    sep #$20
     lda.w ShowStageText
     beq +
     jsl FadeGradientTable
     +
+    rep #$20
     lda.w #$FFFF
     sta.b ZP.NMIDone
     -                           ;Infinite loop to
@@ -1511,7 +1537,7 @@ GameScene:
     lda.l GameSprPal, X
     sta.w PalMirror+384, X
     inx
-    cpx #$100
+    cpx.w #$0100
     bne -
     
     ldx.w #StageTextPalEnd-StageTextPal
@@ -1567,7 +1593,7 @@ GameScene:
 
     lda.b #!WaveInit
     sta.b ZP.EnemyWaveCount
-    lda.b !EnemyMoveR
+    lda.b #!EnemyMoveL
     sta.b ZP.EnemyDir
     lda.b #!EnemyDownLoop
     sta.b ZP.EnemyDownCount
@@ -1688,8 +1714,8 @@ GameScene:
     jsr GameLoop_FindMaxRowBounds
     lda.b #!GameState_Play
     sta.w GameState
-    lda.b #$01
-    sta.w HW_BGMODE
+    ;lda.b #$01
+    ;sta.w HW_BGMODE
     sep #$20
     lda.b #$0F                  ;Set master brightness to 15 & stops blanking
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
@@ -1824,11 +1850,6 @@ GameScene:
     sta.b ZP.AddSprBigFlag
     jsr AddSprite
     .SkipPlayerDraw:
-
-    ;-----------------------;
-    ;   Background Logic    ;
-    ;-----------------------;
-    jsr GameLoop_UpdateBG
 
     ;-------------------;
     ;   Bullet Logic    ;
@@ -2460,7 +2481,14 @@ GameScene:
     .SkipShieldMove:
 
     ;Must be placed after game state handling to prevent incorrect collisions
-    jsr Gameloop_AlienShieldCollision_FindRow
+    lda.b #!ShieldYPos
+    sta.b ZP.R1
+    jsr Gameloop_FindAlienRow
+    lda.b ZP.R0
+    cmp.b #$05                  ;Skip over row counts larger than actual table
+    bpl +
+    jsr Gameloop_AlienShieldCollision
+    +
 
     lda.b ZP.DrawEnemyFlag
     beq .SkipRedraw    
@@ -2470,6 +2498,12 @@ GameScene:
     stz.b ZP.DrawEnemyFlag
 
     jsr Gameloop_DrawShields
+    
+    ;-----------------------;
+    ;   Background Logic    ;
+    ;-----------------------;
+    jsr GameLoop_UpdateBG
+
     ;-----------------------;
     ;   END OF GAME SCENE   ;
     ;-----------------------;
@@ -2658,11 +2692,14 @@ Gameloop_ShieldCollision:
     rts
 
     ;
+    ;   Input ZP.R1   |   Comparitive Y position
+    ;   Output ZP.R0  |   Current row
+    ;
     ;   1) rowpixelpos = 256 - enemypos
     ;   2) distance = (!ShieldYPos - rowpixelpos)
     ;   3) index = distance / 24
     ;
-Gameloop_AlienShieldCollision_FindRow:
+Gameloop_FindAlienRow:
     pha
     phx
     phy
@@ -2673,7 +2710,7 @@ Gameloop_AlienShieldCollision_FindRow:
     sec
     sbc.b ZP.EnemyPlanePosY
     sta.b ZP.R0                 ;Row pixel pos Y
-    lda.b #!ShieldYPos
+    lda.b ZP.R1
     sec
     sbc.b ZP.R0
     sta.w HW_WRDIVL             ;Distance
@@ -2691,10 +2728,6 @@ Gameloop_AlienShieldCollision_FindRow:
     +
     lda.w HW_RDDIVL             ;index
     sta.b ZP.R0
-    cmp.b #$05                  ;Skip over row counts larger than actual table
-    bpl +
-    jsr Gameloop_AlienShieldCollision
-    +
     plp
     ply
     plx
@@ -2706,8 +2739,6 @@ Gameloop_AlienShieldCollision_FindRow:
     ;ZP.R2  |   General memory
     ;ZP.R3  |
     ;ZP.R4  /
-    ;
-    ;   Known bug where the aliens don't get hit for the first half of the first shield
     ;
 Gameloop_AlienShieldCollision:
     pha
@@ -2803,6 +2834,107 @@ Gameloop_AlienShieldCollision:
     plx
     dex
     bpl .ShieldColLoop
+    .SkipEnemyCheck:
+    dey
+    dec.b ZP.R3
+    bmi +
+    jmp .EnemyColCheck
+    +
+    plp
+    ply
+    plx
+    pla
+    rts
+
+    ;ZP.R0  |   Row index
+    ;ZP.R1  \
+    ;ZP.R2  |   General memory
+    ;ZP.R3  |
+    ;ZP.R4  /
+    ;
+Gameloop_AlienPlayerCollision:
+    pha
+    phx
+    phy
+    php
+    tdc
+    sep #$20
+    stz.b ZP.R5
+    lda.b #$08
+    sta.w HW_M7A
+    stz.w HW_M7A
+    lda.b ZP.R0
+    sta.w HW_M7B
+    lda.w HW_MPYL           ;Row index
+    clc
+    adc.b #$07
+    tay                     ;Current enemy index
+    lda.b #$07
+    sta.b ZP.R3
+    .EnemyColCheck:
+    lda.w EnemyType, Y
+    beq .SkipEnemyCheck     ;Skip dead enemies    
+    ;Check each shield
+    lda.b #$00
+    sec
+    sbc.b ZP.EnemyPlanePosX
+    sta.b ZP.R2             ;Corrected enemy plane xpos
+    .ShieldColLoop:
+    phy
+    tya
+    asl                     ;Align Y to word sized
+    tay
+    ;(EnemyPixelPos + (256-ZP.EnemyPlanePosX) - 16) > ShieldXPos
+    lda.w EnemyPixelPos, Y
+    clc
+    adc.b ZP.R2
+    clc
+    adc.b #$10
+    cmp.w Player.X
+    bcc .SkipEnemyCheck
+    ;(EnemyPixelPos + (256-ZP.EnemyPlanePosX) - 16) < ShieldXPos + 32
+    lda.w EnemyPixelPos, Y
+    clc
+    adc.b ZP.R2
+    sec
+    sbc.b #$20
+    bpl +
+    lda.b #$00
+    +
+    cmp.w Player.X
+    bcs .SkipEnemyCheck
+    lda.b ZP.R0
+    sta.b ZP.R4
+    ;Assume the enemy has hit the current shield
+    tya
+    lsr
+    tax
+    lda.w EnemyHealth, X
+    sta.b ZP.R2
+    lda.b #$00
+    sta.w EnemyHealth, X
+    sta.w EnemyType, X
+    sec
+    sbc.b ZP.R2             ;Damage shiled by enemy health value
+    bpl +
+    lda.b #$00
+    +
+    sta.w ShieldHealth, X    
+    lda.w EnemyPixelPos, Y
+    sec
+    sbc.b ZP.EnemyPlanePosX
+    sta.b ZP.R0
+    lda.w EnemyPixelPos+1, Y
+    sec
+    sbc.b ZP.EnemyPlanePosY
+    sta.b ZP.R1
+    jsr SpawnExplosive
+    
+    lda.b ZP.R4
+    sta.b ZP.R0
+    inc.w ZP.DrawEnemyFlag
+    ;Skip shield and check loop
+    .SkipPlayer:
     .SkipEnemyCheck:
     dey
     dec.b ZP.R3
@@ -3133,7 +3265,8 @@ GameLoop_SendWave:
     bpl .ShieldHRestore
 
     .SkipRestore:
-    lda.b !EnemyMoveR
+    tdc
+    lda.b #!EnemyMoveL
     sta.b ZP.EnemyDir
     lda.b #!EnemyDownLoop
     sta.b ZP.EnemyDownCount
@@ -4912,7 +5045,6 @@ IntroScene:
     stx.b ZP.PalFadeStart
     ldx.w #$0200
     stx.b ZP.PalFadeEnd
-
 
     lda.b #$10
     sta.w CGWSELMirror
@@ -6827,6 +6959,8 @@ BGLoad:
     dw BG_Desert        ;BG-5
     dw BG_Wetlands      ;BG-6
     dw BG_Tundra      	;BG-7
+    dw BG_Cliff      	;BG-8
+    dw BG_Alien      	;BG-9
 
 BG_City:
     ;Setup video display
@@ -7854,8 +7988,91 @@ BG_Tundra:
     sta.w PalMirror, X
     dex
     bne -
-
 	rts
+
+BG_Cliff:
+    ;Setup video display
+    sep #$20
+    lda.b #$01
+    sta.w HW_BGMODE
+    lda.b #$1F
+    sta.w TMMirror
+    sta.w TSMirror
+    sta.w TMWMirror
+    sta.w TSWMirror
+    lda.b #$A8
+    sta.w CGWSELMirror
+    stz.w CGADSUBMirror
+    stz.w COLDATAMirror
+    stz.w COLDATAMirror+1
+    stz.w WH0Mirror
+    stz.w WH1Mirror    
+
+    ;Load Graphics
+    ldy.w #$0000
+    rep #$20
+    lda.w #(BG8Gfx)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG8Gfx>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!BGTileDest
+    sta.b ZP.DMAQDest
+    lda.w #BG8GfxEnd-BG8Gfx
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+
+    lda.w #(BG8Spr)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG8Spr>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!SprVram+(GameSprEnd-GameSpr)
+    sta.b ZP.DMAQDest
+    lda.w #BG8SprEnd-BG8Spr
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+
+    ;Load Tilemaps
+    lda.w #(BG8_TM)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG8_TM>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #L2Ram
+    sta.b ZP.DMAQDest
+    lda.w #BG8_TM_End-BG8_TM
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    
+    sep #$20
+    ;Transfer palette data
+    ldx.w #BG8_L2_Pal_End-BG8_L2_Pal
+    -
+    lda.l BG8_L2_Pal, X
+    sta.w PalMirror, X
+    dex
+    bne -
+    ldx.w #BG8SprPalEnd-BG8SprPal
+    -
+    lda.l BG8SprPal, X
+    sta.w PalMirror+$0100, X
+    dex
+    bne -
+    rts
+
+BG_Alien:
+    rts
+
 GameLoop_UpdateBG:
     php
     pha
@@ -7911,16 +8128,17 @@ GameLoop_UpdateBG:
     rts
 
 BGList:
-    dw BG0
-    dw BG1
-    dw BG2
-    dw BG3
-    dw BG4
-    dw BG5
-    dw BG6
-    dw BG7
+    dw UPD_BG_City
+    dw UPD_BG_Mountains
+    dw UPD_BG_Computer
+    dw UPD_BG_Surfboard
+    dw UPD_BG_Desert
+    dw UPD_BG_Wetlands
+    dw UPD_BG_Tundra
+    dw UPD_BG_Cliff
+    dw UPD_BG_Alien
 
-BG0:
+UPD_BG_City:
     tdc
     sep #$20
 
@@ -8056,7 +8274,7 @@ BG0:
     
     rts
 
-BG1:    
+UPD_BG_Mountains:
     ;Clouds 1
     inc.w BGScrollVal
     ;Cloud 2
@@ -8252,7 +8470,7 @@ BG1:
     sta.w HDMAMirror2+4
     rts
 
-BG2:
+UPD_BG_Computer:
     lda.w BGScrollOff+$0F
     inc
     sta.w BGScrollOff+$0F
@@ -8430,7 +8648,7 @@ BG2:
 
     rts
 
-BG3:
+UPD_BG_Surfboard:
     ;Ocean
     lda.w BGScrollOff
     inc
@@ -8587,43 +8805,38 @@ BG3:
 
     ;Surfboard, takes 2 OAM entries
     lda.w Player.X
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
     lda.b #!PlayerY
     clc
     adc.b #$0E
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!SurfboardT0
     clc
     adc.w OBJFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!SurfboardAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
-    ;Second surfboard sprite
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
     lda.w Player.X
-    clc
     adc.b #$08
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprX
     lda.b #!PlayerY
     clc
     adc.b #$0E
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprY
     lda.b #!SurfboardT1
     clc
     adc.w OBJFrame
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprTile
     lda.b #!SurfboardAttr
-    sta.b (ZP.OAMPtr)
-    inc.b ZP.OAMPtr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
     rts
 
-BG4:
+UPD_BG_Desert:
     php
     sep #$20
     ldx.w #HDMAScrollBuffer2
@@ -8818,7 +9031,7 @@ BG4:
     plp
     rts
 
-BG5:
+UPD_BG_Wetlands:
     sep #$20
     ;Pillars
     inc.w BGScrollOff
@@ -9000,7 +9213,7 @@ BG5:
     sta.w HDMAMirror2+4
     rts
 
-BG6:
+UPD_BG_Tundra:
 	rep #$20
 	lda.w BG3HOffMirror
 	clc
@@ -9066,7 +9279,14 @@ BG6:
     sta.w HDMAMirror1+4
 	rts
 
-BG7:
+UPD_BG_Cliff:
+    sep #$20
+    inc.w BG2VOffMirror
+    inc.w BG2VOffMirror
+
+	rts
+
+UPD_BG_Alien:
 	rts
 
 GameLoop_UpdateBG_OBJ:
@@ -9094,6 +9314,8 @@ BGOBJList:
     dw OBJ_Desert       ;BG-5
     dw OBJ_Wetlands     ;BG-6
     dw OBJ_Tundra     	;BG-7
+    dw OBJ_Cliff        ;BG-8
+    dw OBJ_Alien        ;BG-9
 
 OBJ_City:
     rts
@@ -9158,9 +9380,11 @@ OBJ_Desert:
     bne +
     rep #$20
     dec.w SParticleX, X
+    lda.w SParticleX, X
+    and.w #$01FF
     cmp.w #$01E0
     bne ++
-    lda.w #$0120
+    lda.w #$0100
     sta.w SParticleX, X
     ++
     sep #$20
@@ -9202,18 +9426,14 @@ OBJ_Desert:
 
 OBJ_Wetlands:
     ldy.w #!RainCount
-    ldx.w #!RainCount*2
-    .RainLoop:
-    rep #$20
-    lda.w SParticleX, X
-    sec
-    sbc.w #$0003
-    sta.w SParticleX, X
-    and.w #$00FF
-    sta.b ZP.AddSprX
     sep #$20
+    .RainLoop:
+    lda.w SParticleX, Y
+    sec
+    sbc.b #$03
+    sta.w SParticleX, Y
+    sta.b ZP.AddSprX
     lda.w SParticleY, Y
-    clc
     adc.b #$07
     sta.w SParticleY, Y
     sta.b ZP.AddSprY
@@ -9225,8 +9445,6 @@ OBJ_Wetlands:
     sta.b ZP.AddSprAttr
     stz.b ZP.AddSprBigFlag
     jsr AddSprite
-    dex
-    dex
     dey
     bpl .RainLoop
 
@@ -9274,6 +9492,12 @@ OBJ_Wetlands:
 	
 OBJ_Tundra:
 	rts
+
+OBJ_Cliff:
+	rts
+
+OBJ_Alien:
+    rts
 
 GameLoop_HandleUFOParticles:
     pha
@@ -9375,6 +9599,7 @@ Enemy_Descend:
     lda.w EnemyTransSetup
     beq +
     stz.w ShowStageTextOut
+    stz.w ShowStageText
     lda.b #!EnemyPlaneStartX
     sta.b ZP.EnemyPlanePosX
     lda.b #!EnemyPlaneStartY
@@ -9609,21 +9834,16 @@ AddSprite:
     php
     rep #$20
     lda.b ZP.OAMPtr
-    ;sec
-    ;sbc.w #OAMCopy
     lsr
     lsr
     and.w #$0003
     tay
     ;Find second table position
     lda.b ZP.OAMPtr
-    ;sec
-    ;sbc.w #OAMCopy
     lsr
     lsr
     lsr
     lsr
-    ;clc
     sta.b ZP.AddSprPtr
     ldx.b ZP.OAMPtr
     sep #$20
@@ -9663,6 +9883,7 @@ AddSprite:
     plx
     pla
     rts
+
     ;
     ;   Processes the PalMirror with the fade mask to output the data to PalOut
     ;
@@ -12492,7 +12713,6 @@ GameLoop_DrawEnemies_FrameDecider:
     pla
     rtl
 
-
 LoadEnemyGFX:
     php    
     rep #$30
@@ -12511,7 +12731,6 @@ LoadEnemyGFX:
     sta.b ZP.DMAQDest
     lda.w #$0400
     sta.b ZP.DMAQLength
-
     jsl QueueDMA
     plp
     rtl
@@ -12548,6 +12767,8 @@ ClearHDMAGameScene:
     stz.w HDMAMirror5
     stz.w HDMAMirror5+2
     plp
+    rtl
+
     ;
     ; ZP.DMAQSrc        |   Source address
     ; ZP.DMAQFlags      |   Flags [non-zero for a viable entry]
@@ -12712,4 +12933,48 @@ ResetOBJ:
     php
     
     plp
+    rtl
+
+    ;
+    ;   ZP.R0           |   Start index
+    ;   ZP.R1           |   End index
+    ;   ZP.R2           |   General Memory [Enemy hurt timers]
+    ;   ZP.MemPointer   |   Tile buffer pointer
+    ;
+RedrawEnemyRange:
+    pha
+    phx
+    phy
+    php
+    rep #$20
+    ldx.w #(EnemyTileBuffer)&$FFFF
+    stx.b ZP.MemPointer
+    sep #$30
+    ldx.w #(EnemyTileBuffer>>16)&$FF
+    stx.b ZP.MemPointer+2
+    ldy.b ZP.R1
+    .RangeLoop:
+    tdc
+    sep #$20
+    lda.w EnemyHurtTable, Y
+    lda.w EnemyType, Y
+    asl
+    asl
+    tax
+    rep #$20
+    ;Drawing loop
+    lda.w EnemyDrawBot+0, X
+    sta.b [ZP.MemPointer]
+
+    inc.w ZP.MemPointer
+
+    dey
+    cpy.b ZP.R0
+    bpl .RangeLoop
+    ;After draw loop
+    dey
+    plp
+    ply
+    plx
+    pla
     rtl
