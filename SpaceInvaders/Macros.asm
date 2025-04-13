@@ -378,18 +378,12 @@ SRam =              $306000 ;Save data storage
 
 !ShieldStartHP =    $08
 !PlayerDieReset =   50
-!WaveInit =         $0A
+!WaveInit =         $00
 
-!BG8SprAttr =       $10
-
-!BG8SprTile1A =     $C0
-!BG8SprTile1B =     $E0
-
-!BG8SprTile2A =     $C2
-!BG8SprTile2B =     $E2
-
-!BG8SprX1 =         $20
-!BG8SprX2 =         $D0
+!BG8MoonAttr =      $00
+!BG8MoonTile =      $C0
+!BG8MoonX =         $78
+!BG8MoonY =         $10
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions

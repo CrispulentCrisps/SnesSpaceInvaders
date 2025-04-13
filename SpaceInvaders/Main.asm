@@ -718,7 +718,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$00
+    lda.b #$07
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -1579,6 +1579,7 @@ GameScene:
     bit.w #!Mod7
     sep #$20
     beq +
+    tdc
     lda.b #$01
     sta.w ZP.Lives
     +
@@ -1610,6 +1611,7 @@ GameScene:
     bit.w #!Mod5
     sep #$20
     beq +
+    tdc
     lda.b #$41
     sta.w HW_MOSAIC
     +
@@ -1619,6 +1621,7 @@ GameScene:
     bit.w #!Mod9
     sep #$20
     beq +
+    tdc
     lda.b ZP.EnemyPlanePosY
     sec
     sbc.b #$20
@@ -1673,6 +1676,7 @@ GameScene:
     bit.w #!ModA
     sep #$20
     beq +
+    tdc
     --
     lda.b #$01
     sta.w ShieldHealth, Y
@@ -1741,6 +1745,11 @@ GameScene:
     .SkipLoad:
 
     jsr GameLoop_DrawScore
+
+    ;-----------------------;
+    ;   Background Logic    ;
+    ;-----------------------;
+    jsr GameLoop_UpdateBG
 
     ;-------------------;
     ;   Player Logic    ;
@@ -2190,6 +2199,7 @@ GameScene:
     bit.w #!Mod1
     sep #$20
     beq +
+    tdc
     lda.b ZP.EnemyWait
     lsr
     beq +
@@ -2447,6 +2457,7 @@ GameScene:
     bit.w #!ModB
     sep #$20
     beq .SkipShieldMove    
+    tdc
     ;Reset shield positions
     lda.b #$10
     sta.w ShieldXPos
@@ -2481,6 +2492,7 @@ GameScene:
     .SkipShieldMove:
 
     ;Must be placed after game state handling to prevent incorrect collisions
+    sep #$20
     lda.b #!ShieldYPos
     sta.b ZP.R1
     jsr Gameloop_FindAlienRow
@@ -2488,6 +2500,14 @@ GameScene:
     cmp.b #$05                  ;Skip over row counts larger than actual table
     bpl +
     jsr Gameloop_AlienShieldCollision
+    +
+    lda.b #!PlayerY
+    sta.b ZP.R1
+    jsr Gameloop_FindAlienRow
+    lda.b ZP.R0
+    cmp.b #$05                  ;Skip over row counts larger than actual table
+    bpl +
+    jsr Gameloop_AlienPlayerCollision
     +
 
     lda.b ZP.DrawEnemyFlag
@@ -2498,11 +2518,6 @@ GameScene:
     stz.b ZP.DrawEnemyFlag
 
     jsr Gameloop_DrawShields
-    
-    ;-----------------------;
-    ;   Background Logic    ;
-    ;-----------------------;
-    jsr GameLoop_UpdateBG
 
     ;-----------------------;
     ;   END OF GAME SCENE   ;
@@ -2880,24 +2895,23 @@ Gameloop_AlienPlayerCollision:
     sbc.b ZP.EnemyPlanePosX
     sta.b ZP.R2             ;Corrected enemy plane xpos
     .ShieldColLoop:
-    phy
     tya
-    asl                     ;Align Y to word sized
-    tay
-    ;(EnemyPixelPos + (256-ZP.EnemyPlanePosX) - 16) > ShieldXPos
-    lda.w EnemyPixelPos, Y
+    asl                     ;Align X to word sized
+    tax
+    ;(EnemyPixelPos + (256-ZP.EnemyPlanePosX) - 16) > PlayerXPos
+    lda.w EnemyPixelPos, X
     clc
     adc.b ZP.R2
     clc
     adc.b #$10
     cmp.w Player.X
     bcc .SkipEnemyCheck
-    ;(EnemyPixelPos + (256-ZP.EnemyPlanePosX) - 16) < ShieldXPos + 32
-    lda.w EnemyPixelPos, Y
+    ;(EnemyPixelPos + (256-ZP.EnemyPlanePosX) - 16) < PlayerXPos + 16
+    lda.w EnemyPixelPos, X
     clc
     adc.b ZP.R2
     sec
-    sbc.b #$20
+    sbc.b #$10
     bpl +
     lda.b #$00
     +
@@ -2906,25 +2920,17 @@ Gameloop_AlienPlayerCollision:
     lda.b ZP.R0
     sta.b ZP.R4
     ;Assume the enemy has hit the current shield
-    tya
-    lsr
-    tax
-    lda.w EnemyHealth, X
-    sta.b ZP.R2
     lda.b #$00
-    sta.w EnemyHealth, X
-    sta.w EnemyType, X
-    sec
-    sbc.b ZP.R2             ;Damage shiled by enemy health value
-    bpl +
-    lda.b #$00
-    +
-    sta.w ShieldHealth, X    
-    lda.w EnemyPixelPos, Y
+    sta.w EnemyHealth, Y
+    sta.w EnemyType, Y
+    jsr GameLoop_KillPlayer
+
+    ;Spawn explosion   
+    lda.w EnemyPixelPos, X
     sec
     sbc.b ZP.EnemyPlanePosX
     sta.b ZP.R0
-    lda.w EnemyPixelPos+1, Y
+    lda.w EnemyPixelPos+1, X
     sec
     sbc.b ZP.EnemyPlanePosY
     sta.b ZP.R1
@@ -3092,6 +3098,7 @@ GameLoop_UpdateEnemyArray:
     bit.w #!Mod0
     sep #$20
     beq +
+    tdc
     lda.w EnemyHealthTable, X
     asl
     bra .SetEHealth
@@ -3250,6 +3257,7 @@ GameLoop_SendWave:
     bit.w #!ModA
     sep #$20
     bne .SkipRestore
+    tdc
     ;Add shield health after every wave
     ldy.w #$0003
     .ShieldHRestore:
@@ -3791,10 +3799,10 @@ HandleStageText:
     rts
     ;
 GameLoop_KillPlayer:
-    php
     pha
     phx
     phy    
+    php
     sep #$20
     lda.b #!GameState_Dead
     sta.w GameState
@@ -3829,15 +3837,15 @@ GameLoop_KillPlayer:
     sta.w ExplosionY, Y
     dey
     bpl -
-    lda.w OAMCopy+512             ;Player X 9th bit
-    ora.b #%01010101
-    sta.w OAMCopy+512             ;Player X 9th bit
+    ;lda.w OAMCopy+512             ;Player X 9th bit
+    ;ora.b #%01010101
+    ;sta.w OAMCopy+512             ;Player X 9th bit
     lda.b #$01
     sta.w EnemyResetMove
+    plp
     ply
     plx
     pla
-    plp
     rts
 
 OptionsScene:
@@ -6983,6 +6991,11 @@ BG_City:
     stz.w WH0Mirror
     stz.w WH1Mirror
 
+    stz.w BG2HOffMirror
+    stz.w BG2HOffMirror+1
+    stz.w BG2VOffMirror
+    stz.w BG2VOffMirror+1
+
     stz.w HW_BG12NBA
     stz.w HW_BG34NBA
 	stz.w BG3VOffMirror
@@ -7993,7 +8006,7 @@ BG_Tundra:
 BG_Cliff:
     ;Setup video display
     sep #$20
-    lda.b #$01
+    lda.b #$02
     sta.w HW_BGMODE
     lda.b #$1F
     sta.w TMMirror
@@ -9281,8 +9294,74 @@ UPD_BG_Tundra:
 
 UPD_BG_Cliff:
     sep #$20
+    tdc
     inc.w BG2VOffMirror
     inc.w BG2VOffMirror
+    inc.w BG2VOffMirror
+
+    ldx.w #$0004
+    -
+    inc.w BGScrollVal, X
+    inc.w BGScrollOff, X
+    lda.w BGScrollOff, X
+    cmp.w BG8ScrollDiv, X
+    bne .SkipBGMove
+    inc.w BGScrollVal, X
+    stz.w BGScrollOff, X
+    .SkipBGMove:
+    dex
+    bpl -
+
+    ldx.w #L3Ram+$21
+    stx.w HW_VMADDL
+    sep #$10
+    ldx.b #$04
+    lda.b #$40          ;Choose BG2 to vertically scroll
+    xba
+    -
+    lda.w BGScrollVal, X
+    rep #$20
+    sta.w HW_VMDATAL
+    ldy.w BG8ScrollLayerSize, X
+    beq +
+    sta.w HW_VMDATAL
+    +
+    sep #$20
+    dex
+    bpl -
+    rep #$10
+    ldx.w #L3Ram+$36
+    stx.w HW_VMADDL
+    sep #$10
+    ldx.b #$00
+    lda.b #$40          ;Choose BG2 to vertically scroll
+    xba
+    -
+    lda.w BGScrollVal, X
+    rep #$20
+    sta.w HW_VMDATAL
+    ldy.w BG8ScrollLayerSize, X
+    beq +
+    sta.w HW_VMDATAL
+    +
+    sep #$20
+    inx
+    cpx.b #$05
+    bmi -
+    rep #$10
+   
+   ;Decorative moon
+   lda.b #!BG8MoonX
+   sta.b ZP.AddSprX
+   lda.b #!BG8MoonY
+   sta.b ZP.AddSprY
+   lda.b #!BG8MoonTile
+   sta.b ZP.AddSprTile
+   lda.b #!BG8MoonAttr
+   sta.b ZP.AddSprAttr
+   lda.b #$01
+   sta.b ZP.AddSprBigFlag
+   jsr AddSprite
 
 	rts
 
@@ -10559,6 +10638,10 @@ EnemyWaveLookup:
     dw EnemyWave2B
     dw EnemyWave2C
     dw EnemyWave2D
+    dw EnemyWave2E
+    dw EnemyWave2F
+    dw EnemyWave30
+    dw EnemyWave31
 
 ;Enemy wave definitions
 EnemyWave00:
@@ -10837,6 +10920,30 @@ EnemyWave2D:
     db $03,$03,$02,$02,$02,$02,$04,$04
     db $03,$03,$02,$02,$02,$02,$04,$04
     db $03,$03,$02,$02,$02,$02,$04,$04
+EnemyWave2E:
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $08,$08,$08,$08,$08,$08,$08,$08
+EnemyWave2F:
+    db $07,$01,$07,$01,$07,$01,$07,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $07,$01,$07,$01,$07,$01,$07,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $07,$01,$07,$01,$07,$01,$07,$01
+EnemyWave30:
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$06,$06,$00,$00,$00
+    db $00,$00,$06,$04,$04,$06,$00,$00
+    db $00,$06,$04,$04,$04,$04,$06,$00
+    db $06,$06,$06,$06,$06,$06,$06,$06
+EnemyWave31:
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $00,$08,$05,$05,$05,$05,$08,$00
+    db $00,$00,$08,$05,$05,$08,$00,$00
+    db $00,$00,$00,$08,$08,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:
@@ -11141,6 +11248,28 @@ BG7ScrollDiv:
 	db $20
 	db $60
 	db $70
+
+BG8ScrollDiv:
+    db $05
+    db $04
+    db $03
+    db $02
+    db $01
+
+    db $01
+    db $02
+    db $03
+    db $04
+    db $05
+
+    ;1 for if the current layer should have a double write, 0 instead of a single write
+BG8ScrollLayerSize:
+    db $00
+    db $00
+    db $00
+    db $01
+    db $01
+    db $01
 
 HScoreWindow:
     db $0C
