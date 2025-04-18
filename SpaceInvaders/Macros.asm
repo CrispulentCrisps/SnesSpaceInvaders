@@ -153,6 +153,7 @@ OBJFrame =          $0710   ;16 byte array of general object frame counts, used 
 OBJXPos =           $0720   ;32 byte array of object types XPositions
 OBJYPos =           $0740   ;16 byte array of object types YPositions
 OBJActive =         $0750   ;16 byte array of object active states
+OBJYVel =           $0760   ;8 word array of object YVel
 ;Explosions each carry a
 ;   Timer   [Byte]  How many frames left the explosion has
 ;   Frame   [Byte]  What tile it is currently to display
@@ -381,9 +382,18 @@ SRam =              $306000 ;Save data storage
 !WaveInit =         $00
 
 !BG8MoonAttr =      $00
-!BG8MoonTile =      $C0
+!BG8MoonTile =      $C4
 !BG8MoonX =         $78
 !BG8MoonY =         $10
+
+!CliffRockAttr =    $00
+!CliffRockCount =   $07
+!CliffRockCountW =  $07
+
+!CRock1 =           $D8
+!CRock2 =           $C8
+!CRock3 =           $C6
+!CRock4 =           $C9
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions

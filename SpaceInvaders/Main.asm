@@ -154,7 +154,6 @@ BG7Gfx_L3End:
 
 BG8Gfx:
     incbin "bin/gfx/BG-8-L2.bin"
-    incbin "bin/gfx/BG-8-L3.bin"
 BG8GfxEnd:
 
 BG8Spr:
@@ -283,7 +282,6 @@ BG7_TM_End:
 
 BG8_TM:
     incbin "bin/gfx/tilemap/BG-8-L2.bin"
-    incbin "bin/gfx/tilemap/BG-8-L3.bin"
 BG8_TM_End:
 
 org !TilemapBank2
@@ -471,7 +469,6 @@ BG7_L3_Pal:
 BG7_L3_Pal_End:
 
 BG8_L2_Pal:
-    incbin "bin/gfx/pal/BG-8-L3-Pal.bin"
     incbin "bin/gfx/pal/BG-8-L2-Pal.bin"
 BG8_L2_Pal_End:
 BG8SprPal:
@@ -526,6 +523,9 @@ BG5Grad:
 
 BG6Grad:
     incbin "bin/gfx/pal/BG6-Grad.bin"
+    
+BG8Grad:
+    incbin "bin/gfx/pal/BG8-Grad.bin"
 
 ;   Arrow Sprite Palette
 ArrowSpr_Pal:
@@ -2371,7 +2371,6 @@ GameScene:
     dey
     bpl -
     
-    jsr GameLoop_UpdateBG_OBJ
     ;------------------------;
     ;    Handle Game State   ;
     ;------------------------;
@@ -2518,6 +2517,8 @@ GameScene:
     stz.b ZP.DrawEnemyFlag
 
     jsr Gameloop_DrawShields
+
+    jsr GameLoop_UpdateBG_OBJ
 
     ;-----------------------;
     ;   END OF GAME SCENE   ;
@@ -2975,18 +2976,17 @@ Gameloop_DrawShields:
     sta.b ZP.R1
     lda.w ShieldBlinkTimer, Y
     cmp #$60
-    bmi +
+    bmi .DrawShieldSpr
     lda.b #$00
     sta.w ShieldBlinkTimer, Y
-    stz.b ZP.R0
-    stz.b ZP.R1
+    jmp .SkipDraw
     .SkipBlink:
 
     
     lda.w ShieldHealth, Y
-    bne +
+    bne .DrawShieldSpr
     jmp .SkipDraw
-    +
+    .DrawShieldSpr:
     lda.w ShieldXPos, Y
     sta.b ZP.AddSprX
     lda.b #!ShieldYPos
@@ -8046,7 +8046,7 @@ BG_Cliff:
     lda.b #$01
     sta.b ZP.DMAQFlags
     rep #$20
-    lda.w #!SprVram+(GameSprEnd-GameSpr)
+    lda.w #!SprVram+(GameSprEnd-GameSpr)+$40
     sta.b ZP.DMAQDest
     lda.w #BG8SprEnd-BG8Spr
     sta.b ZP.DMAQLength
@@ -8067,6 +8067,21 @@ BG_Cliff:
     sta.b ZP.DMAQLength
     jsl QueueDMA
     
+    ;Load Objects    
+    lda.w #(BG4_OBJ)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG4_OBJ>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!SprVram+(GameSprEnd-GameSpr)
+    sta.b ZP.DMAQDest
+    lda.w #BG4_OBJ_End-BG4_OBJ
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+
     sep #$20
     ;Transfer palette data
     ldx.w #BG8_L2_Pal_End-BG8_L2_Pal
@@ -8081,6 +8096,43 @@ BG_Cliff:
     sta.w PalMirror+$0100, X
     dex
     bne -
+    
+    ldx.w #Surfboard_Pal_End-Surfboard_Pal
+    -
+    lda.l Surfboard_Pal, X
+    sta.w PalMirror+$0120, X
+    dex
+    bne -
+    
+    sep #$20
+    ldx.w #((BG8Grad)&$FFFF)+$02
+    stx.b ZP.MemPointer
+    lda.b #(BG8Grad>>16)&$FF
+    sta.b ZP.MemPointer+2
+    ldx.w #BG8ColTable
+    stx.w ZP.MemPointer2
+    lda.b #52*2
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsl ConstructGradientTable
+
+    
+    lda.b #$01
+    ldx.w #!CliffRockCountW
+    ldy.w #!CliffRockCountW*2
+    -
+    sep #$20
+    lda.b #$01
+    sta.w OBJActive, X
+    jsr Rand
+    xba
+    sta.w OBJXPos, X
+    rep #$20
+    jsr Rand
+    sta.w OBJYVel, X
+    dex
+    bpl -
+    sep #$20
     rts
 
 BG_Alien:
@@ -9318,52 +9370,91 @@ UPD_BG_Cliff:
     ldx.b #$04
     lda.b #$40          ;Choose BG2 to vertically scroll
     xba
-    -
-    lda.w BGScrollVal, X
+    ;-
+    ;lda.w BGScrollVal, X
+    ;rep #$20
+    ;sta.w HW_VMDATAL
+    ;cpx.b #$03
+    ;bmi +
+    ;sta.w HW_VMDATAL
+    ;+
+    ;sep #$20
+    ;dex
+    ;bpl -
+    for t = 0..2
+        sep #$20
+        lda.w BGScrollVal+(4-!t)
+        rep #$20
+        sta.w HW_VMDATAL
+        sta.w HW_VMDATAL
+    endfor    
+    for i = 2..4
+        sep #$20
+        lda.w BGScrollVal+(4-!i)
+        rep #$20
+        sta.w HW_VMDATAL
+    endfor
+
+    inc.w SinePtr
+    inc.w SinePtr
+    ldx.w SinePtr
+
     rep #$20
-    sta.w HW_VMDATAL
-    ldy.w BG8ScrollLayerSize, X
-    beq +
-    sta.w HW_VMDATAL
-    +
-    sep #$20
-    dex
-    bpl -
+    lda.w #$4000
+    for t = 0..16
+        sep #$20
+        lda.w UnSineTable, X
+        lsr
+        lsr
+        lsr
+        lsr
+        lsr
+        lsr
+        rep #$20
+        sta.w HW_VMDATAL
+        sep #$20
+        txa
+        clc
+        adc.b #$20
+        tax
+    endfor
+
     rep #$10
-    ldx.w #L3Ram+$36
+    ldx.w #L3Ram+$37
     stx.w HW_VMADDL
-    sep #$10
+    sep #$30
     ldx.b #$00
     lda.b #$40          ;Choose BG2 to vertically scroll
     xba
-    -
-    lda.w BGScrollVal, X
-    rep #$20
-    sta.w HW_VMDATAL
-    ldy.w BG8ScrollLayerSize, X
-    beq +
-    sta.w HW_VMDATAL
-    +
+    
+    for t = 0..2
+        sep #$20
+        lda.w BGScrollVal+!t
+        rep #$20
+        sta.w HW_VMDATAL
+    endfor    
+    for i = 2..4
+        sep #$20
+        lda.w BGScrollVal+!i
+        rep #$20
+        sta.w HW_VMDATAL
+        sta.w HW_VMDATAL
+    endfor
     sep #$20
-    inx
-    cpx.b #$05
-    bmi -
+    ;-
+    ;lda.w BGScrollVal, X
+    ;rep #$20
+    ;sta.w HW_VMDATAL
+    ;cpx.b #$03
+    ;bpl +
+    ;sta.w HW_VMDATAL
+    ;+
+    ;sep #$20
+    ;inx
+    ;cpx.b #$05
+    ;bmi -
     rep #$10
-   
-   ;Decorative moon
-   lda.b #!BG8MoonX
-   sta.b ZP.AddSprX
-   lda.b #!BG8MoonY
-   sta.b ZP.AddSprY
-   lda.b #!BG8MoonTile
-   sta.b ZP.AddSprTile
-   lda.b #!BG8MoonAttr
-   sta.b ZP.AddSprAttr
-   lda.b #$01
-   sta.b ZP.AddSprBigFlag
-   jsr AddSprite
-
-	rts
+   	rts
 
 UPD_BG_Alien:
 	rts
@@ -9573,6 +9664,112 @@ OBJ_Tundra:
 	rts
 
 OBJ_Cliff:
+    sep #$20
+   ;Decorative moon
+   lda.b #!BG8MoonX
+   sta.b ZP.AddSprX
+   lda.b #!BG8MoonY
+   sta.b ZP.AddSprY
+   lda.b #!BG8MoonTile
+   sta.b ZP.AddSprTile
+   lda.b #!BG8MoonAttr
+   sta.b ZP.AddSprAttr
+   lda.b #$01
+   sta.b ZP.AddSprBigFlag
+   jsr AddSprite
+   
+    ;Surfboard frames
+    lda.w OBJTimers+15
+    inc
+    sta.w OBJTimers+15
+    bit #$08
+    beq +
+    lda.w OBJFrame
+    eor #$02
+    sta.w OBJFrame
+    stz.w OBJTimers+15
+    +
+
+    ;Surfboard, takes 2 OAM entries
+    lda.w Player.X
+    sta.b ZP.AddSprX
+    lda.b #!PlayerY
+    clc
+    adc.b #$0E
+    sta.b ZP.AddSprY
+    lda.b #!SurfboardT0
+    clc
+    adc.w OBJFrame
+    sta.b ZP.AddSprTile
+    lda.b #!SurfboardAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    lda.w Player.X
+    adc.b #$08
+    sta.b ZP.AddSprX
+    lda.b #!PlayerY
+    clc
+    adc.b #$0E
+    sta.b ZP.AddSprY
+    lda.b #!SurfboardT1
+    clc
+    adc.w OBJFrame
+    sta.b ZP.AddSprTile
+    lda.b #!SurfboardAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+    
+    sep #$10
+    ldx.b #!CliffRockCount
+    ldy.b #!CliffRockCount*2
+    .RockMoveLoop:
+    rep #$20
+    lda.w OBJYVel, Y
+    clc
+    adc.w BG8RocksSpeed, Y
+    sta.w OBJYVel, Y
+    sep #$20
+    xba
+    cmp.b #$F0
+    bne +
+    jsr Rand
+    xba
+    sta.w OBJXPos, X
+    lda.b #$F0
+    +
+    sta.w OBJYPos, X
+    dey
+    dey
+    dex
+    bpl .RockMoveLoop
+
+    sep #$20
+    ;Drawing rocks if active
+    ldx.b #!CliffRockCount
+    .RockDrawLoop:
+    lda.w OBJActive, X
+    beq .SkipSprite
+    lda.w OBJXPos, X
+    sta.b ZP.AddSprX
+    lda.w OBJYPos, X
+    sta.b ZP.AddSprY
+    lda.w BG8RockTiles, X
+    sta.b ZP.AddSprTile
+    lda.b #!CliffRockAttr
+    sta.b ZP.AddSprAttr
+    lda.w BG8RockBigFlag, X
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    .SkipSprite:
+    dey
+    dey
+    dex
+    bpl .RockDrawLoop
+    rep #$30
+
 	rts
 
 OBJ_Alien:
@@ -9911,7 +10108,7 @@ AddSprite:
     phx
     phy
     php
-    rep #$20
+    rep #$30
     lda.b ZP.OAMPtr
     lsr
     lsr
@@ -11183,6 +11380,24 @@ BG6ColTable:
     db $00
 BG6ColTableEnd:
 
+BG8ColTable:
+    db $04
+    db $04
+    db $04
+    db $04
+    db $04
+    db $04
+    db $04
+    db $04    
+    db $04
+    db $03
+    db $03
+    db $03
+    db $03
+    db $03
+    db $03
+    db $03
+
 BG7ColTable:
 	db $01
     dw $0000    ;Address
@@ -11270,6 +11485,36 @@ BG8ScrollLayerSize:
     db $01
     db $01
     db $01
+
+BG8RocksSpeed:
+    dw $007F^$FFFF
+    dw $0074^$FFFF
+    dw $0062^$FFFF
+    dw $006A^$FFFF
+    dw $005A^$FFFF
+    dw $005C^$FFFF
+    dw $0036^$FFFF
+    dw $0024^$FFFF
+
+BG8RockTiles:
+    db !CRock1
+    db !CRock2
+    db !CRock1
+    db !CRock2
+    db !CRock1
+    db !CRock2
+    db !CRock3
+    db !CRock4
+
+BG8RockBigFlag:
+    db $00
+    db $00
+    db $00
+    db $00
+    db $00
+    db $00
+    db $FF
+    db $FF
 
 HScoreWindow:
     db $0C
