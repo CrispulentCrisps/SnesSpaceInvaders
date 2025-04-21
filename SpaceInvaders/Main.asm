@@ -524,6 +524,9 @@ BG5Grad:
 BG6Grad:
     incbin "bin/gfx/pal/BG6-Grad.bin"
     
+BG7Grad:
+    incbin "bin/gfx/pal/BG7-Grad.bin"
+
 BG8Grad:
     incbin "bin/gfx/pal/BG8-Grad.bin"
 
@@ -718,7 +721,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$07
+    lda.b #$06
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -836,7 +839,7 @@ NMIHandler:
     sep #%00100000                              ;Enter 8bit mode for A
     lda.b (ZP.VrDmaListPtr), Y                  ;Load dma ptr flag
     beq .FinishDMALoop                          ;Check for 0 for end flag
-    rep #%00100000                              ;Enter 8bit mode for A
+    rep #%00100000                              ;Exit 8bit mode for A
     lda.w #HW_VMDATAL
     sta.w HW_BBAD7                              ;Shove in DMA destination
     sep #%00100000                              ;Enter 8bit mode for A
@@ -8001,6 +8004,18 @@ BG_Tundra:
     sta.w PalMirror, X
     dex
     bne -
+    
+    sep #$20
+    ldx.w #((BG7Grad)&$FFFF)+$02
+    stx.b ZP.MemPointer
+    lda.b #(BG7Grad>>16)&$FF
+    sta.b ZP.MemPointer+2
+    ldx.w #BG7ColTable
+    stx.w ZP.MemPointer2
+    lda.b #52*2
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsl ConstructGradientTable
 	rts
 
 BG_Cliff:
@@ -8020,6 +8035,24 @@ BG_Cliff:
     stz.w COLDATAMirror+1
     stz.w WH0Mirror
     stz.w WH1Mirror    
+
+    stz.w HW_BG12NBA
+    ;lda.b #$02
+    stz.w HW_BG34NBA
+
+    rep #$20
+    stz.w BG1VOffMirror
+    stz.w BG1VOffMirror
+    stz.w BG1HOffMirror
+    stz.w BG1HOffMirror
+    stz.w BG2VOffMirror
+    stz.w BG2VOffMirror
+    stz.w BG2HOffMirror
+    stz.w BG2HOffMirror
+    stz.w BG3VOffMirror
+    stz.w BG3VOffMirror
+    stz.w BG3HOffMirror
+    stz.w BG3HOffMirror
 
     ;Load Graphics
     ldy.w #$0000
@@ -8111,12 +8144,11 @@ BG_Cliff:
     sta.b ZP.MemPointer+2
     ldx.w #BG8ColTable
     stx.w ZP.MemPointer2
+    stz.w ZP.MemPointer2+2
     lda.b #52*2
     sta.b ZP.R0
     stz.b ZP.R1
     jsl ConstructGradientTable
-
-    
     lda.b #$01
     ldx.w #!CliffRockCountW
     ldy.w #!CliffRockCountW*2
@@ -8132,6 +8164,7 @@ BG_Cliff:
     sta.w OBJYVel, X
     dex
     bpl -
+    jsr ClearL3Vram
     sep #$20
     rts
 
@@ -9323,16 +9356,6 @@ UPD_BG_Tundra:
 	dex
 	bpl .TundraScroll
 	stz.w HW_WMDATA
-
-	sep #$20
-    lda.b #$03
-    sta.w HDMAMirror
-    lda.b #(HW_CGADD)&$FF
-    sta.w HDMAMirror+1
-    ldx.w #BG7ColTable
-    stx.w HDMAMirror+2
-    lda.b #$80
-    sta.w HDMAMirror+4
 	
     lda.b #$02
     sta.w HDMAMirror1
@@ -10167,11 +10190,13 @@ AddSprite:
     ;       ZP.R0
     ;       ZP.R1
     
-ClearL1Vram:
+ClearL3Vram:
 	php
 	rep #$10
-	sep #$20    				;Clear tilemap 1
-    ldx.w #L1Ram
+	sep #$20    				;Clear tilemap 3
+    lda.b #$8F
+    sta.w HW_INIDISP
+    ldx.w #L3Ram
     stx.w HW_VMADDL             ;Set VRAM address to L1RAM
     lda.b #$09
     sta.w HW_DMAP7              ;Setup DMAP0
@@ -10185,6 +10210,9 @@ ClearL1Vram:
     stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM [0 just means all of vram]
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 0
+    
+    lda.b #$0F
+    sta.w HW_INIDISP
 	plp
 	rts
 
@@ -11388,7 +11416,7 @@ BG8ColTable:
     db $04
     db $04
     db $04
-    db $04    
+    db $04
     db $04
     db $03
     db $03
@@ -11400,50 +11428,20 @@ BG8ColTable:
 
 BG7ColTable:
 	db $01
-    dw $0000    ;Address
-	dw $3D29
 	db $01
-    dw $0000    ;Address
-	dw $3909
 	db $01
-    dw $0000    ;Address
-	dw $3508
 	db $01
-    dw $0000    ;Address
-	dw $34E7
 	db $01
-    dw $0000    ;Address
-	dw $30C7
 	db $01
-    dw $0000    ;Address
-	dw $2CC6
 	db $01
-    dw $0000    ;Address
-	dw $28A5
 	db $01
-    dw $0000    ;Address
-	dw $2885
 	db $01
-    dw $0000    ;Address
-	dw $2884
 	db $01
-    dw $0000    ;Address
-	dw $2063
 	db $01
-    dw $0000    ;Address
-	dw $1C43
 	db $01
-    dw $0000    ;Address
-	dw $1C42
 	db $01
-    dw $0000    ;Address
-	dw $1821
 	db $01
-    dw $0000    ;Address
-	dw $1401
 	db $01
-    dw $0000    ;Address
-	dw $1000
 	db $00
 
 BG7ScrollScan:
@@ -11499,8 +11497,8 @@ BG8RocksSpeed:
 BG8RockTiles:
     db !CRock1
     db !CRock2
-    db !CRock1
-    db !CRock2
+    db !CRock5
+    db !CRock6
     db !CRock1
     db !CRock2
     db !CRock3
@@ -13194,7 +13192,6 @@ ConstructGradientTable:
     php
     ldy.w #$0000
     ldx.w #$0000
-    rep #$20
     .TransferLoop:
     sep #$20
     lda.b (ZP.MemPointer2)      ;Grab current scanline

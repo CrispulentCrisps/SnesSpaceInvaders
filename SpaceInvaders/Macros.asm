@@ -378,7 +378,7 @@ SRam =              $306000 ;Save data storage
 !UFOPartGravity =   $0030
 
 !ShieldStartHP =    $08
-!PlayerDieReset =   50
+!PlayerDieReset =   $32
 !WaveInit =         $00
 
 !BG8MoonAttr =      $00
@@ -393,7 +393,9 @@ SRam =              $306000 ;Save data storage
 !CRock1 =           $D8
 !CRock2 =           $C8
 !CRock3 =           $C6
-!CRock4 =           $C9
+!CRock4 =           $CA
+!CRock5 =           $D8
+!CRock6 =           $D9
 
 ;32 particles at once
 SParticleX =        $0200   ;32 word X positions
