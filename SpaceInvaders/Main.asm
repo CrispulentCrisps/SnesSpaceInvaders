@@ -721,7 +721,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$06
+    lda.b #$07
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -8332,7 +8332,7 @@ UPD_BG_City:
     lda.w BGScrollVal+5 ;\
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
-    lda.b #$1F          ;Scanline
+    lda.b #$28          ;Scanline
     sta.w HW_WMDATA
     lda.w BGScrollVal+2 ;\
     sta.w HW_WMDATA     ;|  Offsets
@@ -8342,7 +8342,7 @@ UPD_BG_City:
     lda.w BGScrollVal+3 ;\
     sta.w HW_WMDATA     ;|  Offsets
     stz.w HW_WMDATA     ;/
-    lda.b #$60          ;Scanline
+    lda.b #$04          ;Scanline
     sta.w HW_WMDATA
     lda.w BGScrollVal+4 ;\
     sta.w HW_WMDATA     ;|  Offsets
@@ -9370,12 +9370,14 @@ UPD_BG_Tundra:
 UPD_BG_Cliff:
     sep #$20
     tdc
-    inc.w BG2VOffMirror
-    inc.w BG2VOffMirror
-    inc.w BG2VOffMirror
+    lda.w BG2VOffMirror
+    clc
+    adc.b #$04
+    sta.w BG2VOffMirror
 
     ldx.w #$0004
     -
+    inc.w BGScrollVal, X
     inc.w BGScrollVal, X
     inc.w BGScrollOff, X
     lda.w BGScrollOff, X
@@ -9781,7 +9783,7 @@ OBJ_Cliff:
     sta.b ZP.AddSprY
     lda.w BG8RockTiles, X
     sta.b ZP.AddSprTile
-    lda.b #!CliffRockAttr
+    lda.w BG8RockAttr, X
     sta.b ZP.AddSprAttr
     lda.w BG8RockBigFlag, X
     sta.b ZP.AddSprBigFlag
@@ -11504,6 +11506,16 @@ BG8RockTiles:
     db !CRock3
     db !CRock4
 
+BG8RockAttr:
+    db !CliffRockAttr
+    db !CliffRockAttr
+    db !CliffRockAttr
+    db !CliffRockAttr
+    db !CliffRockAttr|$40
+    db !CliffRockAttr|$40
+    db !CliffRockAttr
+    db !CliffRockAttr
+        
 BG8RockBigFlag:
     db $00
     db $00
