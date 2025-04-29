@@ -117,7 +117,7 @@ EnemyBulletSine =   $0448   ;
 EnemyBulletCenter = $0450   ;Center point for sine offsets
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
-!BGCountInitVal =   $07
+!BGCountInitVal =   $00
 !MaxBG =            $08
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
