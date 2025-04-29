@@ -107,14 +107,14 @@ endstruct
 EnemyShootDebug =   $040D   ;Current position display for debug purposes
 EnemyShootIndex =   $040F   ;Wich enemy is to fire said bullet
 EnemyShootTimer =   $0410   ;Frames to wait until firing bullet
-EnemyBulletXPos =   $0418
-EnemyBulletYPos =   $0420
-EnemyBulletActive = $0428
-EnemyBulletFrame =  $0430
-EnemyBulletType =   $0438
-BulletFCount =      $0440
-EnemyBulletSine =   $0448
-EnemyBulletWait =   $044A   ;Time to wait between movement when homing
+EnemyBulletXPos =   $0418   ;
+EnemyBulletYPos =   $0420   ;
+EnemyBulletActive = $0428   ;
+EnemyBulletFrame =  $0430   ;
+EnemyBulletType =   $0438   ;
+BulletFCount =      $0440   ;
+EnemyBulletSine =   $0448   ;
+EnemyBulletCenter = $0450   ;Center point for sine offsets
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
 !BGCountInitVal =   $07
@@ -123,6 +123,7 @@ BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
 PalMaskInd =        $04F3
+PauseFlag =         $04F4   ;Flag for pausing the game
 
 ;(8 columns * 5 rows)
 EnemyResetMove  =   $04FE
@@ -243,6 +244,7 @@ GameState =         $0EF0   ;Current state of the GameScene
 !GameState_Stop =   $02     ;Invaders dead, waiting for next wave
 !GameState_Dead =   $03     ;Player dead
 !GameState_Reset =  $04     ;Player dead, wave resetting
+!GameState_Over =   $05     ;Game over, player is dead
 
 GameStateWait =     $0EF1   ;Frames to wait before game scene changes
 !GameWaitTime =     $0060   ;Frames to wait 
@@ -254,6 +256,9 @@ TransitionState =   $0EF5   ;Value to say which direction we are transitioning [
 !OptionsTextAttr =  $20
 !OptionsTMapAddr =  $7CC5
 
+!GameOverWait =     $64
+
+GameOverTimer =     $0EF6   ;Time to wait before going to game over screen
 ShieldSinPtr =      $0EF7   ;Index into sine table
 StageSettings =     $0EF8   ;Settings byte for stage
 MusicSettings =     $0EF9   ;Settings byte for music options
@@ -281,6 +286,8 @@ EPlaneTop =         $1140
 UFOPartXVel =       $1148
 UFOPartYVel =       $1158
 UFOPartFlip =       $1168   ;Switch for setting the graphics for the UFO gibs
+
+GameOverTransFlag = $1169
 
 StageTextX =        $1170
 StageTextY =        $117C
@@ -371,6 +378,8 @@ SRam =              $306000 ;Save data storage
 !SpiralGalAttrP0 =  $20
 !SpiralGalAttrP1 =  $30
 
+!PauseTile1 =       $CE
+!PauseTile2 =       $EE
 !StageTextAttr =    $35
 !GameOverTextAttr = $3F
 !GameOverTextTime = $64
@@ -379,7 +388,7 @@ SRam =              $306000 ;Save data storage
 
 !ShieldStartHP =    $08
 !PlayerDieReset =   $32
-!WaveInit =         $00
+!WaveInit =         $0A
 
 !BG8MoonAttr =      $00
 !BG8MoonTile =      $C4

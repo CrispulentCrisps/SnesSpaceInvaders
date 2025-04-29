@@ -737,13 +737,14 @@ MainLoop:
     sta.w ZP.VrDmaListPtr
     ;lda.w #OAMCopy
     stz.b ZP.OAMPtr
-    ldy.w #$220
+    ldy.w #$0220
     lda.w #$0000
     -
     sta.w OAMCopy, Y
     dey
     dey
     bpl -
+
     lda.w #$0000
     ldy.w #$0040
     -
@@ -832,8 +833,7 @@ NMIHandler:
     ;   DMA Queue   ;
     ;---------------;
     lda.w #VrDmaPtr
-    sta.w ZP.VrDmaListPtr
-    
+    sta.b ZP.VrDmaListPtr    
     .VrDMALoop:
     ldy.w #$0003
     sep #%00100000                              ;Enter 8bit mode for A
@@ -1469,7 +1469,7 @@ GameScene:
     stz.w HW_HDMAEN
     stz.w HW_MDMAEN
     jsr TransitionIn
-
+    stz.w GameOverTransFlag
     lda.b #$02
     sta.w HW_OBSEL
 
@@ -1747,6 +1747,8 @@ GameScene:
     
     .SkipLoad:
 
+    jsr GameLoop_HandlePause
+
     jsr GameLoop_DrawScore
 
     ;-----------------------;
@@ -1759,6 +1761,9 @@ GameScene:
     ;-------------------;    
     lda.w GameState
     cmp.b #!GameState_Dead
+    beq .SkipLeftInput
+    lda.w GameState
+    cmp.b #!GameState_Over
     beq .SkipLeftInput
     lda.b ZP.Controller+1
     and #$01                    ;Check Right DPAD
@@ -1787,6 +1792,8 @@ GameScene:
 
     lda.w GameState
     cmp.b #!GameState_Dead
+    beq .SkipShoot
+    cmp.b #!GameState_Over
     beq .SkipShoot
     lda.w Player.FTime
     bne .SkipShoot
@@ -1844,10 +1851,14 @@ GameScene:
     ;   Player Drawing Commands    ;
     ;------------------------------;
     ;Player will take the first 4 spots of OAM
-    lda.w Player.Dead
+    lda.w GameState
+    cmp.b #!GameState_Over
     beq +
-    jmp .SkipPlayerDraw
+    lda.w Player.Dead
+    beq .DrawPlayer
     +
+    jmp .SkipPlayerDraw
+    .DrawPlayer:
     lda.w Player.X
     sta.b ZP.AddSprX
     lda.b #!PlayerY
@@ -2113,11 +2124,17 @@ GameScene:
     lda.w GameState
     cmp.b #!GameState_Stop
     beq +
+    cmp.b #!GameState_Over
+    beq +
     jsr GameLoop_HandleEnemyTimers
     +
     sep #$20
     ;Handle bullet logic
+    lda.w GameState
+    cmp.b #!GameState_Over
+    beq +
     jsr GameLoop_EBulletLogic
+    +
     ;-------------------------------;
     ;   Enemy Bullet Drawing logic  ;
     ;-------------------------------;
@@ -2322,9 +2339,13 @@ GameScene:
     ;-------------------;
     ;    Handle UFO     ;
     ;-------------------;
-    jsr GameLoop_HandleUFO
     
+    lda.w GameState
+    cmp.b #!GameState_Over
+    beq +
+    jsr GameLoop_HandleUFO    
     jsr GameLoop_HandleUFOParticles
+    +
 
     ;------------------------;
     ;    Handle Explosions   ;
@@ -2391,7 +2412,33 @@ GameScene:
     bne +
     jsr GameLoop_EnemyTransition
     +
-    
+
+    sep #$20
+    lda.w GameState
+    cmp.b #!GameState_Over
+    bne .SkipGOLogic
+    dec.w GameOverTimer
+    lda.w GameOverTimer
+    bne .SkipGOLogic
+    lda.w GameOverTransFlag
+    bne +
+    inc.w GameOverTransFlag
+    stz.b ZP.ChangeScene
+    lda.b #$04
+    stz.b ZP.ExitScene
+    sta.b ZP.SceneGoto
+    jsr TransitionOut
+    +
+    .SkipGOLogic:
+    sep #$20
+    lda.b ZP.ExitScene
+    beq +
+    stz.b ZP.ExitScene
+    lda.w ZP.SceneGoto
+    sta.w ZP.SceneIndex
+    lda.b #$01
+    sta.b ZP.ChangeScene
+    +
     ;-----------------------;
     ;    Handle Shields     ;
     ;-----------------------;
@@ -2655,7 +2702,70 @@ GameLoop_DrawScore:
     ply
     pla
     rts
+
+GameLoop_HandlePause:
+    pha
+    php
+    sep #$20
+    lda.w PauseFlag
+    bne .HandlePauseOn
+    ;Else check if game is to be paused
+    lda.b ZP.InputFlag
+    bne .SkipPause
+    lda.b ZP.Controller+1
+    bit.b #$10
+    beq .SkipPause          ;Skip pause if start not pressed
+    ;If so then create 2 new sprites for the pause menu
+    lda.b #$01
+    sta.b ZP.InputFlag
+    sta.w PauseFlag
+
+    ;Pause graphics
+    lda.b #$70
+    sta.b ZP.AddSprX
+    lda.b #$60
+    sta.b ZP.AddSprY
+    lda.b #!PauseTile1
+    sta.b ZP.AddSprTile
+    lda.b #!StageTextAttr
+    sta.b ZP.AddSprAttr
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
     
+    lda.b #$80
+    sta.b ZP.AddSprX
+    lda.b #$60
+    sta.b ZP.AddSprY
+    lda.b #!PauseTile2
+    sta.b ZP.AddSprTile
+    lda.b #!StageTextAttr
+    sta.b ZP.AddSprAttr
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    .HandlePauseOn:
+    ;Wait loop for pausing
+    -
+
+    ldx.w #$FFFF
+    stx.b ZP.NMIDone
+    lda.b ZP.InputFlag
+    bne .SkipUnpause
+    lda.b ZP.Controller+1
+    bit.b #$10
+    beq .SkipUnpause          ;Skip Unpause if start not pressed
+    ;If so then create 2 new sprites for the pause menu
+    lda.b #$01
+    sta.b ZP.InputFlag
+    stz.w PauseFlag
+    .SkipUnpause:
+
+    lda.w PauseFlag
+    bne -
+    .SkipPause:
+    plp
+    pla
+    rts
+
     ;
     ;   ZP.R0 for X
     ;   ZP.R1 for Y
@@ -3370,6 +3480,7 @@ GameLoop_Spawn_Enemy_Bullet:
     clc
     adc.b #$04
     sta.w EnemyBulletXPos, X
+    sta.w EnemyBulletCenter, X
     sta.w EnemyShootDebug
     lda.w EnemyPixelPos+1, Y
     sec
@@ -3425,24 +3536,26 @@ GameLoop_EBulletLogic:
     .EBLogicLoop:
     rep #$20
     lda.b ZP.Modifiers
-    bit.w #!Mod4
+    bit.w #!Mod4        ;Homing modifier
     sep #$20
     beq +
     tdc
     lda.w Player.X
     cmp.w EnemyBulletXPos, Y
     bcc ++
-    lda.w EnemyBulletXPos, Y
+    lda.w EnemyBulletCenter, Y
     inc
     bra .SetXPos
     ++
-    lda.w EnemyBulletXPos, Y
+    lda.w EnemyBulletCenter, Y
     dec
     .SetXPos:
     sta.w EnemyBulletXPos, Y
     +
     lda.w EnemyBulletActive, Y
-    beq +
+    beq +    
+    lda.w EnemyBulletCenter, Y
+    sta.w EnemyBulletXPos, Y
     lda.w EnemyBulletType, Y
     bne ++
     lda.w EnemyBulletYPos, Y
@@ -3455,19 +3568,31 @@ GameLoop_EBulletLogic:
     adc.b #!EnemyBulletSpeed/2
     .ApplySpeed:
     sta.w EnemyBulletYPos, Y
-    sec
-    sbc.b #$04
-    cmp #!BFloor
+    cmp #!BFloor+$0C
     bcs +
     bra .SkipDeactive
     +
     lda.b #$FF
     sta.w EnemyBulletXPos, Y
+    sta.w EnemyBulletCenter, Y
     lda.b #$F0
     sta.w EnemyBulletYPos, Y
     lda.b #$00
     sta.w EnemyBulletActive, Y
     .SkipDeactive:
+
+    ;Sine offset code
+    lda.w EnemyBulletType, Y
+    cmp.b #$02                  ;Check bullety type 3 for proper sine calculations
+    bne .SkipBSine
+    lda.w EnemyBulletSine, Y
+    inc
+    sta.w EnemyBulletSine, Y
+    tax
+    lda.w EnemyBulletCenter, Y
+    adc.w EnemyBullet3Wave, X
+    sta.w EnemyBulletXPos, Y
+    .SkipBSine:
     dey
     bpl .EBLogicLoop
     plp
@@ -3486,22 +3611,22 @@ GameLoop_EBulletDraw:
     sep #$20
     lda.w EnemyBulletActive, Y
     beq .SkipEBulletDraw
-    stz.b ZP.R0
-    lda.w EnemyBulletType, Y
-    cmp.b #$02
-    bne +
-    ldx.w #$0000
-    lda.w EnemyBulletSine, Y
-    inc
-    inc
-    sta.w EnemyBulletSine, Y
-    tax
-    lda.w EnemyBullet3Wave, X
-    sta.b ZP.R0
-    +
+    ;stz.b ZP.R0
+    ;lda.w EnemyBulletType, Y
+    ;cmp.b #$02
+    ;bne +
+    ;ldx.w #$0000
+    ;lda.w EnemyBulletSine, Y
+    ;inc
+    ;inc
+    ;sta.w EnemyBulletSine, Y
+    ;tax
+    ;lda.w EnemyBullet3Wave, X
+    ;sta.b ZP.R0
+    ;+
     lda.w EnemyBulletXPos, Y
-    clc
-    adc.b ZP.R0
+    ;clc
+    ;adc.b ZP.R0
     sta.b ZP.AddSprX
     lda.w EnemyBulletYPos, Y
     sta.b ZP.AddSprY
@@ -3557,9 +3682,13 @@ GameLoop_ResetPlayer:
     lda.b #$01
     sec
     dec.b ZP.Lives
-    bne +
+    bne .SkipGameOver
     ;GAMEOVER code
-    +
+    lda.b #!GameState_Over
+    sta.w GameState
+    lda.b #!GameOverWait
+    sta.w GameOverTimer
+    .SkipGameOver:
     plp
     ply
     plx
@@ -4855,6 +4984,7 @@ ContinueScene:
     sta.w HW_INIDISP            ;Sends the value A to HW_INIDISP
     stz.b ZP.ChangeScene        ;Reset flag
     jsr TransitionIn
+
     lda.b #$04
     sta.w HW_BGMODE
     lda.b #$FF
@@ -4874,6 +5004,15 @@ ContinueScene:
     lda.b #$01
     sta.w HW_MDMAEN             ;Enable DMA channel 0
 
+    stz.w BG1HOffMirror
+    stz.w BG1HOffMirror+1
+    stz.w BG1VOffMirror
+    stz.w BG1VOffMirror+1
+
+    stz.w BG2HOffMirror
+    stz.w BG2HOffMirror+1
+    stz.w BG2VOffMirror
+    stz.w BG2VOffMirror+1
 
     ldx.w #!SprVram
     stx.w HW_VMADDL
@@ -4922,18 +5061,20 @@ ContinueScene:
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 7
 
-    ldy.w #GameOverPalEnd-GameOverPal
+
+
+    ldx.w #GameOverPalEnd-GameOverPal
     -
-    lda.w GameOverPal, Y
-    sta.w PalMirror, Y
-    dey
+    lda.l GameOverPal, X
+    sta.w PalMirror, X
+    dex
     bpl -
     
-    ldy.w #StageTextPalEnd-StageTextPal
+    ldx.w #StageTextPalEnd-StageTextPal
     -
-    lda.w StageTextPal, Y
-    sta.w PalMirror+$1E0, Y
-    dey
+    lda.l StageTextPal, X
+    sta.w PalMirror+$1E0, X
+    dex
     bpl -
 
     lda.b #$09
@@ -9689,20 +9830,7 @@ OBJ_Tundra:
 	rts
 
 OBJ_Cliff:
-    sep #$20
-   ;Decorative moon
-   lda.b #!BG8MoonX
-   sta.b ZP.AddSprX
-   lda.b #!BG8MoonY
-   sta.b ZP.AddSprY
-   lda.b #!BG8MoonTile
-   sta.b ZP.AddSprTile
-   lda.b #!BG8MoonAttr
-   sta.b ZP.AddSprAttr
-   lda.b #$01
-   sta.b ZP.AddSprBigFlag
-   jsr AddSprite
-   
+    sep #$20   
     ;Surfboard frames
     lda.w OBJTimers+15
     inc
@@ -9793,9 +9921,23 @@ OBJ_Cliff:
     dey
     dex
     bpl .RockDrawLoop
-    rep #$30
+    rep #$10
 
-	rts
+   ;Decorative moon
+    lda.b #!BG8MoonX
+    sta.b ZP.AddSprX
+    lda.b #!BG8MoonY
+    sta.b ZP.AddSprY
+    lda.b #!BG8MoonTile
+    sta.b ZP.AddSprTile
+    lda.b #!BG8MoonAttr
+    sta.b ZP.AddSprAttr
+    lda.b #$01
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    rep #$20
+    rts
 
 OBJ_Alien:
     rts
@@ -10199,6 +10341,32 @@ ClearL3Vram:
     lda.b #$8F
     sta.w HW_INIDISP
     ldx.w #L3Ram
+    stx.w HW_VMADDL             ;Set VRAM address to L1RAM
+    lda.b #$09
+    sta.w HW_DMAP7              ;Setup DMAP0
+    lda.b #$18                  ;Grab Video mem data lo addr
+    sta.w HW_BBAD7              ;Set bus addr  
+    lda.b #(ZVal>>16)&$FF
+	stz.w HW_A1B7
+    ldx.w #ZVal                 ;Grab 0 val data to clear vram
+    stx.w HW_A1T7L              ;Shove lo+mid addr byte
+    ldx.w #$1000                ;Set to fill 400 words
+    stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM [0 just means all of vram]
+    lda.b #$80
+    sta.w HW_MDMAEN             ;Enable DMA channel 0
+    
+    lda.b #$0F
+    sta.w HW_INIDISP
+	plp
+	rts
+
+ClearL2Vram:
+	php
+	rep #$10
+	sep #$20    				;Clear tilemap 3
+    lda.b #$8F
+    sta.w HW_INIDISP
+    ldx.w #L2Ram
     stx.w HW_VMADDL             ;Set VRAM address to L1RAM
     lda.b #$09
     sta.w HW_DMAP7              ;Setup DMAP0
@@ -11515,7 +11683,7 @@ BG8RockAttr:
     db !CliffRockAttr|$40
     db !CliffRockAttr
     db !CliffRockAttr
-        
+
 BG8RockBigFlag:
     db $00
     db $00
@@ -12662,34 +12830,6 @@ dw $001C,$001D,$001D,$001E,$001E,$001F,$0020
 dw $0020,$0021,$0021,$0022,$0023,$0023,$0024
 dw $0024,$0025,$0026,$0026,$0027,$0028,$0029
 dw $0029,$002A,$002B,$002C,$002C
-
-Sin8:
-db $00,$00,$01,$01,$02,$02,$02,$03,$03,$04
-db $04,$04,$05,$05,$05,$06,$06,$06,$07,$07
-db $08,$08,$08,$09,$09,$09,$0A,$0A,$0A,$0A
-db $0B,$0B,$0B,$0C,$0C,$0C,$0C,$0D,$0D,$0D
-db $0D,$0E,$0E,$0E,$0E,$0E,$0E,$0F,$0F,$0F
-db $0F,$0F,$0F,$0F,$10,$10,$10,$10,$10,$10
-db $10,$10,$10,$10,$10,$10,$10,$10,$10,$10
-db $10,$10,$10,$10,$10,$0F,$0F,$0F,$0F,$0F
-db $0F,$0F,$0E,$0E,$0E,$0E,$0E,$0E,$0D,$0D
-db $0D,$0D,$0C,$0C,$0C,$0C,$0B,$0B,$0B,$0A
-db $0A,$0A,$0A,$09,$09,$09,$08,$08,$08,$07
-db $07,$06,$06,$06,$05,$05,$05,$04,$04,$04
-db $03,$03,$02,$02,$02,$01,$01,$00,$00,$00
-db $FF,$FF,$FE,$FE,$FE,$FD,$FD,$FC,$FC,$FC
-db $FB,$FB,$FB,$FA,$FA,$FA,$F9,$F9,$F8,$F8
-db $F8,$F7,$F7,$F7,$F6,$F6,$F6,$F6,$F5,$F5
-db $F5,$F4,$F4,$F4,$F4,$F3,$F3,$F3,$F3,$F2
-db $F2,$F2,$F2,$F2,$F2,$F1,$F1,$F1,$F1,$F1
-db $F1,$F1,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0
-db $F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0
-db $F0,$F0,$F0,$F1,$F1,$F1,$F1,$F1,$F1,$F1
-db $F2,$F2,$F2,$F2,$F2,$F2,$F3,$F3,$F3,$F3
-db $F4,$F4,$F4,$F4,$F5,$F5,$F5,$F6,$F6,$F6
-db $F6,$F7,$F7,$F7,$F8,$F8,$F8,$F9,$F9,$FA
-db $FA,$FA,$FB,$FB,$FB,$FC,$FC,$FC,$FD,$FD
-db $FE,$FE,$FE,$FF,$FF,$00 
 
 Cos8:
 db $10,$10,$10,$10,$10,$10,$10,$10,$10,$10
