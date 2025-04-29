@@ -721,7 +721,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$07
+    lda.b #$00
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -3716,7 +3716,7 @@ HandleEBulletCollisions:
     ;BulletY >= Player.Y
     lda.b #!PlayerY
     sec
-    sbc.b #$0C
+    sbc.b #$10
     sec
     sbc.w EnemyBulletYPos, Y
     bcs .SkipCol
