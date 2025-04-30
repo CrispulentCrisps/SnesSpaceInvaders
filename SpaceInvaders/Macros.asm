@@ -114,7 +114,8 @@ EnemyBulletFrame =  $0430   ;
 EnemyBulletType =   $0438   ;
 BulletFCount =      $0440   ;
 EnemyBulletSine =   $0448   ;
-EnemyBulletCenter = $0450   ;Center point for sine offsets
+EnemyBulletCenter = $0450   ;Center X point for sine offsets
+EnemyBulletCentY =  $0458   ;Center Y point for sine offsets
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
 !BGCountInitVal =   $00
@@ -256,6 +257,13 @@ TransitionState =   $0EF5   ;Value to say which direction we are transitioning [
 !OptionsTextAttr =  $20
 !OptionsTMapAddr =  $7CC5
 
+!TitleScene =       $00
+!GameScene =        $01
+!HighscoreScene =   $02
+!OptionsScene =     $03
+!ContinueScene =    $04
+!IntroScene =       $05
+
 !GameOverWait =     $64
 
 GameOverTimer =     $0EF6   ;Time to wait before going to game over screen
@@ -388,7 +396,7 @@ SRam =              $306000 ;Save data storage
 
 !ShieldStartHP =    $08
 !PlayerDieReset =   $32
-!WaveInit =         $00
+!WaveInit =         $0A
 
 !BG8MoonAttr =      $00
 !BG8MoonTile =      $C4
@@ -458,6 +466,7 @@ LaserOAM =          $0810
 !EBulletF1 =        $83
 !EBullet2F1 =       $86
 !EBullet3F1 =       $89
+!EBullet4F1 =       $90
 
 !EnemyGfx =         $2D
 
