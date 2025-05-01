@@ -59,3 +59,15 @@ Continue:
 
 
 Misc
+
+Potential stage hazards
+
+stage 1 - City			- ???
+stage 2 - Mountains		- Wind pushing the player either direction
+stage 3 - Space Station - Asteroids falling from the sky
+stage 4 - Ocean			- Sharks try and eat the player
+stage 5 - Desert		- Player must keep moving or overheats and dies
+stage 6 - Marshland		- Player has slowed movement due to being on grassy terrain
+stage 7 - Tundra		- ???
+stage 8 - Cliffside		- ???
+stage 9 - Alien home	- ???
