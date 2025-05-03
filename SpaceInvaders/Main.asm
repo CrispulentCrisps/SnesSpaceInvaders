@@ -107,6 +107,7 @@ ArrowSpr_End:
 OptionsSpr:
     incbin "bin/gfx/Stars.bin"
     incbin "bin/gfx/SmallUFO.bin"
+OptionsPlanets:
     incbin "bin/gfx/PlanetSprites.bin"
 OptionsSprEnd:
 
@@ -721,7 +722,7 @@ Reset:
 
     lda.b #$05
     sta.b ZP.SceneIndex         ;Set starting scene
-    lda.b #$00
+    lda.b #!StageInit
     sta.w BGIndex
     lda.b #$01
     sta.b ZP.ChangeScene        ;Set load flag
@@ -1304,7 +1305,7 @@ TitleScene:
 
     ;Controls
     lda.b ZP.Controller+1
-    and #$10                    ;Check START
+    and #!C_START                    ;Check START
     beq .SkipChange
     lda.b ZP.InputFlag
     bne .SkipChange
@@ -1321,7 +1322,7 @@ TitleScene:
     jsr TransitionOut
     .SkipChange:
     lda.b ZP.Controller+1
-    and #$04                    ;Check UP
+    and #!C_DU                    ;Check UP
     beq .SkipUp
     lda.b ZP.InputFlag
     bne .SkipUp
@@ -1330,7 +1331,7 @@ TitleScene:
     inc.w OptionIndex
     .SkipUp:
     lda.b ZP.Controller+1
-    and #$08                    ;Check DOWN
+    and #!C_DD                    ;Check DOWN
     beq .SkipDown
     lda.b ZP.InputFlag
     bne .SkipDown
@@ -1548,7 +1549,7 @@ GameScene:
     sta.w PalMirror, X
     lda.l InvadersPal, X
     lda.l GameSprPal, X
-    sta.w PalMirror+384, X
+    sta.w PalMirror+$160, X
     inx
     cpx.w #$0100
     bne -
@@ -1770,6 +1771,41 @@ GameScene:
     lda.w GameState
     cmp.b #!GameState_Dead
     beq .SkipLeftInput
+
+    ;Speed increase
+    lda.b #!PlayerSpeed
+    sta.b ZP.R0
+    lda.w PowerupState
+    bit.b #!Pow1
+    beq +
+    lda.b #!PlayerSpeed*2
+    sta.b ZP.R0
+    +
+    
+    ;Powerup logic
+    rep #$20
+    lda.w PowerDamageTimer
+    beq +
+    dec.w PowerDamageTimer
+    bne +
+    sep #$20
+    lda.w PowerupState
+    eor.b #!Pow0
+    sta.w PowerupState
+    +
+    
+    rep #$20
+    lda.w PowerSpeedTimer
+    beq +
+    dec.w PowerSpeedTimer
+    bne +
+    sep #$20
+    lda.w PowerupState
+    eor.b #!Pow1
+    sta.w PowerupState
+    +
+    sep #$20
+
     lda.w GameState
     cmp.b #!GameState_Over
     beq .SkipLeftInput
@@ -1777,7 +1813,7 @@ GameScene:
     and #$01                    ;Check Right DPAD
     beq .SkipRightInput
     lda.w Player.X
-    adc.b #!PlayerSpeed
+    adc.b ZP.R0
     cmp #$F0
     bcs .SkipRightInput
     sta.w Player.X
@@ -1788,7 +1824,7 @@ GameScene:
     beq .SkipLeftInput
     lda.w Player.X
     sec
-    sbc.b #!PlayerSpeed
+    sbc.b ZP.R0
     bcc .SkipLeftInput
     sta.w Player.X
     .SkipLeftInput:
@@ -1805,8 +1841,8 @@ GameScene:
     beq .SkipShoot
     lda.w Player.FTime
     bne .SkipShoot
-    lda.b ZP.Controller+1
-    and #$40                    ;Check A button
+    lda.b ZP.Controller
+    and #!C_A                    ;Check A button
     beq .SkipShoot
     lda.w Bullet.Enabled
     bne .SkipShoot
@@ -1815,6 +1851,17 @@ GameScene:
     sta.w Bullet.Enabled
     lda.b #!PlayerFTimeReset
     sta.w Player.FTime
+    
+    ;Set bullet damage    
+    lda.b #$01
+    sta.w Bullet.Damage
+    lda.w PowerupState
+    bit.b #!Pow0
+    beq .SkipHiDmg
+    lda.b #$02
+    sta.w Bullet.Damage
+    .SkipHiDmg:
+    
     ;Set Bullet position to the player's
     lda.w Player.X
     clc
@@ -1985,12 +2032,12 @@ GameScene:
     sta.b ZP.R7
 
     lda.b ZP.R5             ;X remainder
-    cmp #2
+    cmp.b #$02
     bne +
     jmp .SkipBullet0Logic   ;Skip if we've hit the empty tile next to the enemy
     +
     lda.b ZP.R7             ;Y remainder
-    cmp #2
+    cmp.b #$02
     beq .SkipBullet0Logic   ;Skip if we've hit the empty tile next to the enemy
     tdc
     lda.b ZP.R6             ;Y Division output
@@ -2009,16 +2056,17 @@ GameScene:
     bne .SkipEHJmp
     jmp .SkipEnemyHurt      ;If it's 0 then we don't do anything
     .SkipEHJmp:
-    dec
-    bne +
-    pha
+    sec
+    sbc.w Bullet.Damage
+    bcc +
+    bne .SkipDie
+    +
     ;Add score
     phy
     lda.w EnemyType, Y      ;Save enemy type for scoring
     tay
     lda.b ZP.Score
     sed
-    clc
     adc.w EnemyScoreTable, Y
     bcc ++
     pha
@@ -2058,8 +2106,8 @@ GameScene:
     jsr SpawnExplosive
     jsr GameLoop_FindMaxRowBounds
     ply
-    pla
-    +
+    lda.b #$00
+    .SkipDie:
     sta.w EnemyHealth, Y
     stz.w Bullet[0].Enabled
     lda.b #$FF
@@ -2075,12 +2123,20 @@ GameScene:
     ;---------------------;
     ;   Bullet Drawing    ;
     ;---------------------;
+    stz.b ZP.R0
+    lda.w PowerupState
+    bit.b #!Pow0
+    beq +
+    inc.b ZP.R0
+    +
     stz.b ZP.AddSprX+1
     lda.w Bullet.X
     sta.b ZP.AddSprX
     lda.w Bullet.Y
     sta.b ZP.AddSprY
     lda.b #!BulletF1
+    clc
+    adc.b ZP.R0
     sta.b ZP.AddSprTile
     lda.b #!BulletAttr
     sta.b ZP.AddSprAttr
@@ -2100,17 +2156,6 @@ GameScene:
     bit #$01
     beq +
     stz.w Bullet.Frame
-    ldy.w #$01E2
-    tdc
-    lda.b #$02
-    sta.b ZP.R4
-    jsr PalCycle
-    ;Enemy Bullet
-    ldy.w #$0166
-    tdc
-    lda.b #$02
-    sta.b ZP.R4
-    jsr PalCycle
     +
     inc.w EnemyBulletFrame
     lda.w EnemyBulletFrame
@@ -2355,6 +2400,11 @@ GameScene:
     
     jsr GameLoop_HandleUFO    
     jsr GameLoop_HandleUFOParticles
+
+    ;------------------------;
+    ;    Handle Powerups     ;
+    ;------------------------;
+    jsr GameLoop_HandlePowerups
 
     ;------------------------;
     ;    Handle Explosions   ;
@@ -3493,13 +3543,11 @@ GameLoop_Spawn_Enemy_Bullet:
     adc.b #$04
     sta.w EnemyBulletXPos, X
     sta.w EnemyBulletCenter, X
-    sta.w EnemyShootDebug
     lda.w EnemyPixelPos+1, Y
     sec
     sbc.b ZP.EnemyPlanePosY
     sta.w EnemyBulletYPos, X
     sta.w EnemyBulletCentY, X
-    sta.w EnemyShootDebug+1
     ldy.w EnemyShootIndex       ;Grab current enemy to fire
     lda.w EnemyType, Y
     tay
@@ -3842,7 +3890,7 @@ HandleBulletCollisions:
     sta.w EnemyBulletActive, Y
     +
     stz.w Bullet.Enabled
-    lda.b #$F0
+    lda.b #$FF
     sta.w Bullet.X
     sta.w Bullet.Y
     .SkipCol:
@@ -3904,7 +3952,7 @@ HandleStageText:
     rep #$20
     asl
     tax
-    lda.w StageTextXOff, X
+    lda.l StageTextXOff, X
     sta.b ZP.R0
     ldy.w #$0004
     ldx.w #$0008
@@ -4361,7 +4409,7 @@ OptionsScene:
     .SkipSelect:
     
     lda.b ZP.Controller+1
-    and #$04                    ;Check UP
+    and #!C_DU                    ;Check UP
     beq .SkipUpOpt
     lda.b ZP.InputFlag
     bne .SkipUpOpt
@@ -4370,7 +4418,7 @@ OptionsScene:
     inc.w OptionIndex
     .SkipUpOpt:
     lda.b ZP.Controller+1
-    and #$08                    ;Check DOWN
+    and #!C_DD                    ;Check DOWN
     beq .SkipDownOpt
     lda.b ZP.InputFlag
     bne .SkipDownOpt
@@ -4435,7 +4483,7 @@ OptionsScene:
     .SkipMSXOptions:
 
     lda.b ZP.Controller+1
-    and #$10                    ;Check START
+    and #!C_START                    ;Check START
     beq .SkipExit
     lda.w OptionIndex
     cmp #$04
@@ -5386,7 +5434,7 @@ IntroScene:
 
     sep #$20
     lda.b ZP.Controller+1
-    and #$10                    ;Check START
+    and #!C_START                    ;Check START
     beq .SkipExit
     lda.b ZP.InputFlag
     bne .SkipExit
@@ -5402,8 +5450,8 @@ IntroScene:
     inc.w IntoMoveFlag
     .SkipExit:
     
-    lda.b ZP.Controller+1
-    and #$40                    ;Check A button
+    lda.b ZP.Controller
+    and #!C_A                    ;Check A button
     beq .SkipNewText
     lda.b ZP.InputFlag
     bne .SkipNewText
@@ -6258,7 +6306,7 @@ Highscore_HandleEntryInput:
 	+ 
 	
 	lda.b ZP.Controller+1
-    and.b #$08                    ;Check Down
+    and.b #!C_DD                    ;Check Down
 	beq .SkipDown
 	lda.b #$01
     sta.b ZP.InputFlag
@@ -6273,7 +6321,7 @@ Highscore_HandleEntryInput:
 	.SkipDown:
 
 	lda.b ZP.Controller+1
-    and.b #$04                    ;Check UP
+    and.b #!C_DU                    ;Check UP
 	beq .SkipUp
 	lda.b #$01
     sta.b ZP.InputFlag
@@ -6337,8 +6385,8 @@ Highscore_HandleEntryInput:
 	sta.w HScoreCursorChar
 	.SkipR:
 
-	lda.b ZP.Controller
-    and.b #$40                    ;Check A
+    lda.b ZP.Controller
+    and #!C_A                    ;Check A button
 	beq .SkipSelect
 	lda.b #$01
     sta.b ZP.InputFlag
@@ -6854,6 +6902,139 @@ SpawnExplosive:
     ply
     pla
     rts
+GameLoop_HandlePowerups:
+    pha
+    phx
+    phy
+    php
+    sep #$20
+    ldx.w PowerupTimer
+    bne .DoPowerup
+    jmp .SkipPowerup
+    .DoPowerup:
+    rep #$20
+    dec.w PowerupTimer
+    sep #$20
+    
+    ;Movement
+    lda.w PowY
+    cmp.b #!BFloor+$0C
+    beq .SkipDMov
+    clc
+    adc.b #$02
+    sta.w PowY
+    .SkipDMov:
+
+    ;Player collision
+    lda.w PowY
+    adc.b #$08
+    cmp.b #!PlayerY
+    bcc .SkipCollect
+    lda.w PowX
+    sec
+    sbc.b #$10
+    cmp.w Player.X
+    bcs .SkipCollect
+    lda.w PowX
+    adc.b #$10
+    cmp.w Player.X
+    bcc .SkipCollect
+
+    ;Collected
+    ldy.w #$0000
+    rep #$20
+    stz.w PowerupTimer
+    sep #$20
+    lda.w PowInd
+    tay
+    lda.w PowerupState
+    ora.w PowerupIndTable, Y
+    sta.w PowerupState
+
+    lda.w PowInd
+    bne .SkipDamageSet
+    ldy.w #!P0Timer
+    sty.w PowerDamageTimer
+    bra .SkipCollect
+    .SkipDamageSet:
+
+    lda.w PowInd
+    cmp.b #!Pow1Ind
+    bne .SkipSpeedSet
+    ldy.w #!P1Timer
+    sty.w PowerSpeedTimer
+    bra .SkipCollect
+    .SkipSpeedSet:
+
+    lda.w PowInd
+    cmp.b #!Pow4Ind
+    bne .SkipFreezeSet
+    ldy.w #!P0Timer
+    sty.w PowerFreezeTimer
+    bra .SkipCollect
+    .SkipFreezeSet:
+
+    .SkipCollect:
+    sep #$20
+
+    ;Draw powerup
+    lda.w PowerupTimer
+    bit.b #$03
+    bne +
+    lda.w PowerupFrame
+    eor.b #$01
+    sta.w PowerupFrame
+    +
+
+    ;Powerup icon
+    lda.w PowX
+    clc
+    adc.b #$04
+    sta.b ZP.AddSprX
+    lda.w PowY
+    sta.b ZP.AddSprY
+    lda.w PowInd
+    asl
+    clc
+    adc.w PowerupFrame
+    clc
+    adc.b #!PowTile
+    sta.b ZP.AddSprTile
+    lda.b #!PowAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    ;Main capsule
+    lda.w PowX
+    sta.b ZP.AddSprX
+    lda.w PowY
+    sta.b ZP.AddSprY
+    lda.b #!PowCapTile
+    sta.b ZP.AddSprTile
+    lda.b #!PowCapAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    lda.w PowX
+    clc
+    adc.b #$08
+    sta.b ZP.AddSprX
+    lda.w PowY
+    sta.b ZP.AddSprY
+    lda.b #!PowCapTile
+    sta.b ZP.AddSprTile
+    lda.b #!PowCapAttr|$40
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+    .SkipPowerup:
+    plp
+    ply
+    plx
+    pla
+    rts
 
 GameLoop_HandleUFO:
     rep #$20
@@ -6910,8 +7091,25 @@ GameLoop_HandleUFO:
     bpl +
     jmp .SkipUFOCol
     +
-    
+    sep #$20
+    lda.b #!UFOYPos
+    sta.w PowY
+    jsr Rand
+    and.b #$07
+    cmp.b #$05
+    bmi +
+    sbc.b #$04
+    +
+    sta.w PowInd
     rep #$20
+    lda.w #!PowCapTimer
+    sta.w PowerupTimer
+    lda.w UFOXPos
+    bit.w #$0100
+    beq +
+    lda.w #$0000
+    +
+    sta.w PowX
     lda.b ZP.Score
     sed
     clc
@@ -10101,26 +10299,6 @@ GameLoop_EnemyTransition:
     php
     tdc
     sep #$20
-    ldx.w #$0000
-    lda.w EnemyTransInd
-    asl
-    tax
-    jsr (ETransList, X)
-    plp
-    ply
-    plx
-    pla
-    rts
-
-ETransList:
-    dw Enemy_Descend
-    dw Enemy_Draw
-    dw Enemy_Lines
-    dw Enemy_Interlace
-
-Enemy_Descend:
-    php
-    sep #$20
     lda.w EnemyTransSetup
     beq +
     stz.w ShowStageTextOut
@@ -10161,13 +10339,12 @@ Enemy_Descend:
     inc.w SendWave
     .Exit:
     plp
+    ply
+    plx
+    pla
     rts
-Enemy_Draw:
-    rts
-Enemy_Lines:
-    rts
-Enemy_Interlace:
-    rts
+
+
 
     ;   ZP.MemPointer   | Text addr
     ;
@@ -11050,8 +11227,8 @@ EnemyScoreTable:
     db $01              ;Basic Squelcher
     db $02              ;Metal Rocketeer
     db $02              ;Boxy Greenback
-    db $01              ;Mind Cake
-    db $01              ;Sophisticated mimic
+    db $04              ;Mind Cake
+    db $03              ;Sophisticated mimic
     db $03              ;Purple Mook
     db $04              ;MultiArm
     db $08              ;Tough Guy
@@ -11222,23 +11399,23 @@ EnemyWave0F:
     db $06,$06,$06,$06,$06,$06,$06,$06
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave10:
+    db $03,$05,$03,$05,$05,$03,$05,$03
+    db $05,$06,$05,$05,$05,$05,$06,$05
+    db $03,$05,$03,$05,$05,$03,$05,$03
+    db $01,$01,$01,$05,$05,$01,$01,$01
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave11:
     db $05,$05,$05,$05,$05,$05,$05,$05
     db $05,$05,$05,$05,$05,$05,$05,$05
     db $03,$03,$03,$03,$03,$03,$03,$03
     db $02,$02,$02,$02,$02,$02,$02,$02
     db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave11:    ;Redesign waves here
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $06,$06,$06,$06,$06,$06,$06,$06
 EnemyWave12:
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $03,$05,$02,$06,$06,$02,$05,$03
+    db $03,$05,$02,$06,$06,$02,$05,$03
+    db $03,$05,$02,$06,$06,$02,$05,$03
+    db $03,$05,$02,$06,$06,$02,$05,$03
+    db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave13:
     db $08,$08,$08,$08,$08,$08,$08,$08
     db $08,$08,$08,$08,$08,$08,$08,$08
@@ -12491,6 +12668,13 @@ PlayerFrames:
     db !PlayerTile+4
     db !PlayerTile+2
 
+PowerupIndTable:
+    db !Pow0
+    db !Pow1
+    db !Pow2
+    db !Pow3
+    db !Pow4
+
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
 db $1F,$22,$25,$28,$2B,$2E,$31,$33,$36,$39
@@ -13086,45 +13270,6 @@ db $F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8
 db $F8,$F8,$F9,$F9,$F9,$F9,$F9,$FA,$FA,$FA
 db $FA,$FB,$FB,$FB,$FC,$FC,$FC,$FD,$FD,$FD
 db $FE,$FE,$FE,$FF,$FF,$00
-;256, $100 - $FF02
-StageTextXOff:
-dw $00C3,$00C3,$00C3,$00C3,$00C3,$00C3,$00C3
-dw $00C3,$00C2,$00C2,$00C2,$00C2,$00C2,$00C2
-dw $00C1,$00C1,$00C1,$00C1,$00C1,$00C0,$00C0
-dw $00C0,$00C0,$00C0,$00BF,$00BF,$00BF,$00BE
-dw $00BE,$00BE,$00BE,$00BD,$00BD,$00BD,$00BC
-dw $00BC,$00BB,$00BB,$00BB,$00BA,$00BA,$00B9
-dw $00B9,$00B8,$00B8,$00B7,$00B7,$00B6,$00B5
-dw $00B5,$00B4,$00B3,$00B3,$00B2,$00B1,$00B0
-dw $00B0,$00AF,$00AE,$00AD,$00AC,$00AB,$00AA
-dw $00A9,$00A8,$00A7,$00A6,$00A5,$00A3,$00A2
-dw $00A1,$009F,$009E,$009D,$009B,$009A,$0098
-dw $0096,$0095,$0093,$0091,$0090,$008E,$008C
-dw $008A,$0088,$0086,$0084,$0081,$007F,$007D
-dw $007A,$0078,$0076,$0073,$0070,$006E,$006B
-dw $0068,$0066,$0063,$0060,$005D,$005A,$0057
-dw $0053,$0050,$004D,$004A,$0046,$0043,$003F
-dw $003C,$0038,$0035,$0031,$002E,$002A,$0026
-dw $0022,$001F,$001B,$0017,$0013,$000F,$000C
-dw $0008,$0004,$0000,$FFFC,$FFF8,$FFF4,$FFF1
-dw $FFED,$FFE9,$FFE5,$FFE1,$FFDE,$FFDA,$FFD6
-dw $FFD2,$FFCF,$FFCB,$FFC8,$FFC4,$FFC1,$FFBD
-dw $FFBA,$FFB6,$FFB3,$FFB0,$FFAD,$FFA9,$FFA6
-dw $FFA3,$FFA0,$FF9D,$FF9A,$FF98,$FF95,$FF92
-dw $FF90,$FF8D,$FF8A,$FF88,$FF86,$FF83,$FF81
-dw $FF7F,$FF7C,$FF7A,$FF78,$FF76,$FF74,$FF72
-dw $FF70,$FF6F,$FF6D,$FF6B,$FF6A,$FF68,$FF66
-dw $FF65,$FF63,$FF62,$FF61,$FF5F,$FF5E,$FF5D
-dw $FF5B,$FF5A,$FF59,$FF58,$FF57,$FF56,$FF55
-dw $FF54,$FF53,$FF52,$FF51,$FF50,$FF50,$FF4F
-dw $FF4E,$FF4D,$FF4D,$FF4C,$FF4B,$FF4B,$FF4A
-dw $FF49,$FF49,$FF48,$FF48,$FF47,$FF47,$FF46
-dw $FF46,$FF45,$FF45,$FF45,$FF44,$FF44,$FF43
-dw $FF43,$FF43,$FF42,$FF42,$FF42,$FF42,$FF41
-dw $FF41,$FF41,$FF40,$FF40,$FF40,$FF40,$FF40
-dw $FF3F,$FF3F,$FF3F,$FF3F,$FF3F,$FF3E,$FF3E
-dw $FF3E,$FF3E,$FF3E,$FF3E,$FF3D,$FF3D,$FF3D
-dw $FF3D,$FF3D,$FF3D,$FF3D
 
                                 ;First half of the header
 org $FFB0                       ;Goto FFB0
@@ -13626,3 +13771,43 @@ RedrawEnemyRange:
     plx
     pla
     rtl
+    
+;256, $100 - $FF02
+StageTextXOff:
+dw $00C3,$00C3,$00C3,$00C3,$00C3,$00C3,$00C3
+dw $00C3,$00C2,$00C2,$00C2,$00C2,$00C2,$00C2
+dw $00C1,$00C1,$00C1,$00C1,$00C1,$00C0,$00C0
+dw $00C0,$00C0,$00C0,$00BF,$00BF,$00BF,$00BE
+dw $00BE,$00BE,$00BE,$00BD,$00BD,$00BD,$00BC
+dw $00BC,$00BB,$00BB,$00BB,$00BA,$00BA,$00B9
+dw $00B9,$00B8,$00B8,$00B7,$00B7,$00B6,$00B5
+dw $00B5,$00B4,$00B3,$00B3,$00B2,$00B1,$00B0
+dw $00B0,$00AF,$00AE,$00AD,$00AC,$00AB,$00AA
+dw $00A9,$00A8,$00A7,$00A6,$00A5,$00A3,$00A2
+dw $00A1,$009F,$009E,$009D,$009B,$009A,$0098
+dw $0096,$0095,$0093,$0091,$0090,$008E,$008C
+dw $008A,$0088,$0086,$0084,$0081,$007F,$007D
+dw $007A,$0078,$0076,$0073,$0070,$006E,$006B
+dw $0068,$0066,$0063,$0060,$005D,$005A,$0057
+dw $0053,$0050,$004D,$004A,$0046,$0043,$003F
+dw $003C,$0038,$0035,$0031,$002E,$002A,$0026
+dw $0022,$001F,$001B,$0017,$0013,$000F,$000C
+dw $0008,$0004,$0000,$FFFC,$FFF8,$FFF4,$FFF1
+dw $FFED,$FFE9,$FFE5,$FFE1,$FFDE,$FFDA,$FFD6
+dw $FFD2,$FFCF,$FFCB,$FFC8,$FFC4,$FFC1,$FFBD
+dw $FFBA,$FFB6,$FFB3,$FFB0,$FFAD,$FFA9,$FFA6
+dw $FFA3,$FFA0,$FF9D,$FF9A,$FF98,$FF95,$FF92
+dw $FF90,$FF8D,$FF8A,$FF88,$FF86,$FF83,$FF81
+dw $FF7F,$FF7C,$FF7A,$FF78,$FF76,$FF74,$FF72
+dw $FF70,$FF6F,$FF6D,$FF6B,$FF6A,$FF68,$FF66
+dw $FF65,$FF63,$FF62,$FF61,$FF5F,$FF5E,$FF5D
+dw $FF5B,$FF5A,$FF59,$FF58,$FF57,$FF56,$FF55
+dw $FF54,$FF53,$FF52,$FF51,$FF50,$FF50,$FF4F
+dw $FF4E,$FF4D,$FF4D,$FF4C,$FF4B,$FF4B,$FF4A
+dw $FF49,$FF49,$FF48,$FF48,$FF47,$FF47,$FF46
+dw $FF46,$FF45,$FF45,$FF45,$FF44,$FF44,$FF43
+dw $FF43,$FF43,$FF42,$FF42,$FF42,$FF42,$FF41
+dw $FF41,$FF41,$FF40,$FF40,$FF40,$FF40,$FF40
+dw $FF3F,$FF3F,$FF3F,$FF3F,$FF3F,$FF3E,$FF3E
+dw $FF3E,$FF3E,$FF3E,$FF3E,$FF3D,$FF3D,$FF3D
+dw $FF3D,$FF3D,$FF3D,$FF3D

@@ -72,6 +72,21 @@ endstruct
 !MusicBank =    $0C8000 ;Holds music data
 !MusicBank2 =   $0D8000 ;Holds music data
 
+;Upper byte
+!C_B =          $80
+!C_Y =          $40
+!C_SELECT =     $20
+!C_START =      $10
+!C_DD =         $08
+!C_DU =         $04
+!C_DL =         $02
+!C_DR =         $01
+;Lower byte
+!C_A =          $80
+!C_X =          $40
+!C_L =          $20
+!C_R =          $10
+
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
 .Flags          skip 1  ;Misc flags
@@ -99,12 +114,12 @@ struct Bullet $0406
 .Frame      skip 1  ;Current animation frame
 .Enabled    skip 1  ;Test if the current laser is travelling upwards
 .Dir        skip 1  ;H dir
+.Damage     skip 1  ;Bullet Damage
 endstruct
 
 ;At most 8 enemy bullets on screen at once
 !EBulLoopCount =    $0007
 !EnemyBulletSpeed = $02
-EnemyShootDebug =   $040D   ;Current position display for debug purposes
 EnemyShootIndex =   $040F   ;Wich enemy is to fire said bullet
 EnemyShootTimer =   $0410   ;Frames to wait until firing bullet
 EnemyBulletXPos =   $0418   ;
@@ -116,6 +131,38 @@ BulletFCount =      $0440   ;
 EnemyBulletSine =   $0448   ;
 EnemyBulletCenter = $0450   ;Center X point for sine offsets
 EnemyBulletCentY =  $0458   ;Center Y point for sine offsets
+
+!PowCapTimer =      $0177   ;375 frames, 7.5 seconds pal, 6 seconds NTSC
+!P0Timer =          $0177   ;375 frames, 7.5 seconds pal, 6 seconds NTSC
+!P1Timer =          $0258   ;600 frames, 12 seconds pal, 10 seconds NTSC
+
+!PowerLifetime =    $00FA   ;250 frames, 5 seconds pal, 4 seconds NTSC
+PowerSpeedTimer =   $0460   ;Word timer for Speed increase
+PowerDamageTimer =  $0462   ;Word timer for Famage
+PowerFreezeTimer =  $0464   ;Word timer for Enemy freeze
+PowerupTimer =      $0468   ;Word Timer for powerup
+PowX =              $046A   ;X position of powerup
+PowY =              $046C   ;Y position of powerup
+PowInd =            $046D   ;Current powerup clamped form $00-$04
+PowerupFrame =      $046E   ;Frame for powerup
+PowerupState =      $0470   ;Powerup bitfield for player
+
+!Pow0Ind =          $00     ;Increased bullet damage
+!Pow1Ind =          $01     ;Increased speed
+!Pow2Ind =          $02     ;Extra hit
+!Pow3Ind =          $03     ;Replenish shields
+!Pow4Ind =          $04     ;Freeze enemies
+
+!Pow0 =             $01     ;Increased bullet damage
+!Pow1 =             $02     ;Increased speed
+!Pow2 =             $04     ;Extra hit
+!Pow3 =             $08     ;Replenish shields
+!Pow4 =             $10     ;Freeze enemies
+
+!PowCapTile =       $94     ;Tile for powerup capsule
+!PowCapAttr =       $3A     ;Attr for powerup capsule
+!PowTile =          $95     ;Tile for powerup icon
+!PowAttr =          $3E 
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
 !BGCountInitVal =   $00
@@ -139,17 +186,17 @@ UFOTimer =          $06B3   ;Frames to wait before UFO appears
 UFOFrame =          $06B5
 UFOFrameTimer =     $06B6
 UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
-!UFOScore =         $0075   ;Score to give to the player when shooting down the UFO
+!UFOScore =         $0125   ;Score to give to the player when shooting down the UFO
 !UFOSpeed =         $02     ;How fast the UFO moves
-!UFOResetTime =     $05DC   ;Timer to wait to make UFO active [30 seconds on PAL, 25 on NTSC]
+!UFOResetTime =     $00DC   ;Timer to wait to make UFO active [30 seconds on PAL, 25 on NTSC]
 !UFOYPos =          $00     ;Y Position of the UFO
 !UFOYPosB =         $08     ;Y Position of the UFO
 !UFOStartX =        $0100
 !UFOTile0 =         $38
 !UFOTile1 =         $3A
-!UFOAttr =          %00101000
-!UFOAttrMir =       %01101000
-!UFOPartAttr =      %00101000
+!UFOAttr =          $26
+!UFOAttrMir =       $66
+!UFOPartAttr =      $26
 OBJTimers =         $0700   ;16 byte array of timers for general OBJ use
 OBJFrame =          $0710   ;16 byte array of general object frame counts, used for animating less important objects
 OBJXPos =           $0720   ;32 byte array of object types XPositions
@@ -182,7 +229,7 @@ ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
 !ExplosionTile =    $50
-!ExplosionAttr =    $3C
+!ExplosionAttr =    $3A
 
 EnemyTileBuffer =   $7E8000
 TextDispBuffer =    $7E8400   ;Takes up [score text] + 6 bytes for score display
@@ -396,7 +443,9 @@ SRam =              $306000 ;Save data storage
 
 !ShieldStartHP =    $08
 !PlayerDieReset =   $32
-!WaveInit =         $10
+
+!WaveInit =         $00
+!StageInit =        $02
 
 !BG8MoonAttr =      $00
 !BG8MoonTile =      $C4
@@ -457,10 +506,10 @@ LaserOAM =          $0810
 !PlayerSpeed =      $02
 !PlayerY =          $C8
 !PlayerTile =       $32
-!PlayerAttr =       %00111010
-!BulletAttr =       %00101110
-!EBullAttr =        %00101110
-!EBull2Attr =       %00101010
+!PlayerAttr =       $38
+!BulletAttr =       $2C
+!EBullAttr =        $2C
+!EBull2Attr =       $28
 !BulletF1 =         $40
 !BulletF2 =         $41
 !EBulletF1 =        $83
@@ -483,7 +532,6 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !EnemyRBounds =     $80
 !EnemyLBounds =     $40
-!EnemyFloor =       $40
 !EnemyDownLoop =    $11
 
 !EnemyMoveL =       $00
@@ -513,8 +561,8 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !ArrowChar =        $29
 !ArrowChar2 =       $01
 !Arrow2Attr =       $30
-!ShieldAttr1 =      $2E
-!ShieldAttr2 =      $6E
+!ShieldAttr1 =      $2C
+!ShieldAttr2 =      $6C
 !ShieldYPos =       $A8
 !Tick =             $02
 !Cross =            $03
@@ -545,8 +593,8 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !HSSprVram =        $6010
 !BGVram =           $0000
 
-!ScoreTextAttr =    $38
-!UIAttr =           $3A
+!ScoreTextAttr =    $36
+!UIAttr =           $38
 !LivesUI =          $80
 !WaveUI =           $81
 !ScoreUI =          $82
