@@ -84,8 +84,8 @@ endstruct
 ;Lower byte
 !C_A =          $80
 !C_X =          $40
-!C_L =          $20
-!C_R =          $10
+!C_R =          $20
+!C_L =          $10
 
 struct VrDmaPtr $0600   ;Pointer for VRAM Data copying
 .Src            skip 3  ;Source address
@@ -105,6 +105,7 @@ struct Player $0400
 .State  skip 1          ;Player animation states
 .Dead   skip 1     
 .FTime  skip 1          ;Firing timer
+.Dir    skip 1          ;Player direction
 endstruct
 !PlayerFTimeReset =     $14
 
@@ -132,9 +133,10 @@ EnemyBulletSine =   $0448   ;
 EnemyBulletCenter = $0450   ;Center X point for sine offsets
 EnemyBulletCentY =  $0458   ;Center Y point for sine offsets
 
-!PowCapTimer =      $0177   ;375 frames, 7.5 seconds pal, 6 seconds NTSC
-!P0Timer =          $0177   ;375 frames, 7.5 seconds pal, 6 seconds NTSC
-!P1Timer =          $0258   ;600 frames, 12 seconds pal, 10 seconds NTSC
+!PowCapTimer =      $01F4   ;375 frames, 10 seconds pal, 6 seconds NTSC
+!P0Timer =          $01F4   ;375 frames, 10 seconds pal, 6 seconds NTSC
+!P1Timer =          $03E8   ;600 frames, 20 seconds pal, 10 seconds NTSC
+!P4Timer =          $00FA   ;250 frames, 5 seconds pal, 4 seconds NTSC
 
 !PowerLifetime =    $00FA   ;250 frames, 5 seconds pal, 4 seconds NTSC
 PowerSpeedTimer =   $0460   ;Word timer for Speed increase
@@ -159,9 +161,9 @@ PowerupState =      $0470   ;Powerup bitfield for player
 !Pow3 =             $08     ;Replenish shields
 !Pow4 =             $10     ;Freeze enemies
 
-!PowCapTile =       $94     ;Tile for powerup capsule
+!PowCapTile =       $74     ;Tile for powerup capsule
 !PowCapAttr =       $3A     ;Attr for powerup capsule
-!PowTile =          $95     ;Tile for powerup icon
+!PowTile =          $75     ;Tile for powerup icon
 !PowAttr =          $3E 
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
@@ -188,12 +190,12 @@ UFOFrameTimer =     $06B6
 UFODeleteFlag =     $06B7   ;flag to delete UFO when position overflow is hit
 !UFOScore =         $0125   ;Score to give to the player when shooting down the UFO
 !UFOSpeed =         $02     ;How fast the UFO moves
-!UFOResetTime =     $00DC   ;Timer to wait to make UFO active [30 seconds on PAL, 25 on NTSC]
+!UFOResetTime =     $05DC   ;Timer to wait to make UFO active [30 seconds on PAL, 25 on NTSC]
 !UFOYPos =          $00     ;Y Position of the UFO
 !UFOYPosB =         $08     ;Y Position of the UFO
 !UFOStartX =        $0100
-!UFOTile0 =         $38
-!UFOTile1 =         $3A
+!UFOTile0 =         $12
+!UFOTile1 =         $14
 !UFOAttr =          $26
 !UFOAttrMir =       $66
 !UFOPartAttr =      $26
@@ -228,7 +230,7 @@ ExplosionFineXVal = $0580+(!MaxEplW*8)
 ExplosionFineYVal = $0580+(!MaxEplW*9)
 
 !ExplosionStart =   $20     ;Explosion timer to set to
-!ExplosionTile =    $50
+!ExplosionTile =    $30
 !ExplosionAttr =    $3A
 
 EnemyTileBuffer =   $7E8000
@@ -444,7 +446,7 @@ SRam =              $306000 ;Save data storage
 !ShieldStartHP =    $08
 !PlayerDieReset =   $32
 
-!WaveInit =         $00
+!WaveInit =         $12
 !StageInit =        $02
 
 !BG8MoonAttr =      $00
@@ -505,17 +507,17 @@ OAMCopy =           $0800
 LaserOAM =          $0810
 !PlayerSpeed =      $02
 !PlayerY =          $C8
-!PlayerTile =       $32
+!PlayerTile =       $80
 !PlayerAttr =       $38
 !BulletAttr =       $2C
 !EBullAttr =        $2C
 !EBull2Attr =       $28
-!BulletF1 =         $40
-!BulletF2 =         $41
-!EBulletF1 =        $83
-!EBullet2F1 =       $86
-!EBullet3F1 =       $89
-!EBullet4F1 =       $90
+!BulletF1 =         $20
+!BulletF2 =         $21
+!EBulletF1 =        $63
+!EBullet2F1 =       $66
+!EBullet3F1 =       $69
+!EBullet4F1 =       $70
 
 !EnemyGfx =         $2D
 
@@ -588,6 +590,7 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !HText1st =         $2C
 
 !SprVram =          $4000
+!SprVramOBJ =       $4000 ;For game scene objects
 !Spr2Vram =         $5000 ;Second sprite table
 !SprTextVram =      $5800 ;VRAM position for stage text
 !HSSprVram =        $6010
@@ -595,9 +598,9 @@ EnemyFloor =        $04E9   ;Floor boundaries
 
 !ScoreTextAttr =    $36
 !UIAttr =           $38
-!LivesUI =          $80
-!WaveUI =           $81
-!ScoreUI =          $82
+!LivesUI =          $60
+!WaveUI =           $61
+!ScoreUI =          $62
 
 !Mod0 =             $0001       ;2x enemy health
 !Mod1 =             $0002       ;1/2 time to make enemies move

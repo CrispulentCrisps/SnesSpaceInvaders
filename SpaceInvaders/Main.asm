@@ -20,10 +20,6 @@ org !GFXBank
 ;
 
 ;   Main game GFX   ;
-GameGfx:
-    incbin "bin/gfx/GameGFX.bin"
-GameGfxEnd:
-
 GameSpr:
     incbin "bin/gfx/GameSprites.bin"
 GameSprEnd:
@@ -1489,31 +1485,6 @@ GameScene:
 
     ldx.w #!SprVram
     stx.w HW_VMADDL             ;Set VRAM address to Sprite VRAM
-    
-    ;Load Game BG palettes
-    lda.b #$02
-    sta.w HW_DMAP1              ;Setup DMAP1
-    ldx.w #GamePal&$FFFF        ;Grab palette addr
-    stx.w HW_A1T1L              ;Shove lo+mid addr byte
-    lda.b #GamePal>>16&$FF
-    sta.w HW_A1B1               ;Store bank
-    ldx.w #GamePalEnd-GamePal
-    stx.w HW_DAS1L              ;Return amount of bytes to be written in VRAM
-    lda.b #HW_CGDATA&$FF        ;Grab Video mem data lo addr
-    sta.w HW_BBAD1              ;Set bus addr
-
-    ;Load Game BG characters
-    lda.b #$01
-    sta.w HW_DMAP0              ;Setup DMAP0
-    ldx.w #GameGfx&$FFFF        ;Grab graphics addr
-    stx.w HW_A1T0L              ;Shove lo+mid addr byte
-    lda.b #GameGfx>>16&$FF
-    sta.w HW_A1B0               ;Store bank
-    ldx.w #GameGfxEnd-GameGfx
-    stx.w HW_DAS0L              ;Return amount of bytes to be written in VRAM
-    lda.b #$03
-    sta.w HW_MDMAEN             ;Enable DMA channel 0 + 1
-
     ;Load Game Sprites
     lda.b #$01
     sta.w HW_DMAP0              ;Setup DMAP0
@@ -1781,30 +1752,6 @@ GameScene:
     lda.b #!PlayerSpeed*2
     sta.b ZP.R0
     +
-    
-    ;Powerup logic
-    rep #$20
-    lda.w PowerDamageTimer
-    beq +
-    dec.w PowerDamageTimer
-    bne +
-    sep #$20
-    lda.w PowerupState
-    eor.b #!Pow0
-    sta.w PowerupState
-    +
-    
-    rep #$20
-    lda.w PowerSpeedTimer
-    beq +
-    dec.w PowerSpeedTimer
-    bne +
-    sep #$20
-    lda.w PowerupState
-    eor.b #!Pow1
-    sta.w PowerupState
-    +
-    sep #$20
 
     lda.w GameState
     cmp.b #!GameState_Over
@@ -1834,6 +1781,21 @@ GameScene:
     dec.w Player.FTime
     +
 
+
+    stz.w Player.Dir
+    lda.b ZP.Controller
+    and.b #!C_L
+    beq .SkipLCheck
+    lda.b #$01
+    sta.w Player.Dir
+    .SkipLCheck:    
+    lda.b ZP.Controller
+    and.b #!C_R
+    beq .SkipRCheck
+    lda.b #$02
+    sta.w Player.Dir
+    .SkipRCheck:
+
     lda.w GameState
     cmp.b #!GameState_Dead
     beq .SkipShoot
@@ -1849,9 +1811,16 @@ GameScene:
     ;Enable bullet
     lda.b #$01
     sta.w Bullet.Enabled
+    lda.w PowerupState
+    bit.b #!Pow1
+    bne +
     lda.b #!PlayerFTimeReset
+    bra .ApplyWait
+    +
+    lda.b #!PlayerFTimeReset/2
+    .ApplyWait:
     sta.w Player.FTime
-    
+
     ;Set bullet damage    
     lda.b #$01
     sta.w Bullet.Damage
@@ -1872,13 +1841,13 @@ GameScene:
     ;Set bullet direction
     stz.w Bullet.Dir
     lda.b ZP.Controller
-    and #$10                ;Check L
+    and #!C_L                ;Check L
     beq .SkipL
     lda.b #!BulletHSpeed
     sta.w Bullet.Dir
     .SkipL:
     lda.b ZP.Controller
-    and #$20                ;Check R
+    and #!C_R                ;Check R
     beq .SkipR
     lda.b #$00
     sec
@@ -1888,13 +1857,22 @@ GameScene:
     .SkipShoot:
 
     sep #$20
+    lda.b #$04
+    sta.b ZP.R0
+    lda.w PowerupState
+    bit.b #!Pow1
+    beq .SkipFastAnim
+    lda.b #$02
+    sta.b ZP.R0
+    .SkipFastAnim:
     inc.w Player.Frame
     lda.w Player.Frame
-    cmp.b #$03
+    and.b #$07
+    cmp.b ZP.R0
     bne +
     stz.w Player.Frame
-    inc.w Player.State
     lda.w Player.State
+    inc
     and.b #$03
     sta.w Player.State
     +
@@ -1902,6 +1880,7 @@ GameScene:
     jsr HandleStageText
     jsr HandleEBulletCollisions
     jsr HandleBulletCollisions
+    
     ;------------------------------;
     ;   Player Drawing Commands    ;
     ;------------------------------;
@@ -1914,6 +1893,23 @@ GameScene:
     +
     jmp .SkipPlayerDraw
     .DrawPlayer:
+    lda.b #!PlayerAttr
+    sta.b ZP.R0
+
+    stz.b ZP.R1
+    lda.w Player.Dir
+    beq +
+    lda.b #$08
+    sta.b ZP.R1
+    lda.w Player.Dir
+    bit.b #$01
+    beq +
+    lda.b #$40
+    ora.b ZP.R0
+    sta.b ZP.R0
+    +
+
+
     lda.w Player.X
     sta.b ZP.AddSprX
     lda.b #!PlayerY
@@ -1921,9 +1917,11 @@ GameScene:
     sep #$10
     ldy.w Player.State
     lda.w PlayerFrames, Y
+    clc
+    adc.b ZP.R1
     rep #$10
     sta.b ZP.AddSprTile
-    lda.b #!PlayerAttr
+    lda.b ZP.R0
     sta.b ZP.AddSprAttr
     sta.b ZP.AddSprBigFlag
     jsr AddSprite
@@ -2065,27 +2063,31 @@ GameScene:
     phy
     lda.w EnemyType, Y      ;Save enemy type for scoring
     tay
-    lda.b ZP.Score
-    sed
-    adc.w EnemyScoreTable, Y
-    bcc ++
-    pha
-    clc
-    lda.b ZP.Score+1
-    clc
-    adc.b #$01
-    sta.b ZP.Score+1
-        bcc +++
-        clc
-        lda.b ZP.Score+2
-        clc
-        adc.b #$01
-        sta.b ZP.Score+2
-        +++
-    pla
-    ++
-    sta.b ZP.Score
-    cld
+    lda.w EnemyScoreTable, Y
+    sta.b ZP.R0
+    stz.b ZP.R1
+    jsr AddScore
+    ;lda.b ZP.Score
+    ;sed
+    ;adc.w EnemyScoreTable, Y
+    ;bcc ++
+    ;pha
+    ;clc
+    ;lda.b ZP.Score+1
+    ;clc
+    ;adc.b #$01
+    ;sta.b ZP.Score+1
+    ;    bcc +++
+    ;    clc
+    ;    lda.b ZP.Score+2
+    ;    clc
+    ;    adc.b #$01
+    ;    sta.b ZP.Score+2
+    ;    +++
+    ;pla
+    ;++
+    ;sta.b ZP.Score
+    ;cld
     ply
     lda.b #$00
     sta.w EnemyType, Y      ;Set enemy type to 0 to prevent null enemy collisions
@@ -2149,7 +2151,6 @@ GameScene:
     bit #$04
     beq .SkipBulletChange
     stz.w BulletFCount
-    ;Player bullet pal cycle
     sep #$20
     inc Bullet.Frame
     lda.w Bullet.Frame
@@ -2197,202 +2198,12 @@ GameScene:
     ;-----------------;
     ;   Enemy Logic   ;
     ;-----------------;
-    ;Check game state
-    lda.w GameState
-    cmp.b #!GameState_Dead
-    bne .SkipWaveReset
-    ;If the player has died then we execute the enemy resetting
-    ;Move enemies up if the reset flag is set
-    lda.w EnemyResetFlag
-    beq +
-    lda.w EPlaneTop
-    sta.b ZP.EnemyPlanePosY
-    stz.w EnemyResetFlag
-    stz.w EnemyResetMove
-    lda.b #!GameState_Play
-    sta.w GameState
-    jsr GameLoop_ResetPlayer
-    jmp .SkipFloor
-    +
-    lda.w EnemyResetMove
-    beq .SkipEnemyResetMove
-    ;Check if we've hit the starting Y posiiton
-    lda.b ZP.EnemyPlanePosY
-    cmp.w EPlaneTop
-    bne ++
-    ;If we have then set the reset flag to reset the wave
-    inc.w EnemyResetFlag
-    ++
-    ;Add speed offset
-    inc.b ZP.EnemyPlanePosY
-    .SkipEnemyResetMove:
-    +
-
-    dec.w PlayerDeathTimer
-    bne +
-    ;TRIGGER PLAYER DEATH
-    jsr GameLoop_KillPlayer
-    +
-    jmp .SkipFloor
-    .SkipWaveReset:
-    lda.w GameState
-    cmp.b #!GameState_Play
-    beq .DoPlay
-    jmp .SkipEnemy
-    .DoPlay:
-    lda.w GameState
-    cmp.b #!GameState_Dead
-    bne .DoEnemy
-    jmp .SkipFloor
-    .DoEnemy:
-    ;Check enemy count and set enemy speed to amount of enemies on screen
-    sep #$20
-    stz.b ZP.EnemyWait
-    ldy.w #$0000
-    -
-    lda.w EnemyHealth, Y
-    beq +
-    inc.b ZP.EnemyWait
-    +
-    lda.w EnemyHurtTable, Y
-    beq +
-    dec
-    bne ++
-    sta.w EnemyHurtTable, Y
-    inc.b ZP.DrawEnemyFlag
-    ++
-    sta.w EnemyHurtTable, Y
-    +
-    iny
-    cpy.w #$0028
-    bne -
     
-    lda.b ZP.EnemyWait
-    lsr
-    beq +
-    sta.b ZP.EnemyWait
-    +
-    rep #$20
-    lda.b ZP.Modifiers
-    bit.w #!Mod1
-    sep #$20
-    beq +
-    tdc
-    lda.b ZP.EnemyWait
-    lsr
-    beq +
-    sta.b ZP.EnemyWait
-    +
-    ;Adjust speed and then apply
-    tdc
-    lda.b ZP.EnemyWait
-    beq .SetStateWait               ;No enemies means the wave has been beaten
+    lda.w PowerupState
+    bit.b #!Pow4
     bne +
-    lda.b #$01
+    jsr GameLoop_HandleEnemyLogic
     +
-    sta.b ZP.EnemyWait
-    bra .SkipState
-    ;Set the game state to Stop and initialise game timer
-    .SetStateWait
-    lda.b #$01
-    sta.w EnemyTransSetup
-    lda.b #!GameState_Stop
-    sta.w GameState
-    stz.w SendWave
-    .SkipState:
-    tdc
-    lda.b ZP.EnemyTimer
-    beq .SkipMoveJmp
-    jmp .SkipMove
-    .SkipMoveJmp:
-    sep #$20
-    lda.b ZP.EnemyFrame
-    inc
-    and #$07
-    sta.b ZP.EnemyFrame
-    lda.w GameState
-    ;Downward movement code
-    lda.b ZP.EnemyDir
-    cmp #!EnemyMoveD
-    bne .SkipDown
-    lda.b ZP.EnemyDownCount
-    bne .SkipDownReset
-    lda.b ZP.EnemySide
-    sta.b ZP.EnemyDir
-    .SkipDownReset:
-    dec.b ZP.EnemyDownCount
-    dec.b ZP.EnemyPlanePosY
-    jmp .ApplyMove
-    .SkipDown:
-    lda.b ZP.EnemyDir
-    cmp #!EnemyMoveR
-    bne .Neg
-    ;Check enemy right boundary
-    lda.w EnemyMin
-    cmp.w ZP.EnemyPlanePosX
-    bne .ApplyMove
-    lda.b #!EnemyMoveD
-    sta.b ZP.EnemyDir
-    lda.b #!EnemyMoveL
-    sta.b ZP.EnemySide
-    lda.b #!EnemyDownLoop
-    sta.b ZP.EnemyDownCount
-    jmp .ApplyMove
-    .Neg:
-    ;Check enemy left boundary
-    lda.w EnemyMax
-    cmp.w ZP.EnemyPlanePosX
-    bne .ApplyMove
-    lda.b #!EnemyMoveD
-    sta.b ZP.EnemyDir
-    lda.b #!EnemyMoveR
-    sta.b ZP.EnemySide
-    lda.b #!EnemyDownLoop
-    sta.b ZP.EnemyDownCount
-    .ApplyMove:
-    
-    ;Offset enemy positions [must be after boundary comparisons to avoid jamming]
-    lda.b ZP.EnemyDir
-    cmp #!EnemyMoveD
-    beq .SkipLR
-    lda.b ZP.EnemyDir
-    cmp #!EnemyMoveR
-    beq .SkipRight
-    lda.b ZP.EnemyPlanePosX
-    sec
-    sbc #!EnemySpeed
-    sta.b ZP.EnemyPlanePosX
-    bra .SkipLR
-    .SkipRight
-    ;Move enemy right
-    lda.b ZP.EnemyPlanePosX
-    clc
-    adc #!EnemySpeed
-    sta.b ZP.EnemyPlanePosX
-    .SkipLR:
-
-    ;Check if enemies are at the floor
-    lda.b ZP.EnemyPlanePosY
-    cmp.w EnemyFloor
-    bcs .SkipFloor
-    lda.b #!GameState_Dead
-    sta.w GameState
-    lda.b #!PlayerDieReset
-    sta.w PlayerDeathTimer
-    .SkipFloor:
-    lda.b ZP.EnemyPlanePosX
-    sta.w BG1HOffMirror
-    stz.w BG1HOffMirror+1
-    lda.b ZP.EnemyPlanePosY
-    sta.w BG1VOffMirror
-    lda.b #$01
-    sta.w BG1VOffMirror+1
-    lda.b ZP.EnemyWait
-    sta.b ZP.EnemyTimer
-    jsl GameLoop_DrawEnemies_FrameDecider
-    .SkipMove:
-    dec.b ZP.EnemyTimer
-    .SkipEnemy
 
     ;-------------------;
     ;    Handle UFO     ;
@@ -3398,22 +3209,18 @@ GameLoop_SendWave:
     stz.w BGIndex
     ++
     ;Shield health bonus
-    sed
     sep #$10
+    rep #$20
     ldy.b #$03
     -
     ldx.w ShieldHealth, Y
-    lda.b ZP.Score
-    clc
-    adc.w ShieldBonus, X
-    bcc ++
-    inc.b ZP.Score+1
-    ++
-    sta.b ZP.Score
+    lda.w ShieldBonus, X
+    sta.b ZP.R0
+    jsr AddScore
     dey
     bpl -
     rep #$10
-    cld
+    sep #$20
     ;Restore shields
     ldy.w #$0003
     lda.b #!ShieldStartHP
@@ -3593,6 +3400,9 @@ GameLoop_EBulletLogic:
     phx
     phy
     php
+    lda.w PowerupState
+    bit.b #!Pow4
+    bne .SKipBullets
     ldy.w #!EBulLoopCount
     .EBLogicLoop:
     rep #$20
@@ -3617,7 +3427,7 @@ GameLoop_EBulletLogic:
     beq .InactiveBullet
     lda.w EnemyBulletCenter, Y
     sta.w EnemyBulletXPos, Y
-
+    
     ;Specific bullet logic code
     lda.w EnemyBulletType, Y
     ldx.w #$0000
@@ -3627,6 +3437,7 @@ GameLoop_EBulletLogic:
     .InactiveBullet:
     dey
     bpl .EBLogicLoop
+    .SKipBullets:
     plp
     ply
     plx
@@ -3680,20 +3491,18 @@ EBulletT3:
     rts
 
 EBulletT4:
-    sep #$10
-    
+    sep #$10    
     lda.w EnemyBulletCentY, Y
     clc
     adc.b #!EnemyBulletSpeed/2
     sta.w EnemyBulletCentY, Y
 
-    clc
     lda.w EnemyBulletSine, Y
     adc.b #$01
     sta.w EnemyBulletSine, Y
     tax
     lda.w EnemyBulletCentY, Y
-    adc.w EnemyBullet4Wave, X
+    sbc.w EnemyBullet4Wave, X
     sta.w EnemyBulletYPos, Y
     txa
     adc.b #$20
@@ -3731,22 +3540,7 @@ GameLoop_EBulletDraw:
     sep #$20
     lda.w EnemyBulletActive, Y
     beq .SkipEBulletDraw
-    ;stz.b ZP.R0
-    ;lda.w EnemyBulletType, Y
-    ;cmp.b #$02
-    ;bne +
-    ;ldx.w #$0000
-    ;lda.w EnemyBulletSine, Y
-    ;inc
-    ;inc
-    ;sta.w EnemyBulletSine, Y
-    ;tax
-    ;lda.w EnemyBullet3Wave, X
-    ;sta.b ZP.R0
-    ;+
     lda.w EnemyBulletXPos, Y
-    ;clc
-    ;adc.b ZP.R0
     sta.b ZP.AddSprX
     lda.w EnemyBulletYPos, Y
     sta.b ZP.AddSprY
@@ -6902,11 +6696,46 @@ SpawnExplosive:
     ply
     pla
     rts
+
 GameLoop_HandlePowerups:
     pha
     phx
     phy
-    php
+    php    
+    ;Powerup timers
+    rep #$20
+    lda.w PowerDamageTimer
+    beq +
+    dec.w PowerDamageTimer
+    bne +
+    sep #$20
+    lda.w PowerupState
+    eor.b #!Pow0
+    sta.w PowerupState
+    +
+    
+    rep #$20
+    lda.w PowerSpeedTimer
+    beq +
+    dec.w PowerSpeedTimer
+    bne +
+    sep #$20
+    lda.w PowerupState
+    eor.b #!Pow1
+    sta.w PowerupState
+    +
+
+    rep #$20
+    lda.w PowerFreezeTimer
+    beq +
+    dec.w PowerFreezeTimer
+    bne +
+    sep #$20
+    lda.w PowerupState
+    eor.b #!Pow4
+    sta.w PowerupState
+    +
+
     sep #$20
     ldx.w PowerupTimer
     bne .DoPowerup
@@ -6926,6 +6755,8 @@ GameLoop_HandlePowerups:
     .SkipDMov:
 
     ;Player collision
+    lda.w Player.Dead
+    bne .SkipCollect
     lda.w PowY
     adc.b #$08
     cmp.b #!PlayerY
@@ -6969,14 +6800,34 @@ GameLoop_HandlePowerups:
     lda.w PowInd
     cmp.b #!Pow4Ind
     bne .SkipFreezeSet
-    ldy.w #!P0Timer
+    ldy.w #!P4Timer
     sty.w PowerFreezeTimer
     bra .SkipCollect
     .SkipFreezeSet:
 
-    .SkipCollect:
-    sep #$20
+    lda.w PowInd
+    cmp.b #!Pow3Ind
+    bne .SkipShieldSet
+    ldy.w #$0003
+    lda.b #!ShieldStartHP
+    .ShieldHealLoop:
+    sta.w ShieldHealth, Y
+    dey
+    bpl .ShieldHealLoop
+    bra .SkipCollect
+    .SkipShieldSet:
 
+    .SkipCollect:
+    rep #$20
+    lda.w PowerupTimer
+    cmp.w #$00C8
+    bpl +
+    bit.w #$0002
+    bne +
+    bra .SkipPowerup
+    +
+    sep #$20
+    
     ;Draw powerup
     lda.w PowerupTimer
     bit.b #$03
@@ -7034,6 +6885,207 @@ GameLoop_HandlePowerups:
     ply
     plx
     pla
+    rts
+
+GameLoop_HandleEnemyLogic:
+    php
+    ;Check game state
+    lda.w GameState
+    cmp.b #!GameState_Dead
+    bne .SkipWaveReset
+    ;If the player has died then we execute the enemy resetting
+    ;Move enemies up if the reset flag is set
+    lda.w EnemyResetFlag
+    beq +
+    lda.w EPlaneTop
+    sta.b ZP.EnemyPlanePosY
+    stz.w EnemyResetFlag
+    stz.w EnemyResetMove
+    lda.b #!GameState_Play
+    sta.w GameState
+    jsr GameLoop_ResetPlayer
+    jmp .SkipFloor
+    +
+    lda.w EnemyResetMove
+    beq .SkipEnemyResetMove
+    ;Check if we've hit the starting Y posiiton
+    lda.b ZP.EnemyPlanePosY
+    cmp.w EPlaneTop
+    bne ++
+    ;If we have then set the reset flag to reset the wave
+    inc.w EnemyResetFlag
+    ++
+    ;Add speed offset
+    inc.b ZP.EnemyPlanePosY
+    .SkipEnemyResetMove:
+    +
+
+    dec.w PlayerDeathTimer
+    bne +
+    ;TRIGGER PLAYER DEATH
+    jsr GameLoop_KillPlayer
+    +
+    jmp .SkipFloor
+    .SkipWaveReset:
+    lda.w GameState
+    cmp.b #!GameState_Play
+    beq .DoPlay
+    jmp .SkipEnemy
+    .DoPlay:
+    lda.w GameState
+    cmp.b #!GameState_Dead
+    bne .DoEnemy
+    jmp .SkipFloor
+    .DoEnemy:
+    ;Check enemy count and set enemy speed to amount of enemies on screen
+    sep #$20
+    stz.b ZP.EnemyWait
+    ldy.w #$0000
+    -
+    lda.w EnemyHealth, Y
+    beq +
+    inc.b ZP.EnemyWait
+    +
+    lda.w EnemyHurtTable, Y
+    beq +
+    dec
+    bne ++
+    sta.w EnemyHurtTable, Y
+    inc.b ZP.DrawEnemyFlag
+    ++
+    sta.w EnemyHurtTable, Y
+    +
+    iny
+    cpy.w #$0028
+    bne -
+    
+    lda.b ZP.EnemyWait
+    lsr
+    beq +
+    sta.b ZP.EnemyWait
+    +
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!Mod1
+    sep #$20
+    beq +
+    tdc
+    lda.b ZP.EnemyWait
+    lsr
+    beq +
+    sta.b ZP.EnemyWait
+    +
+    ;Adjust speed and then apply
+    tdc
+    lda.b ZP.EnemyWait
+    beq .SetStateWait               ;No enemies means the wave has been beaten
+    bne +
+    lda.b #$01
+    +
+    sta.b ZP.EnemyWait
+    bra .SkipState
+    ;Set the game state to Stop and initialise game timer
+    .SetStateWait
+    lda.b #$01
+    sta.w EnemyTransSetup
+    lda.b #!GameState_Stop
+    sta.w GameState
+    stz.w SendWave
+    .SkipState:
+    tdc
+    lda.b ZP.EnemyTimer
+    beq .SkipMoveJmp
+    jmp .SkipMove
+    .SkipMoveJmp:
+    sep #$20
+    lda.b ZP.EnemyFrame
+    inc
+    and #$07
+    sta.b ZP.EnemyFrame
+    lda.w GameState
+    ;Downward movement code
+    lda.b ZP.EnemyDir
+    cmp #!EnemyMoveD
+    bne .SkipDown
+    lda.b ZP.EnemyDownCount
+    bne .SkipDownReset
+    lda.b ZP.EnemySide
+    sta.b ZP.EnemyDir
+    .SkipDownReset:
+    dec.b ZP.EnemyDownCount
+    dec.b ZP.EnemyPlanePosY
+    jmp .ApplyMove
+    .SkipDown:
+    lda.b ZP.EnemyDir
+    cmp #!EnemyMoveR
+    bne .Neg
+    ;Check enemy right boundary
+    lda.w EnemyMin
+    cmp.w ZP.EnemyPlanePosX
+    bne .ApplyMove
+    lda.b #!EnemyMoveD
+    sta.b ZP.EnemyDir
+    lda.b #!EnemyMoveL
+    sta.b ZP.EnemySide
+    lda.b #!EnemyDownLoop
+    sta.b ZP.EnemyDownCount
+    jmp .ApplyMove
+    .Neg:
+    ;Check enemy left boundary
+    lda.w EnemyMax
+    cmp.w ZP.EnemyPlanePosX
+    bne .ApplyMove
+    lda.b #!EnemyMoveD
+    sta.b ZP.EnemyDir
+    lda.b #!EnemyMoveR
+    sta.b ZP.EnemySide
+    lda.b #!EnemyDownLoop
+    sta.b ZP.EnemyDownCount
+    .ApplyMove:
+    
+    ;Offset enemy positions [must be after boundary comparisons to avoid jamming]
+    lda.b ZP.EnemyDir
+    cmp #!EnemyMoveD
+    beq .SkipLR
+    lda.b ZP.EnemyDir
+    cmp #!EnemyMoveR
+    beq .SkipRight
+    lda.b ZP.EnemyPlanePosX
+    sec
+    sbc #!EnemySpeed
+    sta.b ZP.EnemyPlanePosX
+    bra .SkipLR
+    .SkipRight
+    ;Move enemy right
+    lda.b ZP.EnemyPlanePosX
+    clc
+    adc #!EnemySpeed
+    sta.b ZP.EnemyPlanePosX
+    .SkipLR:
+
+    ;Check if enemies are at the floor
+    lda.b ZP.EnemyPlanePosY
+    cmp.w EnemyFloor
+    bcs .SkipFloor
+    lda.b #!GameState_Dead
+    sta.w GameState
+    lda.b #!PlayerDieReset
+    sta.w PlayerDeathTimer
+    .SkipFloor:
+    lda.b ZP.EnemyPlanePosX
+    sta.w BG1HOffMirror
+    stz.w BG1HOffMirror+1
+    lda.b ZP.EnemyPlanePosY
+    sta.w BG1VOffMirror
+    lda.b #$01
+    sta.w BG1VOffMirror+1
+    lda.b ZP.EnemyWait
+    sta.b ZP.EnemyTimer
+    jsl GameLoop_DrawEnemies_FrameDecider
+    .SkipMove:
+    dec.b ZP.EnemyTimer
+    .SkipEnemy
+    plp
     rts
 
 GameLoop_HandleUFO:
@@ -7110,34 +7162,14 @@ GameLoop_HandleUFO:
     lda.w #$0000
     +
     sta.w PowX
-    lda.b ZP.Score
-    sed
-    clc
-    adc.w #!UFOScore
-    bcc ++
-    pha
-    sep #$20
-    clc
-    lda.b ZP.Score+1
-    clc
-    adc.b #$01
-    sta.b ZP.Score+1
-        bcc +++
-        clc
-        lda.b ZP.Score+2
-        clc
-        adc.b #$01
-        sta.b ZP.Score+2
-        +++
+
     rep #$20
-    pla
-    ++
-    sta.b ZP.Score
-    cld
-    ;Top
+    lda.w #!UFOScore
+    sta.b ZP.R0
+    jsr AddScore
+
     ldy.w #$0006
     ldx.w #$0003
-    rep #$20
     lda.w UFOXPos
     -
     pha
@@ -7251,7 +7283,8 @@ GameLoop_HandleUFO:
     bit #$04
     beq +
     lda.w UFOFrame
-    eor #$04
+    inc
+    and.b #$03
     sta.w UFOFrame
     stz.w UFOFrameTimer
     +
@@ -7259,15 +7292,18 @@ GameLoop_HandleUFO:
 
 GameLoop_DrawUFO:
     ;Left
+    ldy.w #$0000
+    sep #$10
+    ldy.w UFOFrame
+    rep #$10
+
     sep #$20
     ldx.w #$0000
     ldx.w UFOXPos
     stx.b ZP.AddSprX
     lda.b #!UFOYPos
     sta.b ZP.AddSprY
-    lda.b #!UFOTile0
-    clc
-    adc.w UFOFrame
+    lda.w UFOFrameList0, Y
     sta.b ZP.AddSprTile
     lda.b #!UFOAttr
     sta.b ZP.AddSprAttr
@@ -7284,8 +7320,7 @@ GameLoop_DrawUFO:
     lda.b #!UFOYPos
     sta.b ZP.AddSprY
     lda.b #!UFOTile1
-    clc
-    adc.w UFOFrame
+    lda.w UFOFrameList1, Y
     sta.b ZP.AddSprTile
     lda.b #!UFOAttr
     sta.b ZP.AddSprAttr
@@ -10587,6 +10622,30 @@ AddSprite:
     rts
 
     ;
+    ;   ZP.R0   \   Score value to add
+    ;   ZP.R1   /
+    ;
+AddScore:
+    pha
+    php
+    sed
+    rep #$21
+    lda.b ZP.Score
+    adc.b ZP.R0
+    bcc .SkipHIByte
+    sep #$20
+    lda.b ZP.Score+2
+    clc
+    adc.b #$01
+    sta.b ZP.Score+2
+    rep #$21
+    .SkipHIByte:
+    sta.b ZP.Score
+    cld
+    plp
+    pla
+    rts
+    ;
     ;   Processes the PalMirror with the fade mask to output the data to PalOut
     ;
     ;   Clobberlist
@@ -11321,16 +11380,16 @@ EnemyWave02:
     db $00,$00,$00,$00,$00,$00,$00,$00
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave03:
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $01,$00,$01,$00,$01,$00,$01,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave04:
     db $06,$02,$06,$02,$06,$02,$06,$02
     db $01,$02,$01,$02,$01,$02,$01,$02
     db $01,$02,$01,$02,$01,$02,$01,$02
     db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave04:
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $01,$00,$01,$00,$01,$00,$01,$00
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave05:
     db $06,$06,$06,$06,$06,$06,$06,$06
@@ -12118,45 +12177,45 @@ ShieldTileTable:
     db $00
     db $00
     ;Severely damaged
-    db $7E
-    db $7F
-    db $7F
-    db $7E
+    db $5E
+    db $5F
+    db $5F
+    db $5E
     ;Severely damaged 2
-    db $7D^$01
-    db $7C^$01
-    db $7C^$01
-    db $7D^$01
+    db $5D^$01
+    db $5C^$01
+    db $5C^$01
+    db $5D^$01
     ;Moderately damaged
-    db $7B^$01
-    db $7A^$01
-    db $7A^$01
-    db $7B^$01
+    db $5B^$01
+    db $5A^$01
+    db $5A^$01
+    db $5B^$01
     ;Moderately damaged
-    db $79^$01
-    db $78^$01
-    db $78^$01
-    db $79^$01
+    db $59^$01
+    db $58^$01
+    db $58^$01
+    db $59^$01
     ;Partially damaged
-    db $77^$01
-    db $76^$01
-    db $76^$01
-    db $77^$01
+    db $57^$01
+    db $56^$01
+    db $56^$01
+    db $57^$01
     ;Partially damaged
-    db $75^$01
-    db $74^$01
-    db $74^$01
-    db $75^$01
+    db $55^$01
+    db $54^$01
+    db $54^$01
+    db $55^$01
     ;Full health
-    db $73^$01
-    db $72^$01
-    db $72^$01
-    db $73^$01
+    db $53^$01
+    db $52^$01
+    db $52^$01
+    db $53^$01
     ;Full health
-    db $71^$01
-    db $70^$01
-    db $70^$01
-    db $71^$01
+    db $51^$01
+    db $50^$01
+    db $50^$01
+    db $51^$01
 
 ShieldExplosionTileTable:
     db $55+45
@@ -12281,14 +12340,14 @@ TwinkleFrame1st:
     db $0C
 
 UFOPartTiles:
-    db $3B
-    db $3A
-    db $39
-    db $38
-    db $4B
-    db $4A
-    db $49
-    db $48
+    db $15
+    db $14
+    db $13
+    db $12
+    db $25
+    db $24
+    db $23
+    db $22
 
 UFOPartXSpeed:
     db $02
@@ -12666,7 +12725,7 @@ PlayerFrames:
     db !PlayerTile
     db !PlayerTile+2
     db !PlayerTile+4
-    db !PlayerTile+2
+    db !PlayerTile+6
 
 PowerupIndTable:
     db !Pow0
@@ -12674,6 +12733,17 @@ PowerupIndTable:
     db !Pow2
     db !Pow3
     db !Pow4
+
+UFOFrameList0:
+    db !UFOTile0
+    db !UFOTile0+$04
+    db !UFOTile0+$08
+    db !UFOTile0+$04
+UFOFrameList1:
+    db !UFOTile1
+    db !UFOTile1+$04
+    db !UFOTile1+$08
+    db !UFOTile1+$04
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
