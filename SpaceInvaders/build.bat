@@ -65,7 +65,7 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\f
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Stars.png -t bin\gfx\Stars.bin -p bin\gfx\pal\StarsPal.bin -v
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\PlanetSprites.png -t bin\gfx\PlanetSprites.bin -p bin\gfx\pal\PlanetSprites.bin
-C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -W 16 -H 16 -i res\img\Invaders.png -t bin\gfx\Invaders.bin -p bin\gfx\pal\InvadersPal.bin --palette-base-offset 1 --no-remap
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Invaders.png -t bin\gfx\Invaders.bin -p bin\gfx\pal\InvadersPal.bin --palette-base-offset 1 --no-remap
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 8 -i res\img\Intro\IntroPanel1.png -t bin\gfx\IntroPanel1.bin -p bin\gfx\pal\IntroPanel1Pal.bin -m bin\gfx\tilemap\IntroPanel1.bin --no-remap --tile-base-offset 32
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 8 -i res\img\Intro\IntroPanel2.png -t bin\gfx\IntroPanel2.bin -p bin\gfx\pal\IntroPanel2Pal.bin -m bin\gfx\tilemap\IntroPanel2.bin --no-remap --tile-base-offset 32

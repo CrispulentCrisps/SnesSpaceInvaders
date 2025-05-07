@@ -446,8 +446,8 @@ SRam =              $306000 ;Save data storage
 !ShieldStartHP =    $08
 !PlayerDieReset =   $32
 
-!WaveInit =         $12
-!StageInit =        $02
+!WaveInit =         $00
+!StageInit =        $00
 
 !BG8MoonAttr =      $00
 !BG8MoonTile =      $C4
