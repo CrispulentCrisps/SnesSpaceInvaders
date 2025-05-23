@@ -163,6 +163,18 @@ CloudGfxEnd:
 
 org !GfxBank5
 
+BG9Gfx:
+    incbin "bin/gfx/BG-9-L2.bin"
+BG9GfxEnd:
+
+BG9_L3:
+    incbin "bin/gfx/BG-9-L3.bin"
+BG9_L3_End:
+
+BG9Spr:
+    incbin "bin/gfx/BG9Sprite.bin"
+BG9SprEnd:
+
 StageTextSpr:
     incbin "bin/gfx/StageText.bin"
 StageTextSprEnd:
@@ -203,6 +215,8 @@ IntroPanel9:
 	incbin "bin/gfx/IntroPanel9.bin"
 IntroPanel9End:
 
+org !GfxBank6
+
 IntroPanel10:
 	incbin "bin/gfx/IntroPanel10.bin"
 IntroPanel10End:
@@ -210,8 +224,6 @@ IntroPanel10End:
 IntroPanel11:
 	incbin "bin/gfx/IntroPanel11.bin"
 IntroPanel11End:
-
-org !GfxBank6
 
 GameOverSpr:
     incbin "bin/gfx/GameOverText.bin"
@@ -281,7 +293,16 @@ BG8_TM:
     incbin "bin/gfx/tilemap/BG-8-L2.bin"
 BG8_TM_End:
 
+BG9_TM:
+    incbin "bin/gfx/tilemap/BG-9-L2.bin"
+BG9_TM_End:
+
 org !TilemapBank2
+
+BG9_L3_TM:
+    incbin "bin/gfx/tilemap/BG-9-L3.bin"
+BG9_L3_TM_End:
+
 
 Title_TM:
     incbin "bin/gfx/tilemap/Title-BG-L1.bin"
@@ -472,6 +493,18 @@ BG8SprPal:
     incbin "bin/gfx/pal/BG8Sprite-Pal.bin"
 BG8SprPalEnd:
 
+BG9_L2_Pal:
+    incbin "bin/gfx/pal/BG-9-L2-Pal.bin"
+BG9_L2_Pal_End:
+
+BG9_L3_Pal:
+    incbin "bin/gfx/pal/BG-9-L3-Pal.bin"
+BG9_L3_Pal_End:
+
+BG9SprPal:
+    incbin "bin/gfx/pal/BG9Sprite-Pal.bin"
+BG9SprPalEnd:
+
 Surfboard_Pal:
     incbin "bin/gfx/pal/Surfboard-Pal.bin"
 Surfboard_Pal_End:
@@ -586,7 +619,7 @@ Reset:
     ldx.w #$01FF                    ;Set stack over to db 1FFF
     txs                             ;Send X register to stack
     pea.w 0                         ;Writes 2 0bytes to the stack [no # needed as every value is a direct load]
-    pld                             ;Take value from stack and shove to D
+    pld                             ;Take value from stack and shove to the direct page ptr
     lda.b #1                        ;Load 1 into A
     sta.w HW_MEMSEL                 ;Write A value to HW_MEMSEL, mainly to speed up the CPU code
     jml $800000+(.ResetOffset&$FFFF);Jump to $80 in terms of memory X axis
@@ -779,6 +812,16 @@ MainLoop:
     beq +
     jsl FadeGradientTable
     +
+
+    lda.b ZP.ExitScene
+    beq +
+    stz.b ZP.ExitScene
+    lda.w ZP.SceneGoto
+    sta.w ZP.SceneIndex
+    lda.b #$01
+    sta.b ZP.ChangeScene
+    +
+
     rep #$20
     lda.w #$FFFF
     sta.b ZP.NMIDone
@@ -1695,14 +1738,20 @@ GameScene:
     lda.b #$D0
     sta.w ShieldXPos+3
     .LoadTilemaps:
-    ;-------------------;
-    ;   Load tilemaps   ;
-    ;-------------------;
-    jsr GameLoop_LoadBG
 
     ldx.w #$0000
+    stx.w BG3VOffMirror
     stx.w BG2VOffMirror
-    stx.w BG1VOffMirror
+
+    lda.b #!EnemyPlaneStartX
+    sta.b ZP.EnemyPlanePosX
+    sta.b BG1HOffMirror
+    stz.b BG1HOffMirror+1
+    lda.b #!EnemyPlaneStartY
+    sta.b ZP.EnemyPlanePosY
+    sta.b BG1VOffMirror
+    stz.b BG1VOffMirror+1
+
     ;Write enemy entries into Enemy struct array
     jsr GameLoop_UpdateEnemyArray
     jsl GameLoop_DrawEnemies
@@ -1733,6 +1782,7 @@ GameScene:
     lda.b #$80
     sta.w HDMAMirror+4
     
+    jsr GameLoop_LoadBG
     .SkipLoad:
 
     jsr GameLoop_DrawScore
@@ -2096,9 +2146,11 @@ GameScene:
     lda.b #$00
     .SkipDie:
     sta.w EnemyHealth, Y
-    stz.w Bullet[0].Enabled
+    stz.w Bullet.Enabled
     lda.b #$FF
-    sta.w Bullet[0].X
+    sta.w Bullet.X
+    lda.b #$F0
+    sta.w Bullet.Y
     sta.b ZP.BulletColTile
     lda.b #!EnemyHurtTimer
     sta.w EnemyHurtTable, Y
@@ -2286,14 +2338,6 @@ GameScene:
     +
     .SkipGOLogic:
     sep #$20
-    lda.b ZP.ExitScene
-    beq +
-    stz.b ZP.ExitScene
-    lda.w ZP.SceneGoto
-    sta.w ZP.SceneIndex
-    lda.b #$01
-    sta.b ZP.ChangeScene
-    +
     ;-----------------------;
     ;    Handle Shields     ;
     ;-----------------------;
@@ -3060,7 +3104,7 @@ GameLoop_UpdateEnemyArray:
     sep #$20
     ldy.w #$0000
     -
-    lda.b 0, X
+    lda.b $00, X
     sta.w EnemyType, Y
     phx
     tax
@@ -4134,16 +4178,7 @@ OptionsScene:
     .SkipOptionsLoad
 
     tdc
-    sep #$20
-    lda.b ZP.ExitScene
-    beq .SkipTitleChange
-    stz.b ZP.ExitScene
-    lda.w ZP.SceneGoto
-    sta.w ZP.SceneIndex
-    lda.b #$01
-    sta.b ZP.ChangeScene
-    .SkipTitleChange:
-    
+    sep #$20    
     rep #$10
     lda.w OptionIndex
     bne .SkipSelect
@@ -4891,6 +4926,9 @@ ContinueScene:
     sta.w HW_BGMODE
     lda.b #$FF
     sta.w TMMirror
+    
+    lda.b #$70
+    sta.w HW_BG1SC              ;Set Layer 1 values
 
     stz.w HW_HDMAEN
 
@@ -4965,8 +5003,6 @@ ContinueScene:
     stx.w HW_DAS7L              ;Return amount of bytes to be written in VRAM
     lda.b #$80
     sta.w HW_MDMAEN             ;Enable DMA channel 7
-
-
 
     ldx.w #GameOverPalEnd-GameOverPal
     -
@@ -5066,12 +5102,36 @@ ContinueScene:
     jsr AddSprite
 
     sep #$20
+    lda.w ContinueCount
+    beq .SkipExit
+    lda.b ZP.Controller+1
+    and #!C_START                    ;Check START
+    beq .SkipExit
+    lda.b ZP.InputFlag
+    lda.b #$00
+    sta.b ZP.ChangeScene
+    stz.b ZP.ExitScene
+    lda.b #$01
+    sta.b ZP.SceneGoto
+    jsr TransitionOut
+    bne .SkipExit
+    .SkipExit:
+
+    sep #$20
     dec.w ContinueTimer
     lda.w ContinueTimer
     bne +
     lda.w ContinueCount
     beq +
     dec.w ContinueCount
+    bne ++
+    lda.b #$00
+    sta.b ZP.ChangeScene
+    stz.b ZP.ExitScene
+    lda.b #$02
+    sta.b ZP.SceneGoto
+    jsr TransitionOut
+    ++
     lda.b #!GameOverTextTime
     sta.w ContinueTimer
     +
@@ -5871,7 +5931,7 @@ HighscoreScene:
     and.w #$00FF
     tax
     sep #$20
-    lda.w Cos8Sign, X
+    lda.l Cos8Sign, X
     lsr
     lsr
     and.b #$FE
@@ -6060,15 +6120,15 @@ HighscoreScene:
     jsr TransitionOut
     +
 
-    sep #$20
-    lda.b ZP.ExitScene
-    beq +
-    stz.b ZP.ExitScene
-    lda.w ZP.SceneGoto
-    sta.w ZP.SceneIndex
-    lda.b #$01
-    sta.b ZP.ChangeScene
-    +
+    ;sep #$20
+    ;lda.b ZP.ExitScene
+    ;beq +
+    ;stz.b ZP.ExitScene
+    ;lda.w ZP.SceneGoto
+    ;sta.w ZP.SceneIndex
+    ;lda.b #$01
+    ;sta.b ZP.ChangeScene
+    ;+
     rep #$20
     rts
 
@@ -8610,6 +8670,145 @@ BG_Cliff:
     rts
 
 BG_Alien:
+    ;Setup video display
+    sep #$20
+    lda.b #$80
+    sta.w HW_INIDISP
+    lda.b #$01
+    sta.w HW_BGMODE
+    lda.b #$1F
+    sta.w TMMirror
+    sta.w TSMirror
+    sta.w TMWMirror
+    sta.w TSWMirror
+    lda.b #$A8
+    sta.w CGWSELMirror
+    stz.w CGADSUBMirror
+    stz.w COLDATAMirror
+    stz.w COLDATAMirror+1
+    stz.w WH0Mirror
+    stz.w WH1Mirror    
+
+    stz.w HW_BG12NBA
+    lda.b #$02
+    sta.w HW_BG34NBA
+
+    rep #$20
+    stz.w BG1VOffMirror
+    stz.w BG1VOffMirror
+    stz.w BG1HOffMirror
+    stz.w BG1HOffMirror
+    stz.w BG2VOffMirror
+    stz.w BG2VOffMirror
+    stz.w BG2HOffMirror
+    stz.w BG2HOffMirror
+    stz.w BG3VOffMirror
+    stz.w BG3VOffMirror
+    stz.w BG3HOffMirror
+    stz.w BG3HOffMirror
+
+    ;Load Graphics
+    ldy.w #$0000
+    rep #$20
+    lda.w #(BG9Gfx)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG9Gfx>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!BGTileDest
+    sta.b ZP.DMAQDest
+    lda.w #BG9GfxEnd-BG9Gfx
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    
+    ldy.w #$0000
+    rep #$20
+    lda.w #(BG9_L3)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG9_L3>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!BG3TileDest
+    sta.b ZP.DMAQDest
+    lda.w #BG9_L3_End-BG9_L3
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    
+    lda.w #(BG9Spr)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG9Spr>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!SprVram+$C00
+    sta.b ZP.DMAQDest
+    lda.w #BG9SprEnd-BG9Spr
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+
+    ;Load Tilemaps
+    lda.w #(BG9_TM)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG9_TM>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #L2Ram
+    sta.b ZP.DMAQDest
+    lda.w #BG9_TM_End-BG9_TM
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+    
+    lda.w #(BG9_L3_TM)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG9_L3_TM>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #L3Ram
+    sta.b ZP.DMAQDest
+    lda.w #BG9_L3_TM_End-BG9_L3_TM
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+
+    sep #$20
+    ;Transfer palette data
+    ldx.w #BG9_L2_Pal_End-BG9_L2_Pal
+    -
+    lda.l BG9_L2_Pal, X
+    sta.w PalMirror+$29, X
+    dex
+    bne -
+
+    ldx.w #BG9_L3_Pal_End-BG9_L3_Pal
+    -
+    lda.l BG9_L3_Pal, X
+    sta.w PalMirror, X
+    dex
+    bne -
+
+    ldx.w #BG9SprPalEnd-BG9SprPal
+    -
+    lda.l BG9SprPal, X
+    sta.w PalMirror+$0100, X
+    dex
+    bne -
+
+    sep #$20
+    lda.b #$0F
+    sta.w HW_INIDISP
     rts
 
 GameLoop_UpdateBG:
@@ -9270,21 +9469,20 @@ UPD_BG_Surfboard:
     lda.b #$F0          ;Scanline
     sta.w HW_WMDATA
     ;Skew water
+    sep #$10
     inc.w SinePtr
-    ldx.w #$0000
-    lda.w SinePtr
-    tax
-    ldy.w #$0000
+    ldy.w SinePtr
+    ldx.b #$00
     -
     lda.w BGScrollVal+4
-    adc.w SkewTable, Y
+    adc.l SkewTable, X
     sta.w HW_WMDATA
     stz.w HW_WMDATA
-    inx
     iny
-    cpy.w #$0070
+    inx
+    cpx.b #$70
     bne -
-
+    rep #$10
     stz.w HW_WMDATA
 
     ldx.w #HDMAScrollBuffer2&$FFFF
@@ -9923,6 +10121,59 @@ UPD_BG_Cliff:
    	rts
 
 UPD_BG_Alien:
+
+    sep #$20
+    lda.w OBJTimers
+    inc
+    bit.b #$10
+    beq +
+    ldy.w #$0102
+    lda.b #$05
+    sta.b ZP.R4
+    jsr PalCycle
+    +
+    sta.w OBJTimers
+
+    ldx.w #HDMAScrollBuffer&$FFFF
+    stx.w HW_WMADDL
+    lda.b #(HDMAScrollBuffer>>16)&$FF
+    stx.w HW_WMADDH
+
+    lda.b #$C0
+    sta.w HW_WMDATA
+
+    sep #$10
+    ldy.b #$3F
+    tdc
+    lda.w SinePtr
+    clc
+    adc.b #$02
+    sta.w SinePtr
+    tax
+    -
+    inx
+    lda.l Stage9Wave, X
+    lsr
+    lsr
+    lsr
+    lsr
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    inx
+    dey
+    bpl -
+    rep #$10
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
+
+    lda.b #$02
+    sta.w HDMAMirror1
+    lda.b #(HW_BG3HOFS)&$FF
+    sta.w HDMAMirror1+1
+    ldx.w #HDMAScrollBuffer
+    stx.w HDMAMirror1+2
+    lda.b #$7E
+    sta.w HDMAMirror1+4
 	rts
 
 GameLoop_UpdateBG_OBJ:
@@ -10240,6 +10491,59 @@ OBJ_Cliff:
     rts
 
 OBJ_Alien:
+
+    lda.w Player.X
+    lsr
+    lsr
+    lsr
+    sta.b ZP.R1
+    clc
+    adc.b #$70
+    sta.b ZP.R0
+    lsr.b ZP.R1
+    lda.b ZP.R0
+    sec
+    sbc.b ZP.R1
+    ;Eye XPOS
+    sta.b ZP.R0
+
+    ;Large eye section
+    lda.b ZP.R0
+    sta.b ZP.AddSprX
+    lda.b #$04
+    sta.b ZP.AddSprY
+    lda.b #!EyeTile1
+    sta.b ZP.AddSprTile
+    lda.b #!EyeAttr
+    sta.b ZP.AddSprAttr
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    
+    ;Small eye section
+    lda.b ZP.R0
+    sta.b ZP.AddSprX
+    lda.b #$14
+    sta.b ZP.AddSprY
+    lda.b #!EyeTile2
+    sta.b ZP.AddSprTile
+    lda.b #!EyeAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    lda.b ZP.R0
+    clc
+    adc.b #$08
+    sta.b ZP.AddSprX
+    lda.b #$14
+    sta.b ZP.AddSprY
+    lda.b #!EyeTile3
+    sta.b ZP.AddSprTile
+    lda.b #!EyeAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
     rts
 
 GameLoop_HandleUFOParticles:
@@ -11519,101 +11823,101 @@ EnemyWave17:
     db $07,$05,$06,$06,$06,$06,$07,$05
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave18:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $05,$05,$06,$06,$06,$06,$05,$05
+    db $07,$07,$05,$07,$07,$05,$07,$07
+    db $07,$07,$05,$07,$07,$05,$07,$07
+    db $02,$02,$05,$02,$02,$05,$02,$02
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave19:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $07,$05,$07,$06,$06,$07,$05,$07
+    db $05,$07,$05,$06,$06,$05,$07,$05
+    db $07,$05,$07,$06,$06,$07,$05,$07
+    db $06,$06,$06,$07,$07,$06,$06,$06
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave1A:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $06,$05,$06,$07,$07,$06,$05,$06
+    db $05,$07,$05,$05,$05,$05,$07,$05
+    db $05,$07,$05,$07,$07,$05,$07,$05
+    db $06,$05,$06,$05,$05,$06,$05,$06
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave1B:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $07,$07,$07,$06,$06,$07,$07,$07
+    db $06,$05,$05,$07,$07,$05,$05,$06
+    db $06,$05,$05,$07,$07,$05,$05,$06
+    db $07,$07,$07,$06,$06,$07,$07,$07
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave1C:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $06,$06,$06,$06,$05,$05,$05,$05
+    db $06,$04,$04,$06,$05,$04,$04,$05
+    db $02,$04,$04,$02,$03,$04,$04,$03
+    db $02,$02,$02,$02,$03,$03,$03,$03
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave1D:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $06,$04,$07,$04,$04,$07,$04,$06
+    db $06,$04,$07,$04,$04,$07,$04,$06
+    db $02,$02,$03,$02,$02,$03,$02,$02
+    db $02,$02,$03,$02,$02,$03,$02,$02
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave1E:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $05,$05,$07,$07,$07,$07,$05,$05
+    db $07,$07,$05,$06,$06,$05,$07,$07
+    db $06,$06,$06,$05,$05,$06,$06,$06
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave1F:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $04,$05,$06,$07,$07,$06,$05,$04
+    db $07,$04,$05,$06,$06,$05,$04,$07
+    db $06,$07,$04,$05,$05,$04,$07,$06
+    db $05,$06,$07,$04,$04,$07,$06,$05
     db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave20:
-    db $07,$05,$05,$02,$02,$05,$05,$07
-    db $05,$07,$05,$02,$02,$05,$07,$05
-    db $05,$05,$07,$02,$02,$07,$05,$05
-    db $05,$07,$05,$02,$02,$05,$07,$05
-    db $07,$05,$05,$02,$02,$05,$05,$07
+    db $06,$06,$06,$07,$07,$06,$06,$06
+    db $04,$04,$04,$05,$05,$04,$04,$04
+    db $02,$02,$02,$03,$03,$02,$02,$02
+    db $02,$02,$02,$03,$03,$02,$02,$02
+    db $06,$06,$06,$07,$07,$06,$06,$06
 EnemyWave21:
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $01,$02,$03,$04,$05,$06,$07,$08
-    db $01,$02,$03,$04,$05,$06,$07,$08
-    db $08,$07,$06,$05,$04,$03,$02,$01
-    db $08,$07,$06,$05,$04,$03,$02,$01
+    db $06,$04,$04,$04,$04,$04,$04,$06
+    db $06,$05,$05,$07,$07,$05,$05,$06
+    db $07,$05,$07,$01,$01,$07,$05,$07
+    db $07,$07,$01,$01,$01,$01,$07,$07
+    db $07,$01,$01,$01,$01,$01,$01,$07
 EnemyWave22:
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave23:
-    db $00,$05,$05,$05,$05,$05,$05,$00
-    db $05,$05,$04,$04,$04,$04,$05,$05
-    db $05,$04,$03,$02,$02,$03,$04,$05
-    db $05,$05,$04,$04,$04,$04,$05,$05
-    db $00,$05,$05,$05,$05,$05,$05,$00
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave24:
-    db $01,$02,$03,$06,$06,$03,$02,$01
-    db $01,$02,$03,$06,$06,$03,$02,$01
-    db $01,$02,$03,$06,$06,$03,$02,$01
-    db $01,$02,$03,$06,$06,$03,$02,$01
-    db $01,$02,$03,$06,$06,$03,$02,$01
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
 EnemyWave25:
-    db $05,$05,$08,$05,$05,$08,$05,$05
-    db $05,$05,$08,$05,$05,$08,$05,$05
-    db $07,$05,$08,$05,$05,$08,$05,$07
-    db $07,$05,$05,$05,$05,$05,$05,$07
-    db $00,$07,$07,$07,$07,$07,$07,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave26:
-    db $05,$01,$05,$01,$01,$05,$01,$05
-    db $01,$02,$01,$02,$02,$01,$02,$01
-    db $05,$01,$03,$01,$01,$03,$01,$05
-    db $00,$05,$01,$05,$05,$01,$05,$00
-    db $00,$00,$05,$00,$00,$05,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave27:
-    db $01,$01,$01,$01,$05,$05,$05,$05
-    db $02,$02,$02,$02,$04,$04,$04,$04
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $04,$04,$04,$04,$02,$02,$02,$02
-    db $05,$05,$05,$05,$01,$01,$01,$01
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
 EnemyWave28:
     db $05,$05,$02,$02,$02,$02,$05,$05
     db $05,$05,$02,$02,$02,$02,$05,$05
@@ -12924,7 +13228,6 @@ db $FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FF
 db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 db $FF,$00,$00,$00,$00,$00
 
-
 GalRingSinePtr:
     for t = 0..!SpiralArmCount
         dw GalRingX0
@@ -13142,34 +13445,6 @@ dw $FFC9,$FFCC,$FFCF,$FFD2,$FFD5,$FFD8,$FFDB
 dw $FFDE,$FFE1,$FFE4,$FFE7,$FFEA,$FFED,$FFF0
 dw $FFF3,$FFF7,$FFFA,$FFFD
 
-Cos8Sign:
-db $FE,$FE,$FE,$FE,$FD,$FD,$FD,$FC,$FC,$FB
-db $FA,$F9,$F9,$F8,$F7,$F5,$F4,$F3,$F2,$F0
-db $EF,$EE,$EC,$EA,$E9,$E7,$E5,$E3,$E1,$DF
-db $DD,$DB,$D9,$D7,$D4,$D2,$D0,$CD,$CB,$C8
-db $C6,$C3,$C0,$BE,$BB,$B8,$B5,$B2,$B0,$AD
-db $AA,$A7,$A4,$A1,$9E,$9B,$98,$95,$92,$8F
-db $8B,$88,$85,$82,$7F,$7C,$79,$76,$73,$6F
-db $6C,$69,$66,$63,$60,$5D,$5A,$57,$54,$51
-db $4E,$4C,$49,$46,$43,$40,$3E,$3B,$38,$36
-db $33,$31,$2E,$2C,$2A,$27,$25,$23,$21,$1F
-db $1D,$1B,$19,$17,$15,$14,$12,$10,$0F,$0E
-db $0C,$0B,$0A,$09,$07,$06,$05,$05,$04,$03
-db $02,$02,$01,$01,$01,$00,$00,$00,$00,$00
-db $00,$00,$01,$01,$01,$02,$02,$03,$04,$05
-db $05,$06,$07,$09,$0A,$0B,$0C,$0E,$0F,$10
-db $12,$14,$15,$17,$19,$1B,$1D,$1F,$21,$23
-db $25,$27,$2A,$2C,$2E,$31,$33,$36,$38,$3B
-db $3E,$40,$43,$46,$49,$4C,$4E,$51,$54,$57
-db $5A,$5D,$60,$63,$66,$69,$6C,$6F,$73,$76
-db $79,$7C,$7F,$82,$85,$88,$8B,$8F,$92,$95
-db $98,$9B,$9E,$A1,$A4,$A7,$AA,$AD,$B0,$B2
-db $B5,$B8,$BB,$BE,$C0,$C3,$C6,$C8,$CB,$CD
-db $D0,$D2,$D4,$D7,$D9,$DB,$DD,$DF,$E1,$E3
-db $E5,$E7,$E9,$EA,$EC,$EE,$EF,$F0,$F2,$F3
-db $F4,$F5,$F7,$F8,$F9,$F9,$FA,$FB,$FC,$FC
-db $FD,$FD,$FD,$FE,$FE,$FE
-
 ;sin(8*pi*t/T)
 WaterDist:
 db $04,$04,$05,$05,$06,$06,$06,$07,$07,$07
@@ -13226,21 +13501,6 @@ db $0A,$0A,$0B,$0B,$0B,$0C,$0C,$0C,$0C,$0D
 db $0D,$0D,$0D,$0E,$0E,$0E,$0E,$0E,$0E,$0F
 db $0F,$0F,$0F,$0F,$0F,$0F,$10,$10,$10,$10
 db $10,$10,$10,$10,$10,$10
-
-;log(24/t)
-SkewTable:
-db $FF,$FF,$FF,$F2,$E2,$D6,$CB,$C3,$BC,$B5
-db $AF,$AA,$A5,$A1,$9D,$99,$95,$92,$8F,$8C
-db $89,$86,$84,$81,$7F,$7D,$7B,$79,$76,$75
-db $73,$71,$6F,$6D,$6C,$6A,$69,$67,$66,$64
-db $63,$61,$60,$5F,$5E,$5C,$5B,$5A,$59,$58
-db $57,$55,$54,$53,$52,$51,$50,$4F,$4E,$4D
-db $4C,$4C,$4B,$4A,$49,$48,$47,$46,$46,$45
-db $44,$43,$42,$42,$41,$40,$3F,$3F,$3E,$3D
-db $3D,$3C,$3B,$3B,$3A,$39,$39,$38,$37,$37
-db $36,$35,$35,$34,$34,$33,$33,$32,$31,$31
-db $30,$30,$2F,$2F,$2E,$2E,$2D,$2D,$2C,$2C
-db $2B,$2B
 
 ;sin(2*pi*t/T)*(1-(t%2*2))
 FogOffset:
@@ -13898,3 +14158,75 @@ dw $FF41,$FF41,$FF40,$FF40,$FF40,$FF40,$FF40
 dw $FF3F,$FF3F,$FF3F,$FF3F,$FF3F,$FF3E,$FF3E
 dw $FF3E,$FF3E,$FF3E,$FF3E,$FF3D,$FF3D,$FF3D
 dw $FF3D,$FF3D,$FF3D,$FF3D
+
+;log(24/t)
+SkewTable:
+db $FF,$FF,$FF,$F2,$E2,$D6,$CB,$C3,$BC,$B5
+db $AF,$AA,$A5,$A1,$9D,$99,$95,$92,$8F,$8C
+db $89,$86,$84,$81,$7F,$7D,$7B,$79,$76,$75
+db $73,$71,$6F,$6D,$6C,$6A,$69,$67,$66,$64
+db $63,$61,$60,$5F,$5E,$5C,$5B,$5A,$59,$58
+db $57,$55,$54,$53,$52,$51,$50,$4F,$4E,$4D
+db $4C,$4C,$4B,$4A,$49,$48,$47,$46,$46,$45
+db $44,$43,$42,$42,$41,$40,$3F,$3F,$3E,$3D
+db $3D,$3C,$3B,$3B,$3A,$39,$39,$38,$37,$37
+db $36,$35,$35,$34,$34,$33,$33,$32,$31,$31
+db $30,$30,$2F,$2F,$2E,$2E,$2D,$2D,$2C,$2C
+db $2B,$2B
+
+Cos8Sign:
+db $FE,$FE,$FE,$FE,$FD,$FD,$FD,$FC,$FC,$FB
+db $FA,$F9,$F9,$F8,$F7,$F5,$F4,$F3,$F2,$F0
+db $EF,$EE,$EC,$EA,$E9,$E7,$E5,$E3,$E1,$DF
+db $DD,$DB,$D9,$D7,$D4,$D2,$D0,$CD,$CB,$C8
+db $C6,$C3,$C0,$BE,$BB,$B8,$B5,$B2,$B0,$AD
+db $AA,$A7,$A4,$A1,$9E,$9B,$98,$95,$92,$8F
+db $8B,$88,$85,$82,$7F,$7C,$79,$76,$73,$6F
+db $6C,$69,$66,$63,$60,$5D,$5A,$57,$54,$51
+db $4E,$4C,$49,$46,$43,$40,$3E,$3B,$38,$36
+db $33,$31,$2E,$2C,$2A,$27,$25,$23,$21,$1F
+db $1D,$1B,$19,$17,$15,$14,$12,$10,$0F,$0E
+db $0C,$0B,$0A,$09,$07,$06,$05,$05,$04,$03
+db $02,$02,$01,$01,$01,$00,$00,$00,$00,$00
+db $00,$00,$01,$01,$01,$02,$02,$03,$04,$05
+db $05,$06,$07,$09,$0A,$0B,$0C,$0E,$0F,$10
+db $12,$14,$15,$17,$19,$1B,$1D,$1F,$21,$23
+db $25,$27,$2A,$2C,$2E,$31,$33,$36,$38,$3B
+db $3E,$40,$43,$46,$49,$4C,$4E,$51,$54,$57
+db $5A,$5D,$60,$63,$66,$69,$6C,$6F,$73,$76
+db $79,$7C,$7F,$82,$85,$88,$8B,$8F,$92,$95
+db $98,$9B,$9E,$A1,$A4,$A7,$AA,$AD,$B0,$B2
+db $B5,$B8,$BB,$BE,$C0,$C3,$C6,$C8,$CB,$CD
+db $D0,$D2,$D4,$D7,$D9,$DB,$DD,$DF,$E1,$E3
+db $E5,$E7,$E9,$EA,$EC,$EE,$EF,$F0,$F2,$F3
+db $F4,$F5,$F7,$F8,$F9,$F9,$FA,$FB,$FC,$FC
+db $FD,$FD,$FD,$FE,$FE,$FE
+
+;sin(8*pi*t/T) + (cos(t)/(T/100))
+Stage9Wave:
+db $B1,$A6,$83,$73,$8F,$C9,$F5,$F5,$D2,$B4
+db $BF,$EF,$FF,$FF,$FF,$D8,$CE,$F0,$FF,$FF
+db $FF,$D4,$B7,$C7,$EE,$FF,$E6,$AC,$80,$7F
+db $9F,$B9,$A8,$72,$3C,$2D,$48,$69,$68,$3C
+db $04,$00,$02,$2B,$3B,$20,$00,$00,$00,$10
+db $32,$2A,$02,$00,$00,$1E,$50,$5B,$3E,$1D
+db $1F,$4D,$88,$A3,$92,$70,$66,$8A,$C5,$EC
+db $E5,$C0,$A9,$BD,$F1,$FF,$FF,$F7,$D1,$D1
+db $F9,$FF,$FF,$FF,$D3,$BE,$D6,$FD,$FF,$E9
+db $AF,$8A,$91,$B4,$C8,$B0,$76,$45,$3E,$5C
+db $79,$6F,$3D,$08,$00,$11,$37,$40,$1C,$00
+db $00,$00,$17,$32,$21,$00,$00,$00,$1F,$4B
+db $4E,$2C,$0D,$17,$4A,$81,$95,$7E,$5D,$5B
+db $86,$C1,$E1,$D3,$AF,$9E,$BA,$F2,$FF,$FF
+db $EB,$CA,$D3,$FF,$FF,$FF,$FF,$D1,$C6,$E4
+db $FF,$FF,$EB,$B2,$94,$A3,$C7,$D5,$B6,$7A
+db $4F,$4F,$70,$89,$76,$40,$0D,$03,$21,$44
+db $44,$1A,$00,$00,$00,$1E,$31,$18,$00,$00
+db $00,$20,$46,$40,$1B,$00,$11,$47,$7A,$86
+db $6A,$4B,$51,$81,$BB,$D4,$C1,$9D,$94,$B8
+db $F1,$FF,$FF,$DD,$C4,$D6,$FF,$FF,$FF,$F9
+db $D0,$CD,$F1,$FF,$FF,$EB,$B5,$9F,$B5,$D9
+db $E1,$BB,$7F,$5A,$62,$85,$97,$7D,$43,$14
+db $11,$33,$51,$48,$18,$00,$00,$00,$26,$31
+db $10,$00,$00,$00,$23,$41,$32,$0A,$00,$0C
+db $44,$72,$75,$55,$3A,$48

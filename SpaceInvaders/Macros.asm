@@ -168,7 +168,7 @@ PowerupState =      $0470   ;Powerup bitfield for player
 
 !StartMaxBGCount =  $08     ;Maximum amount of waves to clear before next stage [note, value of 1 will cause palette flickering]
 !BGCountInitVal =   $00
-!MaxBG =            $08
+!MaxBG =            $09
 BGIndex  =          $04F0   ;Game background index
 BGCount  =          $04F1   ;Incrementer for BG index
 BGChange  =         $04F2   ;How many waves to pass before BG changes
@@ -446,13 +446,19 @@ SRam =              $306000 ;Save data storage
 !ShieldStartHP =    $08
 !PlayerDieReset =   $32
 
-!WaveInit =         $00
-!StageInit =        $00
+!WaveInit =         $10
+!StageInit =        $08
 
 !BG8MoonAttr =      $00
 !BG8MoonTile =      $C4
 !BG8MoonX =         $78
 !BG8MoonY =         $10
+
+!EyeTile1 =         $C0
+!EyeTile2 =         $E0
+!EyeTile3 =         $E1
+
+!EyeAttr =          $10
 
 !CliffRockAttr =    $00
 !CliffRockCount =   $07
