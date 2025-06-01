@@ -65,8 +65,8 @@ endstruct
 !GfxBank5 =     $058000 ;Holds GFX data
 !GfxBank6 =     $068000 ;Holds GFX data
 !PalBank =      $078000 ;Holds palette info
-!TilemapBank2 = $088000 ;Holds tilemap
-!TilemapBank =  $098000 ;Holds tilemap
+!TilemapBank =  $088000 ;Holds tilemap
+!TilemapBank2 = $098000 ;Holds tilemap
 !TilemapBank3 = $0A8000 ;Holds tilemap
 !CodeBank2 =    $0B8000 ;Hold long functions
 !MusicBank =    $0C8000 ;Holds music data
@@ -99,8 +99,8 @@ endstruct               ;Aligned in 8 byte entries
 ;   NonZero = Execute said transfer
 
 RNGSeed =           $02FE       ;word section of memory
-struct Player $0400
-.X      skip 1
+struct Player $0300
+.X      skip 2
 .Frame  skip 1          ;Current player frame
 .State  skip 1          ;Player animation states
 .Dead   skip 1     
@@ -109,7 +109,7 @@ struct Player $0400
 endstruct
 !PlayerFTimeReset =     $14
 
-struct Bullet $0406
+struct Bullet $0310
 .X          skip 2
 .Y          skip 1
 .Frame      skip 1  ;Current animation frame
@@ -446,8 +446,27 @@ SRam =              $306000 ;Save data storage
 !ShieldStartHP =    $08
 !PlayerDieReset =   $32
 
-!WaveInit =         $10
-!StageInit =        $08
+!WaveInit =         $00
+!StageInit =        $00
+
+!BG1StarCountW =    $0000F
+!BG1StarAttr =      $10
+!BG1Star1 =         $C0
+!BG1Star2 =         $C1
+!BG1Star3 =         $D0
+!BG1Star4 =         $D1
+
+!BG1Rift =          $C2
+!BG1RiftAttr =      $00
+!RiftX =            $70
+!RiftY =            $30
+
+!BG1BoatY =         $90
+!BG1BoatTile =      $C6
+!BG1BoatAttr =      $12
+
+!BiPlaneY =         $59
+!BiPlaneTile =      $C4
 
 !BG8MoonAttr =      $00
 !BG8MoonTile =      $C4
@@ -471,7 +490,7 @@ SRam =              $306000 ;Save data storage
 !CRock5 =           $D8
 !CRock6 =           $D9
 
-;32 particles at once
+;32 particles at once, secondary object RAM
 SParticleX =        $0200   ;32 word X positions
 SParticleY =        $0240   ;32 byte Y positions
 SParticleVelX =     $0260   ;32 byte X velocities
@@ -607,6 +626,7 @@ EnemyFloor =        $04E9   ;Floor boundaries
 !LivesUI =          $60
 !WaveUI =           $61
 !ScoreUI =          $62
+!BaseUIY =          $08
 
 !Mod0 =             $0001       ;2x enemy health
 !Mod1 =             $0002       ;1/2 time to make enemies move

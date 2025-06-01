@@ -21,6 +21,7 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG-9-L2.png -t bin\gfx\BG-9-L2.bin -p bin\gfx\pal\BG-9-L2-Pal.bin -m bin\gfx\tilemap\BG-9-L2.bin --tile-base-offset 128 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 2 -i res\img\Bgs\BG-9-L3.png -t bin\gfx\BG-9-L3.bin -p bin\gfx\pal\BG-9-L3-Pal.bin -m bin\gfx\tilemap\BG-9-L3.bin --tile-base-offset 0
 
+"C:\Users\david\Documents\ASM-games\snes stuff\SnesGraphics\SpaceInvaders\SNESBGPrio.exe" bin\gfx\tilemap\BG-1-L3.bin bin\gfx\tilemap\BG-1-L3-Prio.bin
 "C:\Users\david\Documents\ASM-games\snes stuff\SnesGraphics\SpaceInvaders\SNESBGPrio.exe" bin\gfx\tilemap\BG-6-L3.bin bin\gfx\tilemap\BG-6-L3-Prio.bin
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG1-Grad.png -p bin\gfx\pal\BG1-Grad.bin --no-remap
@@ -31,6 +32,9 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG6Grad.png -p bin\gfx\pal\BG6-Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG7Grad.png -p bin\gfx\pal\BG7-Grad.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG8Grad.png -p bin\gfx\pal\BG8-Grad.bin --no-remap
+
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 8 -i res\img\Misc\BG1RiftGrad.png -p bin\gfx\pal\BG1RiftGrad.bin --no-remap
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\BG9-Grad-2.png -p bin\gfx\pal\BG9-Grad-2.bin --no-remap
 
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\Title-BG-L1.png -t bin\gfx\Title-BG-L1.bin -p bin\gfx\pal\Title-BG-L1-Pal.bin -m bin\gfx\tilemap\Title-BG-L1.bin --tile-base-offset 48 --palette-base-offset 1
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\Bgs\Title-BG-L2.png -t bin\gfx\Title-BG-L2.bin -p bin\gfx\pal\Title-BG-L2-Pal.bin -m bin\gfx\tilemap\Title-BG-L2.bin --tile-base-offset 193 --palette-base-offset 0
@@ -45,6 +49,8 @@ C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -B 4 -i res\img\B
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\HSTwinkle.png -t bin\gfx\Twinkle.bin -p bin\gfx\pal\Twinkle-Pal.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\SpiralGalaxy.png -t bin\gfx\SpiralGalaxy.bin -p bin\gfx\pal\SpiralGalaxy-Pal.bin
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\SpiralGalaxyCore.png -t bin\gfx\SpiralGalaxyCore.bin -p bin\gfx\pal\SpiralGalaxyCore-Pal.bin --no-remap
+
+C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\BG1Spr.png -t bin\gfx\BG1Spr.bin -p bin\gfx\pal\BG1Spr-Pal.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\BG8Sprite.png -t bin\gfx\BG8Sprite.bin -p bin\gfx\pal\BG8Sprite-Pal.bin --no-remap
 C:\Users\david\Documents\Tools\SuperFamiconv\superfamiconv.exe -S -i res\img\Misc\BG9Sprite.png -t bin\gfx\BG9Sprite.bin -p bin\gfx\pal\BG9Sprite-Pal.bin --no-remap
 

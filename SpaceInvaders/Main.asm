@@ -149,6 +149,10 @@ BG7Gfx_L3:
     incbin "bin/gfx/BG-7-L3.bin"
 BG7Gfx_L3End:
 
+BG1Spr:
+    incbin "bin/gfx/BG1Spr.bin"
+BG1SprEnd:
+
 BG8Gfx:
     incbin "bin/gfx/BG-8-L2.bin"
 BG8GfxEnd:
@@ -157,11 +161,11 @@ BG8Spr:
     incbin "bin/gfx/BG8Sprite.bin"
 BG8SprEnd:
 
+org !GfxBank5
+
 CloudGfx:
     incbin "bin/gfx/Clouds.bin"
 CloudGfxEnd:
-
-org !GfxBank5
 
 BG9Gfx:
     incbin "bin/gfx/BG-9-L2.bin"
@@ -207,6 +211,8 @@ IntroPanel7:
 	incbin "bin/gfx/IntroPanel7.bin"
 IntroPanel7End:
 
+org !GfxBank6
+
 IntroPanel8:
 	incbin "bin/gfx/IntroPanel8.bin"
 IntroPanel8End:
@@ -214,8 +220,6 @@ IntroPanel8End:
 IntroPanel9:
 	incbin "bin/gfx/IntroPanel9.bin"
 IntroPanel9End:
-
-org !GfxBank6
 
 IntroPanel10:
 	incbin "bin/gfx/IntroPanel10.bin"
@@ -244,7 +248,7 @@ BG1_L2_TM:
 BG1_L2_TM_End:
 
 BG1_L3_TM:
-    incbin "bin/gfx/tilemap/BG-1-L3.bin"
+    incbin "bin/gfx/tilemap/BG-1-L3-Prio.bin"
 BG1_L3_TM_End:
 
 BG2_L2_TM:
@@ -431,6 +435,10 @@ BG1_L3_Pal:
     incbin "bin/gfx/pal/BG-1-L3-Pal.bin"
 BG1_L3_Pal_End:
 
+BG1RiftGrad:
+    incbin "bin/gfx/pal/BG1RiftGrad.bin"
+BG1RiftGradEnd:
+
 ;   Background 2    ;
 BG2_L3_Pal:
     incbin "bin/gfx/pal/BG-2-L3-Pal.bin"
@@ -489,6 +497,11 @@ BG7_L3_Pal_End:
 BG8_L2_Pal:
     incbin "bin/gfx/pal/BG-8-L2-Pal.bin"
 BG8_L2_Pal_End:
+
+BG1SprPal:
+    incbin "bin/gfx/pal/BG1Spr-Pal.bin"
+BG1SprPalEnd:
+
 BG8SprPal:
     incbin "bin/gfx/pal/BG8Sprite-Pal.bin"
 BG8SprPalEnd:
@@ -560,6 +573,9 @@ BG7Grad:
 BG8Grad:
     incbin "bin/gfx/pal/BG8-Grad.bin"
 
+BG9Grad2:
+    incbin "bin/gfx/pal/BG9-Grad-2.bin"
+
 ;   Arrow Sprite Palette
 ArrowSpr_Pal:
     incbin "bin/gfx/pal/Arrow.bin"
@@ -626,7 +642,7 @@ Reset:
 
 .ResetOffset
     phk                         ;Push to stack
-    plb                         ;Pull B    
+    plb                         ;Pull B
     ;Clear all memory
     stz.w HW_WMADDL
     stz.w HW_WMADDM
@@ -2119,7 +2135,8 @@ GameScene:
     phy
     lda.w EnemyType, Y      ;Save enemy type for scoring
     tay
-    lda.w EnemyScoreTable, Y
+    tax
+    lda.l EnemyScoreTable, X
     sta.b ZP.R0
     stz.b ZP.R1
     jsr AddScore
@@ -2493,6 +2510,7 @@ GameLoop_DrawScore:
     stz.b ZP.AddSprBigFlag
     ldx.w #$0006
     stx.b ZP.AddSprX
+    lda.b #!BaseUIY
     sta.b ZP.AddSprY
     lda.b #!UIAttr
     sta.b ZP.AddSprAttr
@@ -2531,7 +2549,7 @@ GameLoop_DrawScore:
 
     lda.b #$06
     sta.b ZP.AddSprX
-    lda.b #$0C
+    lda.b #!BaseUIY+$0A
     sta.b ZP.AddSprY
     lda.b #!UIAttr
     sta.b ZP.AddSprAttr
@@ -2565,7 +2583,7 @@ GameLoop_DrawScore:
 
     lda.b #$06
     sta.b ZP.AddSprX
-    lda.b #$18
+    lda.b #!BaseUIY+$14
     sta.b ZP.AddSprY
     lda.b #!UIAttr
     sta.b ZP.AddSprAttr
@@ -3078,59 +3096,6 @@ Gameloop_DrawShields:
     pla
     rts
 
-    ;---------------------------------;
-    ;   Updating enemy array table    ;
-    ;---------------------------------;
-    ;
-    ;   Usage:
-    ;       Call function and the table will automatically be updated [SET A INTO 8 BIT MODE BEFOREHAND]
-    ;
-    ;   Clobber list
-    ;       ZP.MemPointer
-    ;
-    ;
-GameLoop_UpdateEnemyArray:
-    pha
-    phy
-    tdc
-    ldx.w #$0000
-    lda.b ZP.EnemyWaveCount
-    asl
-    tax
-    rep #$20
-    lda.w EnemyWaveLookup, X
-    tax
-    tdc
-    sep #$20
-    ldy.w #$0000
-    -
-    lda.b $00, X
-    sta.w EnemyType, Y
-    phx
-    tax
-    rep #$20
-    lda.b ZP.Modifiers
-    bit.w #!Mod0
-    sep #$20
-    beq +
-    tdc
-    lda.w EnemyHealthTable, X
-    asl
-    bra .SetEHealth
-    +
-    lda.w EnemyHealthTable, X
-    .SetEHealth:
-    sta.w EnemyHealth, Y
-    tdc
-    plx
-    inx
-    iny
-    cpy.w #!EnemyStructWr
-    bne -
-    pla
-    ply
-    rts
-
     ;---------------------------;
     ;   Find max row boundaries ;
     ;---------------------------;
@@ -3515,29 +3480,29 @@ EBulletT3:
     sta.w EnemyBulletSine, Y
     tax
     lda.w EnemyBulletCenter, Y
-    adc.w EnemyBullet3Wave, X
+    adc.l EnemyBullet3Wave, X
     sta.w EnemyBulletXPos, Y
     rts
 
 EBulletT4:
-    sep #$10    
+    sep #$10
     lda.w EnemyBulletCentY, Y
     clc
     adc.b #!EnemyBulletSpeed/2
     sta.w EnemyBulletCentY, Y
-
+    
     lda.w EnemyBulletSine, Y
     adc.b #$01
     sta.w EnemyBulletSine, Y
     tax
     lda.w EnemyBulletCentY, Y
-    sbc.w EnemyBullet4Wave, X
+    sbc.l EnemyBullet4Wave, X
     sta.w EnemyBulletYPos, Y
     txa
     adc.b #$20
     tax
     lda.w EnemyBulletCenter, Y
-    adc.w EnemyBullet4Wave, X
+    adc.l EnemyBullet4Wave, X
     sta.w EnemyBulletXPos, Y
     rep #$10
     
@@ -3873,6 +3838,7 @@ HandleStageText:
     plx
     pla
     rts
+    
     ;
 GameLoop_KillPlayer:
     pha
@@ -3887,6 +3853,9 @@ GameLoop_KillPlayer:
     sta.w EnemyResetMove
     sta.w Player.Dead
     stz.w EnemyResetFlag
+    stz.w PowerupState
+    stz.w PowerupTimer
+    stz.w PowerupTimer+1
     ldy.w #$0004
     .WriteExplData:
     ;Fine
@@ -5845,6 +5814,13 @@ HighscoreScene:
     dey
     bpl -
 
+    ;Set data bank for GalRingSinePtr
+    phb
+    sep #$20
+    lda.b #(!CodeBank2>>16)&$FF
+    pha
+    plb
+
     rep #$30
     ldx.w #SpiralTimer+!SpiralBCount
     stx.b ZP.MemPointer
@@ -5863,20 +5839,6 @@ HighscoreScene:
     asl
     tay
     lda.b (ZP.MemPointer2), Y
-    ;sta.w HW_M7A
-    ;stz.w HW_M7A
-    ;tdc
-    ;txa
-    ;lsr
-    ;tay
-    ;lda.w SpiralScale, Y
-    ;sta.w HW_M7B
-    ;rep #$20
-    ;lda.w HW_MPYL
-    ;lsr
-    ;lsr
-    ;lsr
-    ;lsr
     clc
     adc.w #!CX
     sta.w SpiralGalX, X
@@ -5943,6 +5905,8 @@ HighscoreScene:
     bpl -
     sep #$30
 
+    ;Pull bank from CodeBank2
+    plb
     ldy.b #!SpiralBCount
     ldx.b #!SpiralWCount
     lda.b #!SpiralBCount/2
@@ -6119,16 +6083,7 @@ HighscoreScene:
     stz.b ZP.SceneGoto
     jsr TransitionOut
     +
-
-    ;sep #$20
-    ;lda.b ZP.ExitScene
-    ;beq +
-    ;stz.b ZP.ExitScene
-    ;lda.w ZP.SceneGoto
-    ;sta.w ZP.SceneIndex
-    ;lda.b #$01
-    ;sta.b ZP.ChangeScene
-    ;+
+    
     rep #$20
     rts
 
@@ -6746,7 +6701,7 @@ GameLoop_HandlePowerups:
     pha
     phx
     phy
-    php    
+    php
     ;Powerup timers
     rep #$20
     lda.w PowerDamageTimer
@@ -6806,13 +6761,17 @@ GameLoop_HandlePowerups:
     adc.b #$08
     cmp.b #!PlayerY
     bcc .SkipCollect
+    rep #$20
     lda.w PowX
     sec
-    sbc.b #$10
+    sbc.w #$0010
+    bcs .SkipSEx
+    lda.w #$0000
+    .SkipSEx:
     cmp.w Player.X
     bcs .SkipCollect
     lda.w PowX
-    adc.b #$10
+    adc.w #$0011
     cmp.w Player.X
     bcc .SkipCollect
 
@@ -7600,6 +7559,21 @@ BG_City:
     lda.b #$00
     sta.b (ZP.VrDmaListPtr), Y
 
+    rep #$20
+    lda.w #(BG1Spr)&$FFFF
+    sta.b ZP.DMAQSrc
+    sep #$20
+    lda.b #(BG1Spr>>16)&$FF
+    sta.b ZP.DMAQSrc+2
+    lda.b #$01
+    sta.b ZP.DMAQFlags
+    rep #$20
+    lda.w #!SprVram+$C00
+    sta.b ZP.DMAQDest
+    lda.w #BG1SprEnd-BG1Spr
+    sta.b ZP.DMAQLength
+    jsl QueueDMA
+
     ;Transfer palette data
     ldx.w #BG1_L2_Pal_End-BG1_L2_Pal
     -
@@ -7614,6 +7588,30 @@ BG_City:
     dex
     bne -
     
+    ldx.w #BG1SprPalEnd-BG1SprPal
+    -
+    lda.l BG1SprPal, X
+    sta.w PalMirror+$0100, X
+    dex
+    bne -
+
+    
+    ldx.w #!BG1StarCountW
+    ldy.w #!BG1StarCountW*2
+    -
+    rep #$20
+    jsr Rand
+    sta.w OBJXPos, Y
+    
+    sep #$20
+    jsr Rand
+    and.b #$1F
+    sta.w OBJYPos, X
+    dey
+    dey
+    dex
+    bpl -
+
     sep #$20
     ldx.w #((BG1Grad)&$FFFF)+$02
     stx.b ZP.MemPointer
@@ -8788,7 +8786,7 @@ BG_Alien:
     ldx.w #BG9_L2_Pal_End-BG9_L2_Pal
     -
     lda.l BG9_L2_Pal, X
-    sta.w PalMirror+$29, X
+    sta.w PalMirror+$20, X
     dex
     bne -
 
@@ -8895,7 +8893,6 @@ UPD_BG_City:
     adc.b #$05
     and.b #$FF
     sta.w BGScrollVal+1
-
 
     ;Stars
     lda.w BGScrollOff+8
@@ -9009,7 +9006,7 @@ UPD_BG_City:
     stx.w HDMAMirror2+2
     lda.b #(HDMAScrollBuffer2>>16)&$FF
     sta.w HDMAMirror2+4
-    
+
     rts
 
 UPD_BG_Mountains:
@@ -10121,14 +10118,13 @@ UPD_BG_Cliff:
    	rts
 
 UPD_BG_Alien:
-
     sep #$20
     lda.w OBJTimers
     inc
     bit.b #$10
     beq +
-    ldy.w #$0102
-    lda.b #$05
+    ldy.w #$0104
+    lda.b #$04
     sta.b ZP.R4
     jsr PalCycle
     +
@@ -10162,9 +10158,72 @@ UPD_BG_Alien:
     inx
     dey
     bpl -
+    lda.b #$F0
+    sta.w HW_WMDATA
+
+    inc.w BGScrollOff
+    lda.w BGScrollOff
+    bit.b #$20
+    beq +
+    stz.w BGScrollOff
+    inc.w BGScrollVal
+    +
+
+    ldy.b #$7F
+    -
+    inx
+    lda.w UnSineTable, X
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    adc.w BGScrollVal
+    sta.w HW_WMDATA
+    stz.w HW_WMDATA
+    inx
+    dey
+    bpl -
+
+    stz.w HW_WMDATA
+    stz.w HW_WMDATA
     rep #$10
-    stz.w HW_WMDATA
-    stz.w HW_WMDATA
+
+
+    ;Background fade in/out effect
+    sep #$20
+    inc.w OBJTimers+1
+    lda.w OBJTimers+1
+    bit.b #$10
+    beq +
+    ldx.w #$0000
+    stz.w OBJTimers+1
+    inc.w OBJFrame+1
+    lda.w OBJFrame+1
+    and.b #$0F
+    sta.w OBJFrame+1
+    
+    lda.w OBJFrame+1
+    bit.b #$08
+    beq .ApplyChange
+    lda.b #$0F
+    sec
+    sbc.w OBJFrame+1
+    .ApplyChange:
+    asl
+    asl
+    asl
+    adc.b #$07
+    tax
+    ldy.w #$0007
+    .ColTransferLoop:
+    lda.l BG9Grad2, X
+    sta.w PalMirror, Y
+    dex
+    dey
+    bpl .ColTransferLoop
+    +
+
 
     lda.b #$02
     sta.w HDMAMirror1
@@ -10205,6 +10264,158 @@ BGOBJList:
     dw OBJ_Alien        ;BG-9
 
 OBJ_City:
+    ;Star sprites
+    sep #$20
+    ldx.w #!BG1StarCountW
+    ldy.w #!BG1StarCountW*2
+    stz.b ZP.AddSprBigFlag
+    -
+    sep #$20
+    inc.w OBJTimers, X
+    lda.w OBJTimers, X
+    cmp.l Stage1StarTimer, X
+    bne .SkipStarMove
+    stz.w OBJTimers, X
+    rep #$20
+    lda.w OBJXPos, Y
+    dec
+    sta.w OBJXPos, Y
+    .SkipStarMove:
+    rep #$20    
+    lda.w OBJXPos, Y
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.w OBJYPos, X
+    sta.b ZP.AddSprY
+    lda.l Stage1StarTiles, X
+    sta.b ZP.AddSprTile
+    lda.b #!BG1StarAttr
+    sta.b ZP.AddSprAttr
+    jsr AddSprite
+    dey
+    dey
+    dex
+    bpl -
+
+    ;Biplane
+    inc.w SParticleTimer
+
+    lda.w SParticleTimer
+    bit.b #$02
+    beq +
+    lda.w SParticleState
+    and.b #$01
+    eor.b #$01
+    sta.w SParticleState
+    sep #$20
+    +
+
+    lda.w SParticleTimer
+    bit.b #$04
+    beq +
+    sep #$20
+    stz.w SParticleTimer
+    rep #$20
+    dec.w SParticleX
+    lda.w SParticleX
+    and.w #$01FF
+    cmp.w #$01F0
+    bne +
+    lda.w #$0100
+    sta.w SParticleX
+    +
+
+    sep #$20
+    inc.w SParticleTimer+1
+    lda.w SParticleTimer+1
+    bit.b #$10
+    beq +
+    sep #$20
+    stz.w SParticleTimer+1
+    rep #$20
+    dec.w SParticleX+2
+    lda.w SParticleX+2
+    and.w #$01FF
+    cmp.w #$01C0
+    bne +
+    lda.w #$0100
+    sta.w SParticleX+2
+    +
+
+    ;Biplane
+    rep #$20
+    lda.w SParticleX
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.b #!BiPlaneY
+    sta.b ZP.AddSprY
+    lda.b #!BiPlaneTile
+    clc
+    adc.w SParticleState
+    sta.b ZP.AddSprTile
+    lda.b #!BG1RiftAttr
+    sta.b ZP.AddSprAttr
+    stz.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    ;Rift, L
+    sep #$20
+    lda.b #!RiftX
+    sta.b ZP.AddSprX
+    lda.b #!RiftY
+    sta.b ZP.AddSprY
+    lda.b #!BG1Rift
+    sta.b ZP.AddSprTile
+    lda.b #!BG1RiftAttr
+    sta.b ZP.AddSprAttr
+    lda.b #$01
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    
+    ;Rift, R
+    lda.b #!RiftX+$10
+    sta.b ZP.AddSprX
+    lda.b #!RiftY
+    sta.b ZP.AddSprY
+    lda.b #!BG1Rift
+    sta.b ZP.AddSprTile
+    lda.b #!BG1RiftAttr|$40
+    sta.b ZP.AddSprAttr
+    lda.b #$01
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+
+    ;Boat
+    rep #$20
+    lda.w SParticleX+2
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.b #!BG1BoatY
+    sta.b ZP.AddSprY
+    lda.b #!BG1BoatTile
+    sta.b ZP.AddSprTile
+    lda.b #!BG1BoatAttr
+    sta.b ZP.AddSprAttr
+    lda.b #$01
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    
+    rep #$20
+    lda.w SParticleX+2
+    clc
+    adc.w #$0010
+    sta.b ZP.AddSprX
+    sep #$20
+    lda.b #!BG1BoatY
+    sta.b ZP.AddSprY
+    lda.b #!BG1BoatTile+$02
+    sta.b ZP.AddSprTile
+    lda.b #!BG1BoatAttr
+    sta.b ZP.AddSprAttr
+    lda.b #$01
+    sta.b ZP.AddSprBigFlag
+    jsr AddSprite
+    rep #$20
     rts
 
 OBJ_Mountains:
@@ -10491,7 +10702,6 @@ OBJ_Cliff:
     rts
 
 OBJ_Alien:
-
     lda.w Player.X
     lsr
     lsr
@@ -10668,7 +10878,67 @@ GameLoop_EnemyTransition:
     pla
     rts
 
-
+    ;---------------------------------;
+    ;   Updating enemy array table    ;
+    ;---------------------------------;
+    ;
+    ;   Usage:
+    ;       Call function and the table will automatically be updated [SET A INTO 8 BIT MODE BEFOREHAND]
+    ;
+    ;   Clobber list
+    ;       ZP.MemPointer
+    ;
+    ;
+GameLoop_UpdateEnemyArray:
+    pha
+    phy
+    phb
+    php
+    tdc
+    sep #$20
+    ;Set data bank to bank holding the enemy wave entries
+    lda.b #(!CodeBank2>>16)&$FF
+    pha
+    plb
+    stz.b ZP.MemPointer
+    stz.b ZP.MemPointer+1
+    ldx.w #$0000
+    lda.b ZP.EnemyWaveCount
+    asl
+    tax
+    rep #$20
+    lda.w EnemyWaveLookup, X
+    tax
+    tdc
+    sep #$20
+    ldy.w #$0000
+    -
+    lda.w $0000, X          ;Must be word sized to use DB register's proper bank
+    sta.w EnemyType, Y
+    phx
+    tax
+    rep #$20
+    lda.b ZP.Modifiers
+    bit.w #!Mod0
+    sep #$20
+    beq .DoNormalHealth
+    lda.w EnemyHealthTable, X
+    asl
+    bra .SetEHealth
+    .DoNormalHealth:
+    lda.w EnemyHealthTable, X
+    .SetEHealth:
+    sta.w EnemyHealth, Y
+    plx
+    inx
+    iny
+    cpy.w #!EnemyStructWr
+    bne -
+    plp
+    plb
+    ply
+    pla
+    rts
 
     ;   ZP.MemPointer   | Text addr
     ;
@@ -10706,34 +10976,6 @@ DrawSpriteText:
     sta.b ZP.AddSprAttr
     stz.b ZP.AddSprBigFlag
     jsr AddSprite
-
-    ;lda.w SPRTextPosX, Y
-    ;sta.b (ZP.OAMPtr)
-    ;rep #$20
-    ;inc.b ZP.OAMPtr
-    ;sep #$20
-    ;;Y
-    ;lda.w SPRTextPosY, Y
-    ;sta.b (ZP.OAMPtr)
-    ;rep #$20
-    ;inc.b ZP.OAMPtr
-    ;sep #$20
-    ;;Tile
-    ;lda.b (ZP.MemPointer)       ;Grab character
-    ;sta.b (ZP.OAMPtr)
-    ;rep #$20
-    ;inc.b ZP.OAMPtr
-    ;sep #$20
-    ;;Attr
-    ;lda.b #!SprFont1Attr
-    ;sta.b (ZP.OAMPtr)
-    ;rep #$20
-    ;inc.b ZP.OAMPtr
-    ;sep #$20
-    ;;Move onto next character
-    ;rep #$20
-    ;inc.b ZP.MemPointer
-    ;sep #$20
     .IncLoop:
     iny
     cpy.b ZP.R1
@@ -10748,14 +10990,14 @@ DrawTransition:
     pha
     phx
     phy
-    php 
+    php
     sep #$20
     ;Check if we're actually transitioning
     lda.w TransitionState
     bne ++
     jmp .FinishSubroutine
     ++
-    cmp.b #$01
+    cmp.b #$01  ;Check if transitioning IN
     bne +
     lda.w TransitionIndex
     sec
@@ -10764,7 +11006,7 @@ DrawTransition:
     bra .SetupWindow
     +
     lda.w TransitionState
-    cmp.b #$02
+    cmp.b #$02  ;Check if transitioning OUT
     bne +
     lda.w TransitionIndex
     clc
@@ -10799,20 +11041,21 @@ DrawTransition:
     sbc.w Sigmoid, Y
     sta.w WH3Mirror
     lda.w TransitionIndex
-    cmp #!TransSpeed-1
-    bne +
+    cmp.b #!TransSpeed-1
+    bne .SkipTransIn
     stz.w TransitionFlag
     stz.w TransitionState
     bra .SkipTrans
-    +
-    cmp #(255-!TransSpeed)+2
-    bne +
+    .SkipTransIn:
+
+    cmp.b #(255-!TransSpeed)+2
+    bne .SkipTransOut
     stz.w TransitionFlag
     stz.w TransitionState
     lda.b #$01
     sta.b ZP.ExitScene
     bra .SkipTrans
-    +
+    .SkipTransOut:
     bra .FinishSubroutine
     .SkipTrans:
     .FinishSubroutine:
@@ -10825,6 +11068,7 @@ DrawTransition:
 TransitionIn:
     pha
     php
+    sep #$20
     lda.b #$01
     sta.w TransitionFlag
     sta.w TransitionState
@@ -10837,6 +11081,7 @@ TransitionIn:
 TransitionOut:
     pha
     php
+    sep #$20
     lda.b #$01
     sta.w TransitionFlag
     lda.b #$02
@@ -11583,32 +11828,6 @@ EnemyDrawBot:
     db $73
     db (!EnemyPal4)+$40
 
-EnemyHealthTable:
-    db $00              ;Empty
-    db $01              ;Basic Squelcher
-    db $02              ;Metal Rocketeer
-    db $01              ;Boxy Greenback
-    db $01              ;Mind Cake
-    db $02              ;Sophisticated mimic
-    db $03              ;Purple Mook
-    db $02              ;MultiArm
-    db $04              ;Tough Guy
-    db $03              ;Mitosis Master
-    db $03              ;Cluster Head
-    
-EnemyScoreTable:
-    db $00              ;Empty
-    db $01              ;Basic Squelcher
-    db $02              ;Metal Rocketeer
-    db $02              ;Boxy Greenback
-    db $04              ;Mind Cake
-    db $03              ;Sophisticated mimic
-    db $03              ;Purple Mook
-    db $04              ;MultiArm
-    db $08              ;Tough Guy
-    db $06              ;Mitosis Master
-    db $05              ;Cluster Head
-
 ShieldBonus:
     db $05
     db $10
@@ -11619,389 +11838,6 @@ ShieldBonus:
     db $40
     db $45
     db $50
-
-;List of enemy waves
-EnemyWaveLookup:
-    dw EnemyWave00
-    dw EnemyWave01
-    dw EnemyWave02
-    dw EnemyWave03
-    dw EnemyWave04
-    dw EnemyWave05
-    dw EnemyWave06
-    dw EnemyWave07
-    dw EnemyWave08
-    dw EnemyWave09
-    dw EnemyWave0A
-    dw EnemyWave0B
-    dw EnemyWave0C
-    dw EnemyWave0D
-    dw EnemyWave0E
-    dw EnemyWave0F
-    dw EnemyWave10
-    dw EnemyWave11
-    dw EnemyWave12
-    dw EnemyWave13
-    dw EnemyWave14
-    dw EnemyWave15
-    dw EnemyWave16
-    dw EnemyWave17
-    dw EnemyWave18
-    dw EnemyWave19
-    dw EnemyWave1A
-    dw EnemyWave1B
-    dw EnemyWave1C
-    dw EnemyWave1D
-    dw EnemyWave1E
-    dw EnemyWave1F
-    dw EnemyWave20
-    dw EnemyWave21
-    dw EnemyWave22
-    dw EnemyWave23
-    dw EnemyWave24
-    dw EnemyWave25
-    dw EnemyWave26
-    dw EnemyWave27
-    dw EnemyWave28
-    dw EnemyWave29
-    dw EnemyWave2A
-    dw EnemyWave2B
-    dw EnemyWave2C
-    dw EnemyWave2D
-    dw EnemyWave2E
-    dw EnemyWave2F
-    dw EnemyWave30
-    dw EnemyWave31
-    dw EnemyWave32
-    dw EnemyWave33
-    dw EnemyWave34
-    dw EnemyWave35
-
-;Enemy wave definitions
-EnemyWave00:
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave01:
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave02:
-    db $06,$06,$02,$02,$02,$02,$06,$06
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave03:
-    db $06,$02,$06,$02,$06,$02,$06,$02
-    db $01,$02,$01,$02,$01,$02,$01,$02
-    db $01,$02,$01,$02,$01,$02,$01,$02
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave04:
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $01,$00,$01,$00,$01,$00,$01,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave05:
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave06:
-    db $03,$03,$06,$06,$06,$06,$03,$03
-    db $03,$03,$06,$02,$02,$06,$03,$03
-    db $02,$02,$06,$02,$02,$06,$02,$02
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave07:
-    db $06,$02,$03,$06,$02,$03,$06,$02
-    db $03,$06,$02,$03,$06,$02,$03,$06
-    db $02,$03,$06,$02,$03,$06,$02,$03
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave08:
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $00,$06,$06,$00,$00,$06,$06,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave09:
-    db $03,$03,$03,$06,$06,$03,$03,$03
-    db $03,$03,$06,$02,$02,$06,$06,$03
-    db $06,$06,$02,$00,$00,$02,$06,$06
-    db $06,$02,$00,$00,$00,$00,$02,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave0A:
-    db $06,$03,$03,$03,$03,$03,$03,$06
-    db $06,$03,$02,$02,$02,$02,$03,$06
-    db $06,$03,$02,$01,$01,$02,$03,$06
-    db $06,$03,$02,$01,$01,$02,$03,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave0B:
-    db $03,$06,$03,$06,$03,$06,$03,$06
-    db $01,$02,$01,$02,$01,$02,$01,$02
-    db $02,$01,$02,$01,$02,$01,$02,$01
-    db $06,$03,$06,$03,$06,$03,$06,$03
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave0C:
-    db $05,$03,$03,$05,$05,$03,$03,$05
-    db $01,$02,$02,$01,$01,$02,$02,$01
-    db $01,$02,$02,$01,$01,$02,$02,$01
-    db $01,$02,$02,$01,$01,$02,$02,$01
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave0D:
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $02,$02,$03,$03,$03,$03,$02,$02
-    db $03,$03,$02,$02,$02,$02,$03,$03
-    db $02,$02,$03,$03,$03,$03,$02,$02
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave0E:
-    db $05,$05,$02,$03,$03,$02,$05,$05
-    db $05,$02,$02,$03,$03,$02,$02,$05
-    db $05,$02,$02,$03,$03,$02,$02,$05
-    db $05,$05,$02,$03,$03,$02,$05,$05
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave0F:
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $06,$06,$06,$06,$06,$06,$06,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave10:
-    db $03,$05,$03,$05,$05,$03,$05,$03
-    db $05,$06,$05,$05,$05,$05,$06,$05
-    db $03,$05,$03,$05,$05,$03,$05,$03
-    db $01,$01,$01,$05,$05,$01,$01,$01
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave11:
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave12:
-    db $03,$05,$02,$06,$06,$02,$05,$03
-    db $03,$05,$02,$06,$06,$02,$05,$03
-    db $03,$05,$02,$06,$06,$02,$05,$03
-    db $03,$05,$02,$06,$06,$02,$05,$03
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave13:
-    db $05,$06,$03,$05,$05,$03,$06,$05
-    db $03,$06,$03,$05,$05,$03,$06,$03
-    db $06,$03,$02,$06,$06,$02,$03,$06
-    db $06,$05,$02,$06,$06,$02,$05,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave14:
-    db $06,$05,$05,$06,$06,$05,$05,$06
-    db $05,$07,$07,$05,$05,$07,$07,$05
-    db $05,$07,$07,$05,$05,$07,$07,$05
-    db $06,$05,$05,$06,$06,$05,$05,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave15:
-    db $07,$07,$05,$05,$05,$05,$07,$07
-    db $05,$05,$07,$07,$07,$07,$05,$05
-    db $03,$03,$06,$06,$06,$06,$03,$03
-    db $06,$06,$02,$02,$02,$02,$06,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave16:
-    db $01,$05,$05,$07,$07,$05,$05,$01
-    db $01,$01,$05,$07,$07,$05,$01,$01
-    db $01,$05,$05,$07,$07,$05,$05,$01
-    db $01,$01,$05,$07,$07,$05,$01,$01
-    db $01,$05,$05,$07,$07,$05,$05,$01
-EnemyWave17:
-    db $05,$07,$06,$06,$06,$06,$05,$07
-    db $05,$07,$03,$03,$03,$03,$05,$07
-    db $07,$05,$03,$03,$03,$03,$07,$05
-    db $07,$05,$06,$06,$06,$06,$07,$05
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave18:
-    db $05,$05,$06,$06,$06,$06,$05,$05
-    db $07,$07,$05,$07,$07,$05,$07,$07
-    db $07,$07,$05,$07,$07,$05,$07,$07
-    db $02,$02,$05,$02,$02,$05,$02,$02
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave19:
-    db $07,$05,$07,$06,$06,$07,$05,$07
-    db $05,$07,$05,$06,$06,$05,$07,$05
-    db $07,$05,$07,$06,$06,$07,$05,$07
-    db $06,$06,$06,$07,$07,$06,$06,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave1A:
-    db $06,$05,$06,$07,$07,$06,$05,$06
-    db $05,$07,$05,$05,$05,$05,$07,$05
-    db $05,$07,$05,$07,$07,$05,$07,$05
-    db $06,$05,$06,$05,$05,$06,$05,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave1B:
-    db $07,$07,$07,$06,$06,$07,$07,$07
-    db $06,$05,$05,$07,$07,$05,$05,$06
-    db $06,$05,$05,$07,$07,$05,$05,$06
-    db $07,$07,$07,$06,$06,$07,$07,$07
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave1C:
-    db $06,$06,$06,$06,$05,$05,$05,$05
-    db $06,$04,$04,$06,$05,$04,$04,$05
-    db $02,$04,$04,$02,$03,$04,$04,$03
-    db $02,$02,$02,$02,$03,$03,$03,$03
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave1D:
-    db $06,$04,$07,$04,$04,$07,$04,$06
-    db $06,$04,$07,$04,$04,$07,$04,$06
-    db $02,$02,$03,$02,$02,$03,$02,$02
-    db $02,$02,$03,$02,$02,$03,$02,$02
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave1E:
-    db $04,$04,$04,$04,$04,$04,$04,$04
-    db $05,$05,$07,$07,$07,$07,$05,$05
-    db $07,$07,$05,$06,$06,$05,$07,$07
-    db $06,$06,$06,$05,$05,$06,$06,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave1F:
-    db $04,$05,$06,$07,$07,$06,$05,$04
-    db $07,$04,$05,$06,$06,$05,$04,$07
-    db $06,$07,$04,$05,$05,$04,$07,$06
-    db $05,$06,$07,$04,$04,$07,$06,$05
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave20:
-    db $06,$06,$06,$07,$07,$06,$06,$06
-    db $04,$04,$04,$05,$05,$04,$04,$04
-    db $02,$02,$02,$03,$03,$02,$02,$02
-    db $02,$02,$02,$03,$03,$02,$02,$02
-    db $06,$06,$06,$07,$07,$06,$06,$06
-EnemyWave21:
-    db $06,$04,$04,$04,$04,$04,$04,$06
-    db $06,$05,$05,$07,$07,$05,$05,$06
-    db $07,$05,$07,$01,$01,$07,$05,$07
-    db $07,$07,$01,$01,$01,$01,$07,$07
-    db $07,$01,$01,$01,$01,$01,$01,$07
-EnemyWave22:
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave23:
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave24:
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $06,$00,$00,$00,$00,$00,$00,$06
-    db $06,$00,$00,$00,$00,$00,$00,$06
-EnemyWave25:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave26:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave27:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave28:
-    db $05,$05,$02,$02,$02,$02,$05,$05
-    db $05,$05,$02,$02,$02,$02,$05,$05
-    db $05,$05,$02,$02,$02,$02,$05,$05
-    db $05,$05,$02,$02,$02,$02,$05,$05
-    db $05,$05,$02,$02,$02,$02,$05,$05
-EnemyWave29:
-    db $07,$07,$02,$02,$07,$07,$02,$02
-    db $07,$07,$02,$02,$07,$07,$02,$02
-    db $07,$07,$02,$02,$07,$07,$02,$02
-    db $07,$07,$02,$02,$07,$07,$02,$02
-    db $07,$07,$02,$02,$07,$07,$02,$02
-EnemyWave2A:
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $05,$03,$03,$03,$03,$03,$03,$05
-    db $05,$03,$03,$03,$03,$03,$03,$05
-    db $05,$03,$03,$03,$03,$03,$03,$05
-    db $05,$05,$05,$05,$05,$05,$05,$05
-EnemyWave2B:
-    db $02,$02,$02,$08,$08,$02,$02,$02
-    db $02,$02,$02,$08,$08,$02,$02,$02
-    db $08,$08,$08,$08,$08,$08,$08,$08
-    db $02,$02,$02,$08,$08,$02,$02,$02
-    db $02,$02,$02,$08,$08,$02,$02,$02
-EnemyWave2C:
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $02,$02,$02,$02,$02,$02,$02,$02
-    db $03,$03,$03,$03,$03,$03,$03,$03
-    db $03,$03,$03,$03,$03,$03,$03,$03
-EnemyWave2D:
-    db $03,$03,$02,$02,$02,$02,$04,$04
-    db $03,$03,$02,$02,$02,$02,$04,$04
-    db $03,$03,$02,$02,$02,$02,$04,$04
-    db $03,$03,$02,$02,$02,$02,$04,$04
-    db $03,$03,$02,$02,$02,$02,$04,$04
-EnemyWave2E:
-    db $07,$07,$07,$07,$07,$07,$07,$07
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $05,$05,$05,$05,$05,$05,$05,$05
-    db $08,$08,$08,$08,$08,$08,$08,$08
-    db $08,$08,$08,$08,$08,$08,$08,$08
-EnemyWave2F:
-    db $07,$01,$07,$01,$07,$01,$07,$01
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $07,$01,$07,$01,$07,$01,$07,$01
-    db $01,$01,$01,$01,$01,$01,$01,$01
-    db $07,$01,$07,$01,$07,$01,$07,$01
-EnemyWave30:
-    db $00,$00,$00,$00,$00,$00,$00,$00
-    db $00,$00,$00,$06,$06,$00,$00,$00
-    db $00,$00,$06,$04,$04,$06,$00,$00
-    db $00,$06,$04,$04,$04,$04,$06,$00
-    db $06,$06,$06,$06,$06,$06,$06,$06
-EnemyWave31:
-    db $08,$08,$08,$08,$08,$08,$08,$08
-    db $00,$08,$05,$05,$05,$05,$08,$00
-    db $00,$00,$08,$05,$05,$08,$00,$00
-    db $00,$00,$00,$08,$08,$00,$00,$00
-    db $00,$00,$00,$00,$00,$00,$00,$00
-EnemyWave32:
-    db $01,$03,$04,$03,$01,$03,$04,$03
-    db $01,$03,$04,$03,$01,$03,$04,$03
-    db $01,$03,$04,$03,$01,$03,$04,$03
-    db $01,$03,$04,$03,$01,$03,$04,$03
-    db $01,$03,$04,$03,$01,$03,$04,$03
-EnemyWave33:
-    db $02,$07,$08,$07,$02,$07,$08,$07
-    db $02,$07,$08,$07,$02,$07,$08,$07
-    db $02,$07,$08,$07,$02,$07,$08,$07
-    db $02,$07,$08,$07,$02,$07,$08,$07
-    db $02,$07,$08,$07,$02,$07,$08,$07
-EnemyWave34:
-    db $05,$06,$05,$06,$05,$06,$05,$06
-    db $06,$05,$06,$05,$06,$05,$06,$05
-    db $05,$06,$05,$06,$05,$06,$05,$06
-    db $06,$05,$06,$05,$06,$05,$06,$05
-    db $05,$06,$05,$06,$05,$06,$05,$06
-EnemyWave35:
-    db $01,$04,$01,$04,$01,$04,$01,$04
-    db $04,$01,$04,$01,$04,$01,$04,$01
-    db $01,$04,$01,$04,$01,$04,$01,$04
-    db $04,$01,$04,$01,$04,$01,$04,$01
-    db $01,$04,$01,$04,$01,$04,$01,$04
 
 ;List of positions that an enemy tile is in on the tilemap
 EnemyTilemapPos:
@@ -13065,6 +12901,36 @@ UFOFrameList1:
     db !UFOTile1+$04
     db !UFOTile1+$08
     db !UFOTile1+$04
+    
+;Sigmoid curve, 0-127, 1/(1+pow(e,-(t-(T/2))/(T/16)))
+;Keep sigmoid here to prevent index going OOB from the PC
+Sigmoid:
+db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+db $01,$01,$01,$01,$01,$01,$01,$01,$01,$01
+db $01,$01,$01,$01,$01,$01,$01,$01,$02,$02
+db $02,$02,$02,$02,$02,$02,$03,$03,$03,$03
+db $03,$04,$04,$04,$04,$04,$05,$05,$05,$06
+db $06,$06,$07,$07,$08,$08,$09,$09,$0A,$0A
+db $0B,$0B,$0C,$0D,$0E,$0E,$0F,$10,$11,$12
+db $13,$14,$15,$16,$17,$18,$1A,$1B,$1C,$1E
+db $1F,$21,$22,$24,$25,$27,$29,$2A,$2C,$2E
+db $30,$32,$34,$36,$38,$3A,$3C,$3E,$3F,$41
+db $43,$45,$47,$49,$4B,$4D,$4F,$51,$53,$55
+db $56,$58,$5A,$5B,$5D,$5E,$60,$61,$63,$64
+db $65,$67,$68,$69,$6A,$6B,$6C,$6D,$6E,$6F
+db $70,$71,$71,$72,$73,$74,$74,$75,$75,$76
+db $76,$77,$77,$78,$78,$79,$79,$79,$7A,$7A
+db $7A,$7B,$7B,$7B,$7B,$7B,$7C,$7C,$7C,$7C
+db $7C,$7D,$7D,$7D,$7D,$7D,$7D,$7D,$7D,$7E
+db $7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E
+db $7E,$7E,$7E,$7E,$7E,$7E,$7E,$7F,$7F,$7F
+db $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F
+db $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F
+db $80,$80,$80,$80,$80,$80,$80,$80,$80,$80
+db $80,$80,$80,$80,$80,$80
 
 SineTable:
 db $00,$03,$06,$09,$0C,$10,$13,$16,$19,$1C
@@ -13228,223 +13094,6 @@ db $FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FF
 db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 db $FF,$00,$00,$00,$00,$00
 
-GalRingSinePtr:
-    for t = 0..!SpiralArmCount
-        dw GalRingX0
-    endfor
-    for t = 0..!SpiralArmCount
-        dw GalRingX1
-    endfor
-    for t = 0..!SpiralArmCount
-        dw GalRingX2
-    endfor
-    for t = 0..!SpiralArmCount
-        dw GalRingX3
-    endfor
-    for t = 0..!SpiralArmCount
-        dw GalRingX4
-    endfor
-
-;Amp = 24
-GalRingX0:
-dw $0000,$0001,$0001,$0002,$0002,$0003,$0004
-dw $0004,$0005,$0005,$0006,$0006,$0007,$0008
-dw $0008,$0009,$0009,$000A,$000A,$000B,$000B
-dw $000C,$000C,$000D,$000D,$000E,$000E,$000F
-dw $000F,$0010,$0010,$0011,$0011,$0011,$0012
-dw $0012,$0013,$0013,$0013,$0014,$0014,$0014
-dw $0015,$0015,$0015,$0015,$0016,$0016,$0016
-dw $0016,$0017,$0017,$0017,$0017,$0017,$0017
-dw $0018,$0018,$0018,$0018,$0018,$0018,$0018
-dw $0018,$0018,$0018,$0018,$0018,$0018,$0018
-dw $0018,$0018,$0018,$0017,$0017,$0017,$0017
-dw $0017,$0017,$0016,$0016,$0016,$0016,$0015
-dw $0015,$0015,$0015,$0014,$0014,$0014,$0013
-dw $0013,$0013,$0012,$0012,$0011,$0011,$0011
-dw $0010,$0010,$000F,$000F,$000E,$000E,$000D
-dw $000D,$000C,$000C,$000B,$000B,$000A,$000A
-dw $0009,$0009,$0008,$0008,$0007,$0006,$0006
-dw $0005,$0005,$0004,$0004,$0003,$0002,$0002
-dw $0001,$0001,$0000,$FFFF,$FFFF,$FFFE,$FFFE
-dw $FFFD,$FFFC,$FFFC,$FFFB,$FFFB,$FFFA,$FFFA
-dw $FFF9,$FFF8,$FFF8,$FFF7,$FFF7,$FFF6,$FFF6
-dw $FFF5,$FFF5,$FFF4,$FFF4,$FFF3,$FFF3,$FFF2
-dw $FFF2,$FFF1,$FFF1,$FFF0,$FFF0,$FFEF,$FFEF
-dw $FFEF,$FFEE,$FFEE,$FFED,$FFED,$FFED,$FFEC
-dw $FFEC,$FFEC,$FFEB,$FFEB,$FFEB,$FFEB,$FFEA
-dw $FFEA,$FFEA,$FFEA,$FFE9,$FFE9,$FFE9,$FFE9
-dw $FFE9,$FFE9,$FFE8,$FFE8,$FFE8,$FFE8,$FFE8
-dw $FFE8,$FFE8,$FFE8,$FFE8,$FFE8,$FFE8,$FFE8
-dw $FFE8,$FFE8,$FFE8,$FFE8,$FFE8,$FFE9,$FFE9
-dw $FFE9,$FFE9,$FFE9,$FFE9,$FFEA,$FFEA,$FFEA
-dw $FFEA,$FFEB,$FFEB,$FFEB,$FFEB,$FFEC,$FFEC
-dw $FFEC,$FFED,$FFED,$FFED,$FFEE,$FFEE,$FFEF
-dw $FFEF,$FFEF,$FFF0,$FFF0,$FFF1,$FFF1,$FFF2
-dw $FFF2,$FFF3,$FFF3,$FFF4,$FFF4,$FFF5,$FFF5
-dw $FFF6,$FFF6,$FFF7,$FFF7,$FFF8,$FFF8,$FFF9
-dw $FFFA,$FFFA,$FFFB,$FFFB,$FFFC,$FFFC,$FFFD
-dw $FFFE,$FFFE,$FFFF,$FFFF
-
-;Amp = 48
-GalRingX1:
-dw $0000,$0001,$0002,$0004,$0005,$0006,$0007
-dw $0008,$0009,$000B,$000C,$000D,$000E,$000F
-dw $0010,$0011,$0012,$0013,$0015,$0016,$0017
-dw $0018,$0019,$001A,$001B,$001C,$001D,$001E
-dw $001E,$001F,$0020,$0021,$0022,$0023,$0024
-dw $0024,$0025,$0026,$0027,$0027,$0028,$0029
-dw $0029,$002A,$002A,$002B,$002B,$002C,$002C
-dw $002D,$002D,$002E,$002E,$002E,$002F,$002F
-dw $002F,$002F,$002F,$0030,$0030,$0030,$0030
-dw $0030,$0030,$0030,$0030,$0030,$0030,$0030
-dw $002F,$002F,$002F,$002F,$002F,$002E,$002E
-dw $002E,$002D,$002D,$002C,$002C,$002B,$002B
-dw $002A,$002A,$0029,$0029,$0028,$0027,$0027
-dw $0026,$0025,$0024,$0024,$0023,$0022,$0021
-dw $0020,$001F,$001E,$001E,$001D,$001C,$001B
-dw $001A,$0019,$0018,$0017,$0016,$0015,$0013
-dw $0012,$0011,$0010,$000F,$000E,$000D,$000C
-dw $000B,$0009,$0008,$0007,$0006,$0005,$0004
-dw $0002,$0001,$0000,$FFFF,$FFFE,$FFFC,$FFFB
-dw $FFFA,$FFF9,$FFF8,$FFF7,$FFF5,$FFF4,$FFF3
-dw $FFF2,$FFF1,$FFF0,$FFEF,$FFEE,$FFED,$FFEB
-dw $FFEA,$FFE9,$FFE8,$FFE7,$FFE6,$FFE5,$FFE4
-dw $FFE3,$FFE2,$FFE2,$FFE1,$FFE0,$FFDF,$FFDE
-dw $FFDD,$FFDC,$FFDC,$FFDB,$FFDA,$FFD9,$FFD9
-dw $FFD8,$FFD7,$FFD7,$FFD6,$FFD6,$FFD5,$FFD5
-dw $FFD4,$FFD4,$FFD3,$FFD3,$FFD2,$FFD2,$FFD2
-dw $FFD1,$FFD1,$FFD1,$FFD1,$FFD1,$FFD0,$FFD0
-dw $FFD0,$FFD0,$FFD0,$FFD0,$FFD0,$FFD0,$FFD0
-dw $FFD0,$FFD0,$FFD1,$FFD1,$FFD1,$FFD1,$FFD1
-dw $FFD2,$FFD2,$FFD2,$FFD3,$FFD3,$FFD4,$FFD4
-dw $FFD5,$FFD5,$FFD6,$FFD6,$FFD7,$FFD7,$FFD8
-dw $FFD9,$FFD9,$FFDA,$FFDB,$FFDC,$FFDC,$FFDD
-dw $FFDE,$FFDF,$FFE0,$FFE1,$FFE2,$FFE2,$FFE3
-dw $FFE4,$FFE5,$FFE6,$FFE7,$FFE8,$FFE9,$FFEA
-dw $FFEB,$FFED,$FFEE,$FFEF,$FFF0,$FFF1,$FFF2
-dw $FFF3,$FFF4,$FFF5,$FFF7,$FFF8,$FFF9,$FFFA
-dw $FFFB,$FFFC,$FFFE,$FFFF
-
-;Amp = 64
-GalRingX2:
-dw $0000,$0002,$0003,$0005,$0006,$0008,$0009
-dw $000B,$000C,$000E,$0010,$0011,$0013,$0014
-dw $0016,$0017,$0018,$001A,$001B,$001D,$001E
-dw $0020,$0021,$0022,$0024,$0025,$0026,$0027
-dw $0029,$002A,$002B,$002C,$002D,$002E,$002F
-dw $0030,$0031,$0032,$0033,$0034,$0035,$0036
-dw $0037,$0038,$0038,$0039,$003A,$003B,$003B
-dw $003C,$003C,$003D,$003D,$003E,$003E,$003E
-dw $003F,$003F,$003F,$0040,$0040,$0040,$0040
-dw $0040,$0040,$0040,$0040,$0040,$0040,$0040
-dw $003F,$003F,$003F,$003E,$003E,$003E,$003D
-dw $003D,$003C,$003C,$003B,$003B,$003A,$0039
-dw $0038,$0038,$0037,$0036,$0035,$0034,$0033
-dw $0032,$0031,$0030,$002F,$002E,$002D,$002C
-dw $002B,$002A,$0029,$0027,$0026,$0025,$0024
-dw $0022,$0021,$0020,$001E,$001D,$001B,$001A
-dw $0018,$0017,$0016,$0014,$0013,$0011,$0010
-dw $000E,$000C,$000B,$0009,$0008,$0006,$0005
-dw $0003,$0002,$0000,$FFFE,$FFFD,$FFFB,$FFFA
-dw $FFF8,$FFF7,$FFF5,$FFF4,$FFF2,$FFF0,$FFEF
-dw $FFED,$FFEC,$FFEA,$FFE9,$FFE8,$FFE6,$FFE5
-dw $FFE3,$FFE2,$FFE0,$FFDF,$FFDE,$FFDC,$FFDB
-dw $FFDA,$FFD9,$FFD7,$FFD6,$FFD5,$FFD4,$FFD3
-dw $FFD2,$FFD1,$FFD0,$FFCF,$FFCE,$FFCD,$FFCC
-dw $FFCB,$FFCA,$FFC9,$FFC8,$FFC8,$FFC7,$FFC6
-dw $FFC5,$FFC5,$FFC4,$FFC4,$FFC3,$FFC3,$FFC2
-dw $FFC2,$FFC2,$FFC1,$FFC1,$FFC1,$FFC0,$FFC0
-dw $FFC0,$FFC0,$FFC0,$FFC0,$FFC0,$FFC0,$FFC0
-dw $FFC0,$FFC0,$FFC1,$FFC1,$FFC1,$FFC2,$FFC2
-dw $FFC2,$FFC3,$FFC3,$FFC4,$FFC4,$FFC5,$FFC5
-dw $FFC6,$FFC7,$FFC8,$FFC8,$FFC9,$FFCA,$FFCB
-dw $FFCC,$FFCD,$FFCE,$FFCF,$FFD0,$FFD1,$FFD2
-dw $FFD3,$FFD4,$FFD5,$FFD6,$FFD7,$FFD9,$FFDA
-dw $FFDB,$FFDC,$FFDE,$FFDF,$FFE0,$FFE2,$FFE3
-dw $FFE5,$FFE6,$FFE8,$FFE9,$FFEA,$FFEC,$FFED
-dw $FFEF,$FFF0,$FFF2,$FFF4,$FFF5,$FFF7,$FFF8
-dw $FFFA,$FFFB,$FFFD,$FFFE
-
-;Amp = 96
-GalRingX3:
-dw $0000,$0002,$0005,$0007,$0009,$000C,$000E
-dw $0010,$0013,$0015,$0017,$001A,$001C,$001E
-dw $0020,$0023,$0025,$0027,$0029,$002B,$002D
-dw $002F,$0031,$0033,$0035,$0037,$0039,$003B
-dw $003D,$003F,$0040,$0042,$0044,$0046,$0047
-dw $0049,$004A,$004C,$004D,$004E,$0050,$0051
-dw $0052,$0054,$0055,$0056,$0057,$0058,$0059
-dw $005A,$005A,$005B,$005C,$005D,$005D,$005E
-dw $005E,$005F,$005F,$005F,$0060,$0060,$0060
-dw $0060,$0060,$0060,$0060,$0060,$0060,$005F
-dw $005F,$005F,$005E,$005E,$005D,$005D,$005C
-dw $005B,$005A,$005A,$0059,$0058,$0057,$0056
-dw $0055,$0054,$0052,$0051,$0050,$004E,$004D
-dw $004C,$004A,$0049,$0047,$0046,$0044,$0042
-dw $0040,$003F,$003D,$003B,$0039,$0037,$0035
-dw $0033,$0031,$002F,$002D,$002B,$0029,$0027
-dw $0025,$0023,$0020,$001E,$001C,$001A,$0017
-dw $0015,$0013,$0010,$000E,$000C,$0009,$0007
-dw $0005,$0002,$0000,$FFFE,$FFFB,$FFF9,$FFF7
-dw $FFF4,$FFF2,$FFF0,$FFED,$FFEB,$FFE9,$FFE6
-dw $FFE4,$FFE2,$FFE0,$FFDD,$FFDB,$FFD9,$FFD7
-dw $FFD5,$FFD3,$FFD1,$FFCF,$FFCD,$FFCB,$FFC9
-dw $FFC7,$FFC5,$FFC3,$FFC1,$FFC0,$FFBE,$FFBC
-dw $FFBA,$FFB9,$FFB7,$FFB6,$FFB4,$FFB3,$FFB2
-dw $FFB0,$FFAF,$FFAE,$FFAC,$FFAB,$FFAA,$FFA9
-dw $FFA8,$FFA7,$FFA6,$FFA6,$FFA5,$FFA4,$FFA3
-dw $FFA3,$FFA2,$FFA2,$FFA1,$FFA1,$FFA1,$FFA0
-dw $FFA0,$FFA0,$FFA0,$FFA0,$FFA0,$FFA0,$FFA0
-dw $FFA0,$FFA1,$FFA1,$FFA1,$FFA2,$FFA2,$FFA3
-dw $FFA3,$FFA4,$FFA5,$FFA6,$FFA6,$FFA7,$FFA8
-dw $FFA9,$FFAA,$FFAB,$FFAC,$FFAE,$FFAF,$FFB0
-dw $FFB2,$FFB3,$FFB4,$FFB6,$FFB7,$FFB9,$FFBA
-dw $FFBC,$FFBE,$FFC0,$FFC1,$FFC3,$FFC5,$FFC7
-dw $FFC9,$FFCB,$FFCD,$FFCF,$FFD1,$FFD3,$FFD5
-dw $FFD7,$FFD9,$FFDB,$FFDD,$FFE0,$FFE2,$FFE4
-dw $FFE6,$FFE9,$FFEB,$FFED,$FFF0,$FFF2,$FFF4
-dw $FFF7,$FFF9,$FFFB,$FFFE
-
-;Amp = 128
-GalRingX4:
-dw $0000,$0003,$0006,$0009,$000D,$0010,$0013
-dw $0016,$0019,$001C,$001F,$0022,$0025,$0028
-dw $002B,$002E,$0031,$0034,$0037,$003A,$003C
-dw $003F,$0042,$0044,$0047,$004A,$004C,$004F
-dw $0051,$0054,$0056,$0058,$005B,$005D,$005F
-dw $0061,$0063,$0065,$0067,$0069,$006A,$006C
-dw $006E,$006F,$0071,$0072,$0074,$0075,$0076
-dw $0077,$0079,$007A,$007A,$007B,$007C,$007D
-dw $007E,$007E,$007F,$007F,$007F,$0080,$0080
-dw $0080,$0080,$0080,$0080,$0080,$007F,$007F
-dw $007F,$007E,$007E,$007D,$007C,$007B,$007A
-dw $007A,$0079,$0077,$0076,$0075,$0074,$0072
-dw $0071,$006F,$006E,$006C,$006A,$0069,$0067
-dw $0065,$0063,$0061,$005F,$005D,$005B,$0058
-dw $0056,$0054,$0051,$004F,$004C,$004A,$0047
-dw $0044,$0042,$003F,$003C,$003A,$0037,$0034
-dw $0031,$002E,$002B,$0028,$0025,$0022,$001F
-dw $001C,$0019,$0016,$0013,$0010,$000D,$0009
-dw $0006,$0003,$0000,$FFFD,$FFFA,$FFF7,$FFF3
-dw $FFF0,$FFED,$FFEA,$FFE7,$FFE4,$FFE1,$FFDE
-dw $FFDB,$FFD8,$FFD5,$FFD2,$FFCF,$FFCC,$FFC9
-dw $FFC6,$FFC4,$FFC1,$FFBE,$FFBC,$FFB9,$FFB6
-dw $FFB4,$FFB1,$FFAF,$FFAC,$FFAA,$FFA8,$FFA5
-dw $FFA3,$FFA1,$FF9F,$FF9D,$FF9B,$FF99,$FF97
-dw $FF96,$FF94,$FF92,$FF91,$FF8F,$FF8E,$FF8C
-dw $FF8B,$FF8A,$FF89,$FF87,$FF86,$FF86,$FF85
-dw $FF84,$FF83,$FF82,$FF82,$FF81,$FF81,$FF81
-dw $FF80,$FF80,$FF80,$FF80,$FF80,$FF80,$FF80
-dw $FF81,$FF81,$FF81,$FF82,$FF82,$FF83,$FF84
-dw $FF85,$FF86,$FF86,$FF87,$FF89,$FF8A,$FF8B
-dw $FF8C,$FF8E,$FF8F,$FF91,$FF92,$FF94,$FF96
-dw $FF97,$FF99,$FF9B,$FF9D,$FF9F,$FFA1,$FFA3
-dw $FFA5,$FFA8,$FFAA,$FFAC,$FFAF,$FFB1,$FFB4
-dw $FFB6,$FFB9,$FFBC,$FFBE,$FFC1,$FFC4,$FFC6
-dw $FFC9,$FFCC,$FFCF,$FFD2,$FFD5,$FFD8,$FFDB
-dw $FFDE,$FFE1,$FFE4,$FFE7,$FFEA,$FFED,$FFF0
-dw $FFF3,$FFF7,$FFFA,$FFFD
-
 ;sin(8*pi*t/T)
 WaterDist:
 db $04,$04,$05,$05,$06,$06,$06,$07,$07,$07
@@ -13472,35 +13121,7 @@ db $08,$08,$08,$08,$07,$07,$07,$07,$06,$06
 db $06,$05,$05,$04,$04,$04,$03,$03,$02,$02
 db $02,$01,$01,$01,$01,$00,$00,$00,$00,$00
 db $00,$00,$00,$00,$00,$00,$01,$01,$01,$01
-db $02,$02,$02,$03,$03,$04 
-
-Cos8:
-db $10,$10,$10,$10,$10,$10,$10,$10,$10,$10
-db $10,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0E,$0E
-db $0E,$0E,$0E,$0E,$0D,$0D,$0D,$0D,$0C,$0C
-db $0C,$0C,$0B,$0B,$0B,$0A,$0A,$0A,$0A,$09
-db $09,$09,$08,$08,$08,$07,$07,$06,$06,$06
-db $05,$05,$05,$04,$04,$04,$03,$03,$02,$02
-db $02,$01,$01,$00,$00,$00,$FF,$FF,$FE,$FE
-db $FE,$FD,$FD,$FC,$FC,$FC,$FB,$FB,$FB,$FA
-db $FA,$FA,$F9,$F9,$F8,$F8,$F8,$F7,$F7,$F7
-db $F6,$F6,$F6,$F6,$F5,$F5,$F5,$F4,$F4,$F4
-db $F4,$F3,$F3,$F3,$F3,$F2,$F2,$F2,$F2,$F2
-db $F2,$F1,$F1,$F1,$F1,$F1,$F1,$F1,$F0,$F0
-db $F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0
-db $F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F1
-db $F1,$F1,$F1,$F1,$F1,$F1,$F2,$F2,$F2,$F2
-db $F2,$F2,$F3,$F3,$F3,$F3,$F4,$F4,$F4,$F4
-db $F5,$F5,$F5,$F6,$F6,$F6,$F6,$F7,$F7,$F7
-db $F8,$F8,$F8,$F9,$F9,$FA,$FA,$FA,$FB,$FB
-db $FB,$FC,$FC,$FC,$FD,$FD,$FE,$FE,$FE,$FF
-db $FF,$00,$00,$00,$01,$01,$02,$02,$02,$03
-db $03,$04,$04,$04,$05,$05,$05,$06,$06,$06
-db $07,$07,$08,$08,$08,$09,$09,$09,$0A,$0A
-db $0A,$0A,$0B,$0B,$0B,$0C,$0C,$0C,$0C,$0D
-db $0D,$0D,$0D,$0E,$0E,$0E,$0E,$0E,$0E,$0F
-db $0F,$0F,$0F,$0F,$0F,$0F,$10,$10,$10,$10
-db $10,$10,$10,$10,$10,$10
+db $02,$02,$02,$03,$03,$04
 
 ;sin(2*pi*t/T)*(1-(t%2*2))
 FogOffset:
@@ -13530,93 +13151,6 @@ db $9E,$60,$A2,$5C,$A6,$58,$AB,$53,$AF,$4E
 db $B4,$49,$B9,$44,$BF,$3F,$C4,$39,$CA,$33
 db $CF,$2E,$D5,$28,$DB,$22,$E1,$1C,$E7,$16
 db $ED,$10,$F4,$09,$FA,$03
-
-;Sigmoid curve, 0-127, 1/(1+pow(e,-(t-(T/2))/(T/16)))
-Sigmoid:
-db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-db $01,$01,$01,$01,$01,$01,$01,$01,$01,$01
-db $01,$01,$01,$01,$01,$01,$01,$01,$02,$02
-db $02,$02,$02,$02,$02,$02,$03,$03,$03,$03
-db $03,$04,$04,$04,$04,$04,$05,$05,$05,$06
-db $06,$06,$07,$07,$08,$08,$09,$09,$0A,$0A
-db $0B,$0B,$0C,$0D,$0E,$0E,$0F,$10,$11,$12
-db $13,$14,$15,$16,$17,$18,$1A,$1B,$1C,$1E
-db $1F,$21,$22,$24,$25,$27,$29,$2A,$2C,$2E
-db $30,$32,$34,$36,$38,$3A,$3C,$3E,$3F,$41
-db $43,$45,$47,$49,$4B,$4D,$4F,$51,$53,$55
-db $56,$58,$5A,$5B,$5D,$5E,$60,$61,$63,$64
-db $65,$67,$68,$69,$6A,$6B,$6C,$6D,$6E,$6F
-db $70,$71,$71,$72,$73,$74,$74,$75,$75,$76
-db $76,$77,$77,$78,$78,$79,$79,$79,$7A,$7A
-db $7A,$7B,$7B,$7B,$7B,$7B,$7C,$7C,$7C,$7C
-db $7C,$7D,$7D,$7D,$7D,$7D,$7D,$7D,$7D,$7E
-db $7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E,$7E
-db $7E,$7E,$7E,$7E,$7E,$7E,$7E,$7F,$7F,$7F
-db $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F
-db $7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F,$7F
-db $80,$80,$80,$80,$80,$80,$80,$80,$80,$80
-db $80,$80,$80,$80,$80,$80
-
-;sin(2*pi*t/T)
-EnemyBullet3Wave:
-db $00,$01,$02,$02,$03,$04,$04,$05,$06,$06
-db $07,$07,$07,$08,$08,$08,$08,$08,$08,$08
-db $07,$07,$07,$06,$06,$05,$04,$04,$03,$02
-db $02,$01,$00,$FF,$FE,$FE,$FD,$FC,$FC,$FB
-db $FA,$FA,$F9,$F9,$F9,$F8,$F8,$F8,$F8,$F8
-db $F8,$F8,$F9,$F9,$F9,$FA,$FA,$FB,$FC,$FC
-db $FD,$FE,$FE,$FF,$00,$01,$02,$02,$03,$04
-db $04,$05,$06,$06,$07,$07,$07,$08,$08,$08
-db $08,$08,$08,$08,$07,$07,$07,$06,$06,$05
-db $04,$04,$03,$02,$02,$01,$00,$FF,$FE,$FE
-db $FD,$FC,$FC,$FB,$FA,$FA,$F9,$F9,$F9,$F8
-db $F8,$F8,$F8,$F8,$F8,$F8,$F9,$F9,$F9,$FA
-db $FA,$FB,$FC,$FC,$FD,$FE,$FE,$FF,$00,$01
-db $02,$02,$03,$04,$04,$05,$06,$06,$07,$07
-db $07,$08,$08,$08,$08,$08,$08,$08,$07,$07
-db $07,$06,$06,$05,$04,$04,$03,$02,$02,$01
-db $00,$FF,$FE,$FE,$FD,$FC,$FC,$FB,$FA,$FA
-db $F9,$F9,$F9,$F8,$F8,$F8,$F8,$F8,$F8,$F8
-db $F9,$F9,$F9,$FA,$FA,$FB,$FC,$FC,$FD,$FE
-db $FE,$FF,$00,$01,$02,$02,$03,$04,$04,$05
-db $06,$06,$07,$07,$07,$08,$08,$08,$08,$08
-db $08,$08,$07,$07,$07,$06,$06,$05,$04,$04
-db $03,$02,$02,$01,$00,$FF,$FE,$FE,$FD,$FC
-db $FC,$FB,$FA,$FA,$F9,$F9,$F9,$F8,$F8,$F8
-db $F8,$F8,$F8,$F8,$F9,$F9,$F9,$FA,$FA,$FB
-db $FC,$FC,$FD,$FE,$FE,$FF
-
-;sin(4*pi*t/T)
-EnemyBullet4Wave:
-db $00,$00,$01,$01,$02,$02,$02,$03,$03,$03
-db $04,$04,$04,$05,$05,$05,$06,$06,$06,$06
-db $07,$07,$07,$07,$07,$08,$08,$08,$08,$08
-db $08,$08,$08,$08,$08,$08,$08,$08,$08,$08
-db $07,$07,$07,$07,$07,$06,$06,$06,$06,$05
-db $05,$05,$04,$04,$04,$03,$03,$03,$02,$02
-db $02,$01,$01,$00,$00,$00,$FF,$FF,$FE,$FE
-db $FE,$FD,$FD,$FD,$FC,$FC,$FC,$FB,$FB,$FB
-db $FA,$FA,$FA,$FA,$F9,$F9,$F9,$F9,$F9,$F8
-db $F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8
-db $F8,$F8,$F8,$F8,$F9,$F9,$F9,$F9,$F9,$FA
-db $FA,$FA,$FA,$FB,$FB,$FB,$FC,$FC,$FC,$FD
-db $FD,$FD,$FE,$FE,$FE,$FF,$FF,$00,$00,$00
-db $01,$01,$02,$02,$02,$03,$03,$03,$04,$04
-db $04,$05,$05,$05,$06,$06,$06,$06,$07,$07
-db $07,$07,$07,$08,$08,$08,$08,$08,$08,$08
-db $08,$08,$08,$08,$08,$08,$08,$08,$07,$07
-db $07,$07,$07,$06,$06,$06,$06,$05,$05,$05
-db $04,$04,$04,$03,$03,$03,$02,$02,$02,$01
-db $01,$00,$00,$00,$FF,$FF,$FE,$FE,$FE,$FD
-db $FD,$FD,$FC,$FC,$FC,$FB,$FB,$FB,$FA,$FA
-db $FA,$FA,$F9,$F9,$F9,$F9,$F9,$F8,$F8,$F8
-db $F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8
-db $F8,$F8,$F9,$F9,$F9,$F9,$F9,$FA,$FA,$FA
-db $FA,$FB,$FB,$FB,$FC,$FC,$FC,$FD,$FD,$FD
-db $FE,$FE,$FE,$FF,$FF,$00
 
                                 ;First half of the header
 org $FFB0                       ;Goto FFB0
@@ -14118,7 +13652,416 @@ RedrawEnemyRange:
     plx
     pla
     rtl
+
+;List of enemy waves
+EnemyWaveLookup:
+    dw EnemyWave00
+    dw EnemyWave01
+    dw EnemyWave02
+    dw EnemyWave03
+    dw EnemyWave04
+    dw EnemyWave05
+    dw EnemyWave06
+    dw EnemyWave07
+    dw EnemyWave08
+    dw EnemyWave09
+    dw EnemyWave0A
+    dw EnemyWave0B
+    dw EnemyWave0C
+    dw EnemyWave0D
+    dw EnemyWave0E
+    dw EnemyWave0F
+    dw EnemyWave10
+    dw EnemyWave11
+    dw EnemyWave12
+    dw EnemyWave13
+    dw EnemyWave14
+    dw EnemyWave15
+    dw EnemyWave16
+    dw EnemyWave17
+    dw EnemyWave18
+    dw EnemyWave19
+    dw EnemyWave1A
+    dw EnemyWave1B
+    dw EnemyWave1C
+    dw EnemyWave1D
+    dw EnemyWave1E
+    dw EnemyWave1F
+    dw EnemyWave20
+    dw EnemyWave21
+    dw EnemyWave22
+    dw EnemyWave23
+    dw EnemyWave24
+    dw EnemyWave25
+    dw EnemyWave26
+    dw EnemyWave27
+    dw EnemyWave28
+    dw EnemyWave29
+    dw EnemyWave2A
+    dw EnemyWave2B
+    dw EnemyWave2C
+    dw EnemyWave2D
+    dw EnemyWave2E
+    dw EnemyWave2F
+    dw EnemyWave30
+    dw EnemyWave31
+    dw EnemyWave32
+    dw EnemyWave33
+    dw EnemyWave34
+    dw EnemyWave35
+
+;Enemy wave definitions
+EnemyWave00:
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave01:
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave02:
+    db $06,$06,$02,$02,$02,$02,$06,$06
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave03:
+    db $06,$02,$06,$02,$06,$02,$06,$02
+    db $01,$02,$01,$02,$01,$02,$01,$02
+    db $01,$02,$01,$02,$01,$02,$01,$02
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave04:
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $01,$00,$01,$00,$01,$00,$01,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave05:
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave06:
+    db $03,$03,$06,$06,$06,$06,$03,$03
+    db $03,$03,$06,$02,$02,$06,$03,$03
+    db $02,$02,$06,$02,$02,$06,$02,$02
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave07:
+    db $06,$02,$03,$06,$02,$03,$06,$02
+    db $03,$06,$02,$03,$06,$02,$03,$06
+    db $02,$03,$06,$02,$03,$06,$02,$03
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave08:
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $00,$06,$06,$00,$00,$06,$06,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave09:
+    db $03,$03,$03,$06,$06,$03,$03,$03
+    db $03,$03,$06,$02,$02,$06,$06,$03
+    db $06,$06,$02,$00,$00,$02,$06,$06
+    db $06,$02,$00,$00,$00,$00,$02,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave0A:
+    db $06,$03,$03,$03,$03,$03,$03,$06
+    db $06,$03,$02,$02,$02,$02,$03,$06
+    db $06,$03,$02,$01,$01,$02,$03,$06
+    db $06,$03,$02,$01,$01,$02,$03,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave0B:
+    db $03,$06,$03,$06,$03,$06,$03,$06
+    db $01,$02,$01,$02,$01,$02,$01,$02
+    db $02,$01,$02,$01,$02,$01,$02,$01
+    db $06,$03,$06,$03,$06,$03,$06,$03
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave0C:
+    db $05,$03,$03,$05,$05,$03,$03,$05
+    db $01,$02,$02,$01,$01,$02,$02,$01
+    db $01,$02,$02,$01,$01,$02,$02,$01
+    db $01,$02,$02,$01,$01,$02,$02,$01
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave0D:
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $02,$02,$03,$03,$03,$03,$02,$02
+    db $03,$03,$02,$02,$02,$02,$03,$03
+    db $02,$02,$03,$03,$03,$03,$02,$02
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave0E:
+    db $05,$05,$02,$03,$03,$02,$05,$05
+    db $05,$02,$02,$03,$03,$02,$02,$05
+    db $05,$02,$02,$03,$03,$02,$02,$05
+    db $05,$05,$02,$03,$03,$02,$05,$05
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave0F:
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $06,$06,$06,$06,$06,$06,$06,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave10:
+    db $03,$05,$03,$05,$05,$03,$05,$03
+    db $05,$06,$05,$05,$05,$05,$06,$05
+    db $03,$05,$03,$05,$05,$03,$05,$03
+    db $01,$01,$01,$05,$05,$01,$01,$01
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave11:
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave12:
+    db $03,$05,$02,$06,$06,$02,$05,$03
+    db $03,$05,$02,$06,$06,$02,$05,$03
+    db $03,$05,$02,$06,$06,$02,$05,$03
+    db $03,$05,$02,$06,$06,$02,$05,$03
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave13:
+    db $05,$06,$03,$05,$05,$03,$06,$05
+    db $03,$06,$03,$05,$05,$03,$06,$03
+    db $06,$03,$02,$06,$06,$02,$03,$06
+    db $06,$05,$02,$06,$06,$02,$05,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave14:
+    db $06,$05,$05,$06,$06,$05,$05,$06
+    db $05,$07,$07,$05,$05,$07,$07,$05
+    db $05,$07,$07,$05,$05,$07,$07,$05
+    db $06,$05,$05,$06,$06,$05,$05,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave15:
+    db $07,$07,$05,$05,$05,$05,$07,$07
+    db $05,$05,$07,$07,$07,$07,$05,$05
+    db $03,$03,$06,$06,$06,$06,$03,$03
+    db $06,$06,$02,$02,$02,$02,$06,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave16:
+    db $01,$05,$05,$07,$07,$05,$05,$01
+    db $01,$01,$05,$07,$07,$05,$01,$01
+    db $01,$05,$05,$07,$07,$05,$05,$01
+    db $01,$01,$05,$07,$07,$05,$01,$01
+    db $01,$05,$05,$07,$07,$05,$05,$01
+EnemyWave17:
+    db $05,$07,$06,$06,$06,$06,$05,$07
+    db $05,$07,$03,$03,$03,$03,$05,$07
+    db $07,$05,$03,$03,$03,$03,$07,$05
+    db $07,$05,$06,$06,$06,$06,$07,$05
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave18:
+    db $05,$05,$06,$06,$06,$06,$05,$05
+    db $07,$07,$05,$07,$07,$05,$07,$07
+    db $07,$07,$05,$07,$07,$05,$07,$07
+    db $02,$02,$05,$02,$02,$05,$02,$02
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave19:
+    db $07,$05,$07,$06,$06,$07,$05,$07
+    db $05,$07,$05,$06,$06,$05,$07,$05
+    db $07,$05,$07,$06,$06,$07,$05,$07
+    db $06,$06,$06,$07,$07,$06,$06,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave1A:
+    db $06,$05,$06,$07,$07,$06,$05,$06
+    db $05,$07,$05,$05,$05,$05,$07,$05
+    db $05,$07,$05,$07,$07,$05,$07,$05
+    db $06,$05,$06,$05,$05,$06,$05,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave1B:
+    db $07,$07,$07,$06,$06,$07,$07,$07
+    db $06,$05,$05,$07,$07,$05,$05,$06
+    db $06,$05,$05,$07,$07,$05,$05,$06
+    db $07,$07,$07,$06,$06,$07,$07,$07
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave1C:
+    db $06,$06,$06,$06,$05,$05,$05,$05
+    db $06,$04,$04,$06,$05,$04,$04,$05
+    db $02,$04,$04,$02,$03,$04,$04,$03
+    db $02,$02,$02,$02,$03,$03,$03,$03
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave1D:
+    db $06,$04,$07,$04,$04,$07,$04,$06
+    db $06,$04,$07,$04,$04,$07,$04,$06
+    db $02,$02,$03,$02,$02,$03,$02,$02
+    db $02,$02,$03,$02,$02,$03,$02,$02
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave1E:
+    db $04,$04,$04,$04,$04,$04,$04,$04
+    db $05,$05,$07,$07,$07,$07,$05,$05
+    db $07,$07,$05,$06,$06,$05,$07,$07
+    db $06,$06,$06,$05,$05,$06,$06,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave1F:
+    db $04,$05,$06,$07,$07,$06,$05,$04
+    db $07,$04,$05,$06,$06,$05,$04,$07
+    db $06,$07,$04,$05,$05,$04,$07,$06
+    db $05,$06,$07,$04,$04,$07,$06,$05
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave20:
+    db $06,$06,$06,$07,$07,$06,$06,$06
+    db $04,$04,$04,$05,$05,$04,$04,$04
+    db $02,$02,$02,$03,$03,$02,$02,$02
+    db $02,$02,$02,$03,$03,$02,$02,$02
+    db $06,$06,$06,$07,$07,$06,$06,$06
+EnemyWave21:
+    db $06,$04,$04,$04,$04,$04,$04,$06
+    db $06,$05,$05,$07,$07,$05,$05,$06
+    db $07,$05,$07,$01,$01,$07,$05,$07
+    db $07,$07,$01,$01,$01,$01,$07,$07
+    db $07,$01,$01,$01,$01,$01,$01,$07
+EnemyWave22:
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave23:
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave24:
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+    db $06,$00,$00,$00,$00,$00,$00,$06
+EnemyWave25:
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave26:
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave27:
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave28:
+    db $05,$05,$02,$02,$02,$02,$05,$05
+    db $05,$05,$02,$02,$02,$02,$05,$05
+    db $05,$05,$02,$02,$02,$02,$05,$05
+    db $05,$05,$02,$02,$02,$02,$05,$05
+    db $05,$05,$02,$02,$02,$02,$05,$05
+EnemyWave29:
+    db $07,$07,$02,$02,$07,$07,$02,$02
+    db $07,$07,$02,$02,$07,$07,$02,$02
+    db $07,$07,$02,$02,$07,$07,$02,$02
+    db $07,$07,$02,$02,$07,$07,$02,$02
+    db $07,$07,$02,$02,$07,$07,$02,$02
+EnemyWave2A:
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $05,$03,$03,$03,$03,$03,$03,$05
+    db $05,$03,$03,$03,$03,$03,$03,$05
+    db $05,$03,$03,$03,$03,$03,$03,$05
+    db $05,$05,$05,$05,$05,$05,$05,$05
+EnemyWave2B:
+    db $02,$02,$02,$08,$08,$02,$02,$02
+    db $02,$02,$02,$08,$08,$02,$02,$02
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $02,$02,$02,$08,$08,$02,$02,$02
+    db $02,$02,$02,$08,$08,$02,$02,$02
+EnemyWave2C:
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $02,$02,$02,$02,$02,$02,$02,$02
+    db $03,$03,$03,$03,$03,$03,$03,$03
+    db $03,$03,$03,$03,$03,$03,$03,$03
+EnemyWave2D:
+    db $03,$03,$02,$02,$02,$02,$04,$04
+    db $03,$03,$02,$02,$02,$02,$04,$04
+    db $03,$03,$02,$02,$02,$02,$04,$04
+    db $03,$03,$02,$02,$02,$02,$04,$04
+    db $03,$03,$02,$02,$02,$02,$04,$04
+EnemyWave2E:
+    db $07,$07,$07,$07,$07,$07,$07,$07
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $05,$05,$05,$05,$05,$05,$05,$05
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $08,$08,$08,$08,$08,$08,$08,$08
+EnemyWave2F:
+    db $07,$01,$07,$01,$07,$01,$07,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $07,$01,$07,$01,$07,$01,$07,$01
+    db $01,$01,$01,$01,$01,$01,$01,$01
+    db $07,$01,$07,$01,$07,$01,$07,$01
+EnemyWave30:
+    db $00,$00,$00,$00,$00,$00,$00,$00
+    db $00,$00,$00,$06,$06,$00,$00,$00
+    db $00,$00,$06,$04,$04,$06,$00,$00
+    db $00,$06,$04,$04,$04,$04,$06,$00
+    db $06,$06,$06,$06,$06,$06,$06,$06
+EnemyWave31:
+    db $08,$08,$08,$08,$08,$08,$08,$08
+    db $00,$08,$05,$05,$05,$05,$08,$00
+    db $00,$00,$08,$05,$05,$08,$00,$00
+    db $00,$00,$00,$08,$08,$00,$00,$00
+    db $00,$00,$00,$00,$00,$00,$00,$00
+EnemyWave32:
+    db $01,$03,$04,$03,$01,$03,$04,$03
+    db $01,$03,$04,$03,$01,$03,$04,$03
+    db $01,$03,$04,$03,$01,$03,$04,$03
+    db $01,$03,$04,$03,$01,$03,$04,$03
+    db $01,$03,$04,$03,$01,$03,$04,$03
+EnemyWave33:
+    db $02,$07,$08,$07,$02,$07,$08,$07
+    db $02,$07,$08,$07,$02,$07,$08,$07
+    db $02,$07,$08,$07,$02,$07,$08,$07
+    db $02,$07,$08,$07,$02,$07,$08,$07
+    db $02,$07,$08,$07,$02,$07,$08,$07
+EnemyWave34:
+    db $05,$06,$05,$06,$05,$06,$05,$06
+    db $06,$05,$06,$05,$06,$05,$06,$05
+    db $05,$06,$05,$06,$05,$06,$05,$06
+    db $06,$05,$06,$05,$06,$05,$06,$05
+    db $05,$06,$05,$06,$05,$06,$05,$06
+EnemyWave35:
+    db $01,$04,$01,$04,$01,$04,$01,$04
+    db $04,$01,$04,$01,$04,$01,$04,$01
+    db $01,$04,$01,$04,$01,$04,$01,$04
+    db $04,$01,$04,$01,$04,$01,$04,$01
+    db $01,$04,$01,$04,$01,$04,$01,$04
+
+EnemyHealthTable:
+    db $00              ;Empty
+    db $01              ;Basic Squelcher
+    db $02              ;Metal Rocketeer
+    db $01              ;Boxy Greenback
+    db $01              ;Mind Cake
+    db $02              ;Sophisticated mimic
+    db $03              ;Purple Mook
+    db $02              ;MultiArm
+    db $04              ;Tough Guy
+    db $03              ;Mitosis Master
+    db $03              ;Cluster Head
     
+EnemyScoreTable:
+    db $00              ;Empty
+    db $01              ;Basic Squelcher
+    db $02              ;Metal Rocketeer
+    db $02              ;Boxy Greenback
+    db $04              ;Mind Cake
+    db $03              ;Sophisticated mimic
+    db $03              ;Purple Mook
+    db $04              ;MultiArm
+    db $08              ;Tough Guy
+    db $06              ;Mitosis Master
+    db $05              ;Cluster Head
+
 ;256, $100 - $FF02
 StageTextXOff:
 dw $00C3,$00C3,$00C3,$00C3,$00C3,$00C3,$00C3
@@ -14230,3 +14173,315 @@ db $E1,$BB,$7F,$5A,$62,$85,$97,$7D,$43,$14
 db $11,$33,$51,$48,$18,$00,$00,$00,$26,$31
 db $10,$00,$00,$00,$23,$41,$32,$0A,$00,$0C
 db $44,$72,$75,$55,$3A,$48
+
+;sin(2*pi*t/T)
+EnemyBullet3Wave:
+db $00,$01,$02,$02,$03,$04,$04,$05,$06,$06
+db $07,$07,$07,$08,$08,$08,$08,$08,$08,$08
+db $07,$07,$07,$06,$06,$05,$04,$04,$03,$02
+db $02,$01,$00,$FF,$FE,$FE,$FD,$FC,$FC,$FB
+db $FA,$FA,$F9,$F9,$F9,$F8,$F8,$F8,$F8,$F8
+db $F8,$F8,$F9,$F9,$F9,$FA,$FA,$FB,$FC,$FC
+db $FD,$FE,$FE,$FF,$00,$01,$02,$02,$03,$04
+db $04,$05,$06,$06,$07,$07,$07,$08,$08,$08
+db $08,$08,$08,$08,$07,$07,$07,$06,$06,$05
+db $04,$04,$03,$02,$02,$01,$00,$FF,$FE,$FE
+db $FD,$FC,$FC,$FB,$FA,$FA,$F9,$F9,$F9,$F8
+db $F8,$F8,$F8,$F8,$F8,$F8,$F9,$F9,$F9,$FA
+db $FA,$FB,$FC,$FC,$FD,$FE,$FE,$FF,$00,$01
+db $02,$02,$03,$04,$04,$05,$06,$06,$07,$07
+db $07,$08,$08,$08,$08,$08,$08,$08,$07,$07
+db $07,$06,$06,$05,$04,$04,$03,$02,$02,$01
+db $00,$FF,$FE,$FE,$FD,$FC,$FC,$FB,$FA,$FA
+db $F9,$F9,$F9,$F8,$F8,$F8,$F8,$F8,$F8,$F8
+db $F9,$F9,$F9,$FA,$FA,$FB,$FC,$FC,$FD,$FE
+db $FE,$FF,$00,$01,$02,$02,$03,$04,$04,$05
+db $06,$06,$07,$07,$07,$08,$08,$08,$08,$08
+db $08,$08,$07,$07,$07,$06,$06,$05,$04,$04
+db $03,$02,$02,$01,$00,$FF,$FE,$FE,$FD,$FC
+db $FC,$FB,$FA,$FA,$F9,$F9,$F9,$F8,$F8,$F8
+db $F8,$F8,$F8,$F8,$F9,$F9,$F9,$FA,$FA,$FB
+db $FC,$FC,$FD,$FE,$FE,$FF
+
+;sin(4*pi*t/T)
+EnemyBullet4Wave:
+db $00,$00,$01,$01,$02,$02,$02,$03,$03,$03
+db $04,$04,$04,$05,$05,$05,$06,$06,$06,$06
+db $07,$07,$07,$07,$07,$08,$08,$08,$08,$08
+db $08,$08,$08,$08,$08,$08,$08,$08,$08,$08
+db $07,$07,$07,$07,$07,$06,$06,$06,$06,$05
+db $05,$05,$04,$04,$04,$03,$03,$03,$02,$02
+db $02,$01,$01,$00,$00,$00,$FF,$FF,$FE,$FE
+db $FE,$FD,$FD,$FD,$FC,$FC,$FC,$FB,$FB,$FB
+db $FA,$FA,$FA,$FA,$F9,$F9,$F9,$F9,$F9,$F8
+db $F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8
+db $F8,$F8,$F8,$F8,$F9,$F9,$F9,$F9,$F9,$FA
+db $FA,$FA,$FA,$FB,$FB,$FB,$FC,$FC,$FC,$FD
+db $FD,$FD,$FE,$FE,$FE,$FF,$FF,$00,$00,$00
+db $01,$01,$02,$02,$02,$03,$03,$03,$04,$04
+db $04,$05,$05,$05,$06,$06,$06,$06,$07,$07
+db $07,$07,$07,$08,$08,$08,$08,$08,$08,$08
+db $08,$08,$08,$08,$08,$08,$08,$08,$07,$07
+db $07,$07,$07,$06,$06,$06,$06,$05,$05,$05
+db $04,$04,$04,$03,$03,$03,$02,$02,$02,$01
+db $01,$00,$00,$00,$FF,$FF,$FE,$FE,$FE,$FD
+db $FD,$FD,$FC,$FC,$FC,$FB,$FB,$FB,$FA,$FA
+db $FA,$FA,$F9,$F9,$F9,$F9,$F9,$F8,$F8,$F8
+db $F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8,$F8
+db $F8,$F8,$F9,$F9,$F9,$F9,$F9,$FA,$FA,$FA
+db $FA,$FB,$FB,$FB,$FC,$FC,$FC,$FD,$FD,$FD
+db $FE,$FE,$FE,$FF,$FF,$00
+
+Stage1StarTimer:
+db $50
+db $55
+db $52
+db $51
+db $45
+db $49
+db $4C
+db $4F
+
+db $60
+db $65
+db $62
+db $61
+db $75
+db $79
+db $7C
+db $7F
+
+Stage1StarTiles:
+db !BG1Star4
+db !BG1Star4
+db !BG1Star4
+db !BG1Star4
+db !BG1Star4
+db !BG1Star4
+db !BG1Star4
+db !BG1Star3
+db !BG1Star3
+db !BG1Star3
+db !BG1Star3
+db !BG1Star2
+db !BG1Star2
+db !BG1Star2
+db !BG1Star1
+db !BG1Star1
+
+GalRingSinePtr:
+    for t = 0..!SpiralArmCount
+        dw GalRingX0
+    endfor
+    for t = 0..!SpiralArmCount
+        dw GalRingX1
+    endfor
+    for t = 0..!SpiralArmCount
+        dw GalRingX2
+    endfor
+    for t = 0..!SpiralArmCount
+        dw GalRingX3
+    endfor
+    for t = 0..!SpiralArmCount
+        dw GalRingX4
+    endfor
+
+;Amp = 24
+GalRingX0:
+dw $0000,$0001,$0001,$0002,$0002,$0003,$0004
+dw $0004,$0005,$0005,$0006,$0006,$0007,$0008
+dw $0008,$0009,$0009,$000A,$000A,$000B,$000B
+dw $000C,$000C,$000D,$000D,$000E,$000E,$000F
+dw $000F,$0010,$0010,$0011,$0011,$0011,$0012
+dw $0012,$0013,$0013,$0013,$0014,$0014,$0014
+dw $0015,$0015,$0015,$0015,$0016,$0016,$0016
+dw $0016,$0017,$0017,$0017,$0017,$0017,$0017
+dw $0018,$0018,$0018,$0018,$0018,$0018,$0018
+dw $0018,$0018,$0018,$0018,$0018,$0018,$0018
+dw $0018,$0018,$0018,$0017,$0017,$0017,$0017
+dw $0017,$0017,$0016,$0016,$0016,$0016,$0015
+dw $0015,$0015,$0015,$0014,$0014,$0014,$0013
+dw $0013,$0013,$0012,$0012,$0011,$0011,$0011
+dw $0010,$0010,$000F,$000F,$000E,$000E,$000D
+dw $000D,$000C,$000C,$000B,$000B,$000A,$000A
+dw $0009,$0009,$0008,$0008,$0007,$0006,$0006
+dw $0005,$0005,$0004,$0004,$0003,$0002,$0002
+dw $0001,$0001,$0000,$FFFF,$FFFF,$FFFE,$FFFE
+dw $FFFD,$FFFC,$FFFC,$FFFB,$FFFB,$FFFA,$FFFA
+dw $FFF9,$FFF8,$FFF8,$FFF7,$FFF7,$FFF6,$FFF6
+dw $FFF5,$FFF5,$FFF4,$FFF4,$FFF3,$FFF3,$FFF2
+dw $FFF2,$FFF1,$FFF1,$FFF0,$FFF0,$FFEF,$FFEF
+dw $FFEF,$FFEE,$FFEE,$FFED,$FFED,$FFED,$FFEC
+dw $FFEC,$FFEC,$FFEB,$FFEB,$FFEB,$FFEB,$FFEA
+dw $FFEA,$FFEA,$FFEA,$FFE9,$FFE9,$FFE9,$FFE9
+dw $FFE9,$FFE9,$FFE8,$FFE8,$FFE8,$FFE8,$FFE8
+dw $FFE8,$FFE8,$FFE8,$FFE8,$FFE8,$FFE8,$FFE8
+dw $FFE8,$FFE8,$FFE8,$FFE8,$FFE8,$FFE9,$FFE9
+dw $FFE9,$FFE9,$FFE9,$FFE9,$FFEA,$FFEA,$FFEA
+dw $FFEA,$FFEB,$FFEB,$FFEB,$FFEB,$FFEC,$FFEC
+dw $FFEC,$FFED,$FFED,$FFED,$FFEE,$FFEE,$FFEF
+dw $FFEF,$FFEF,$FFF0,$FFF0,$FFF1,$FFF1,$FFF2
+dw $FFF2,$FFF3,$FFF3,$FFF4,$FFF4,$FFF5,$FFF5
+dw $FFF6,$FFF6,$FFF7,$FFF7,$FFF8,$FFF8,$FFF9
+dw $FFFA,$FFFA,$FFFB,$FFFB,$FFFC,$FFFC,$FFFD
+dw $FFFE,$FFFE,$FFFF,$FFFF
+
+;Amp = 48
+GalRingX1:
+dw $0000,$0001,$0002,$0004,$0005,$0006,$0007
+dw $0008,$0009,$000B,$000C,$000D,$000E,$000F
+dw $0010,$0011,$0012,$0013,$0015,$0016,$0017
+dw $0018,$0019,$001A,$001B,$001C,$001D,$001E
+dw $001E,$001F,$0020,$0021,$0022,$0023,$0024
+dw $0024,$0025,$0026,$0027,$0027,$0028,$0029
+dw $0029,$002A,$002A,$002B,$002B,$002C,$002C
+dw $002D,$002D,$002E,$002E,$002E,$002F,$002F
+dw $002F,$002F,$002F,$0030,$0030,$0030,$0030
+dw $0030,$0030,$0030,$0030,$0030,$0030,$0030
+dw $002F,$002F,$002F,$002F,$002F,$002E,$002E
+dw $002E,$002D,$002D,$002C,$002C,$002B,$002B
+dw $002A,$002A,$0029,$0029,$0028,$0027,$0027
+dw $0026,$0025,$0024,$0024,$0023,$0022,$0021
+dw $0020,$001F,$001E,$001E,$001D,$001C,$001B
+dw $001A,$0019,$0018,$0017,$0016,$0015,$0013
+dw $0012,$0011,$0010,$000F,$000E,$000D,$000C
+dw $000B,$0009,$0008,$0007,$0006,$0005,$0004
+dw $0002,$0001,$0000,$FFFF,$FFFE,$FFFC,$FFFB
+dw $FFFA,$FFF9,$FFF8,$FFF7,$FFF5,$FFF4,$FFF3
+dw $FFF2,$FFF1,$FFF0,$FFEF,$FFEE,$FFED,$FFEB
+dw $FFEA,$FFE9,$FFE8,$FFE7,$FFE6,$FFE5,$FFE4
+dw $FFE3,$FFE2,$FFE2,$FFE1,$FFE0,$FFDF,$FFDE
+dw $FFDD,$FFDC,$FFDC,$FFDB,$FFDA,$FFD9,$FFD9
+dw $FFD8,$FFD7,$FFD7,$FFD6,$FFD6,$FFD5,$FFD5
+dw $FFD4,$FFD4,$FFD3,$FFD3,$FFD2,$FFD2,$FFD2
+dw $FFD1,$FFD1,$FFD1,$FFD1,$FFD1,$FFD0,$FFD0
+dw $FFD0,$FFD0,$FFD0,$FFD0,$FFD0,$FFD0,$FFD0
+dw $FFD0,$FFD0,$FFD1,$FFD1,$FFD1,$FFD1,$FFD1
+dw $FFD2,$FFD2,$FFD2,$FFD3,$FFD3,$FFD4,$FFD4
+dw $FFD5,$FFD5,$FFD6,$FFD6,$FFD7,$FFD7,$FFD8
+dw $FFD9,$FFD9,$FFDA,$FFDB,$FFDC,$FFDC,$FFDD
+dw $FFDE,$FFDF,$FFE0,$FFE1,$FFE2,$FFE2,$FFE3
+dw $FFE4,$FFE5,$FFE6,$FFE7,$FFE8,$FFE9,$FFEA
+dw $FFEB,$FFED,$FFEE,$FFEF,$FFF0,$FFF1,$FFF2
+dw $FFF3,$FFF4,$FFF5,$FFF7,$FFF8,$FFF9,$FFFA
+dw $FFFB,$FFFC,$FFFE,$FFFF
+
+;Amp = 64
+GalRingX2:
+dw $0000,$0002,$0003,$0005,$0006,$0008,$0009
+dw $000B,$000C,$000E,$0010,$0011,$0013,$0014
+dw $0016,$0017,$0018,$001A,$001B,$001D,$001E
+dw $0020,$0021,$0022,$0024,$0025,$0026,$0027
+dw $0029,$002A,$002B,$002C,$002D,$002E,$002F
+dw $0030,$0031,$0032,$0033,$0034,$0035,$0036
+dw $0037,$0038,$0038,$0039,$003A,$003B,$003B
+dw $003C,$003C,$003D,$003D,$003E,$003E,$003E
+dw $003F,$003F,$003F,$0040,$0040,$0040,$0040
+dw $0040,$0040,$0040,$0040,$0040,$0040,$0040
+dw $003F,$003F,$003F,$003E,$003E,$003E,$003D
+dw $003D,$003C,$003C,$003B,$003B,$003A,$0039
+dw $0038,$0038,$0037,$0036,$0035,$0034,$0033
+dw $0032,$0031,$0030,$002F,$002E,$002D,$002C
+dw $002B,$002A,$0029,$0027,$0026,$0025,$0024
+dw $0022,$0021,$0020,$001E,$001D,$001B,$001A
+dw $0018,$0017,$0016,$0014,$0013,$0011,$0010
+dw $000E,$000C,$000B,$0009,$0008,$0006,$0005
+dw $0003,$0002,$0000,$FFFE,$FFFD,$FFFB,$FFFA
+dw $FFF8,$FFF7,$FFF5,$FFF4,$FFF2,$FFF0,$FFEF
+dw $FFED,$FFEC,$FFEA,$FFE9,$FFE8,$FFE6,$FFE5
+dw $FFE3,$FFE2,$FFE0,$FFDF,$FFDE,$FFDC,$FFDB
+dw $FFDA,$FFD9,$FFD7,$FFD6,$FFD5,$FFD4,$FFD3
+dw $FFD2,$FFD1,$FFD0,$FFCF,$FFCE,$FFCD,$FFCC
+dw $FFCB,$FFCA,$FFC9,$FFC8,$FFC8,$FFC7,$FFC6
+dw $FFC5,$FFC5,$FFC4,$FFC4,$FFC3,$FFC3,$FFC2
+dw $FFC2,$FFC2,$FFC1,$FFC1,$FFC1,$FFC0,$FFC0
+dw $FFC0,$FFC0,$FFC0,$FFC0,$FFC0,$FFC0,$FFC0
+dw $FFC0,$FFC0,$FFC1,$FFC1,$FFC1,$FFC2,$FFC2
+dw $FFC2,$FFC3,$FFC3,$FFC4,$FFC4,$FFC5,$FFC5
+dw $FFC6,$FFC7,$FFC8,$FFC8,$FFC9,$FFCA,$FFCB
+dw $FFCC,$FFCD,$FFCE,$FFCF,$FFD0,$FFD1,$FFD2
+dw $FFD3,$FFD4,$FFD5,$FFD6,$FFD7,$FFD9,$FFDA
+dw $FFDB,$FFDC,$FFDE,$FFDF,$FFE0,$FFE2,$FFE3
+dw $FFE5,$FFE6,$FFE8,$FFE9,$FFEA,$FFEC,$FFED
+dw $FFEF,$FFF0,$FFF2,$FFF4,$FFF5,$FFF7,$FFF8
+dw $FFFA,$FFFB,$FFFD,$FFFE
+
+;Amp = 96
+GalRingX3:
+dw $0000,$0002,$0005,$0007,$0009,$000C,$000E
+dw $0010,$0013,$0015,$0017,$001A,$001C,$001E
+dw $0020,$0023,$0025,$0027,$0029,$002B,$002D
+dw $002F,$0031,$0033,$0035,$0037,$0039,$003B
+dw $003D,$003F,$0040,$0042,$0044,$0046,$0047
+dw $0049,$004A,$004C,$004D,$004E,$0050,$0051
+dw $0052,$0054,$0055,$0056,$0057,$0058,$0059
+dw $005A,$005A,$005B,$005C,$005D,$005D,$005E
+dw $005E,$005F,$005F,$005F,$0060,$0060,$0060
+dw $0060,$0060,$0060,$0060,$0060,$0060,$005F
+dw $005F,$005F,$005E,$005E,$005D,$005D,$005C
+dw $005B,$005A,$005A,$0059,$0058,$0057,$0056
+dw $0055,$0054,$0052,$0051,$0050,$004E,$004D
+dw $004C,$004A,$0049,$0047,$0046,$0044,$0042
+dw $0040,$003F,$003D,$003B,$0039,$0037,$0035
+dw $0033,$0031,$002F,$002D,$002B,$0029,$0027
+dw $0025,$0023,$0020,$001E,$001C,$001A,$0017
+dw $0015,$0013,$0010,$000E,$000C,$0009,$0007
+dw $0005,$0002,$0000,$FFFE,$FFFB,$FFF9,$FFF7
+dw $FFF4,$FFF2,$FFF0,$FFED,$FFEB,$FFE9,$FFE6
+dw $FFE4,$FFE2,$FFE0,$FFDD,$FFDB,$FFD9,$FFD7
+dw $FFD5,$FFD3,$FFD1,$FFCF,$FFCD,$FFCB,$FFC9
+dw $FFC7,$FFC5,$FFC3,$FFC1,$FFC0,$FFBE,$FFBC
+dw $FFBA,$FFB9,$FFB7,$FFB6,$FFB4,$FFB3,$FFB2
+dw $FFB0,$FFAF,$FFAE,$FFAC,$FFAB,$FFAA,$FFA9
+dw $FFA8,$FFA7,$FFA6,$FFA6,$FFA5,$FFA4,$FFA3
+dw $FFA3,$FFA2,$FFA2,$FFA1,$FFA1,$FFA1,$FFA0
+dw $FFA0,$FFA0,$FFA0,$FFA0,$FFA0,$FFA0,$FFA0
+dw $FFA0,$FFA1,$FFA1,$FFA1,$FFA2,$FFA2,$FFA3
+dw $FFA3,$FFA4,$FFA5,$FFA6,$FFA6,$FFA7,$FFA8
+dw $FFA9,$FFAA,$FFAB,$FFAC,$FFAE,$FFAF,$FFB0
+dw $FFB2,$FFB3,$FFB4,$FFB6,$FFB7,$FFB9,$FFBA
+dw $FFBC,$FFBE,$FFC0,$FFC1,$FFC3,$FFC5,$FFC7
+dw $FFC9,$FFCB,$FFCD,$FFCF,$FFD1,$FFD3,$FFD5
+dw $FFD7,$FFD9,$FFDB,$FFDD,$FFE0,$FFE2,$FFE4
+dw $FFE6,$FFE9,$FFEB,$FFED,$FFF0,$FFF2,$FFF4
+dw $FFF7,$FFF9,$FFFB,$FFFE
+
+;Amp = 128
+GalRingX4:
+dw $0000,$0003,$0006,$0009,$000D,$0010,$0013
+dw $0016,$0019,$001C,$001F,$0022,$0025,$0028
+dw $002B,$002E,$0031,$0034,$0037,$003A,$003C
+dw $003F,$0042,$0044,$0047,$004A,$004C,$004F
+dw $0051,$0054,$0056,$0058,$005B,$005D,$005F
+dw $0061,$0063,$0065,$0067,$0069,$006A,$006C
+dw $006E,$006F,$0071,$0072,$0074,$0075,$0076
+dw $0077,$0079,$007A,$007A,$007B,$007C,$007D
+dw $007E,$007E,$007F,$007F,$007F,$0080,$0080
+dw $0080,$0080,$0080,$0080,$0080,$007F,$007F
+dw $007F,$007E,$007E,$007D,$007C,$007B,$007A
+dw $007A,$0079,$0077,$0076,$0075,$0074,$0072
+dw $0071,$006F,$006E,$006C,$006A,$0069,$0067
+dw $0065,$0063,$0061,$005F,$005D,$005B,$0058
+dw $0056,$0054,$0051,$004F,$004C,$004A,$0047
+dw $0044,$0042,$003F,$003C,$003A,$0037,$0034
+dw $0031,$002E,$002B,$0028,$0025,$0022,$001F
+dw $001C,$0019,$0016,$0013,$0010,$000D,$0009
+dw $0006,$0003,$0000,$FFFD,$FFFA,$FFF7,$FFF3
+dw $FFF0,$FFED,$FFEA,$FFE7,$FFE4,$FFE1,$FFDE
+dw $FFDB,$FFD8,$FFD5,$FFD2,$FFCF,$FFCC,$FFC9
+dw $FFC6,$FFC4,$FFC1,$FFBE,$FFBC,$FFB9,$FFB6
+dw $FFB4,$FFB1,$FFAF,$FFAC,$FFAA,$FFA8,$FFA5
+dw $FFA3,$FFA1,$FF9F,$FF9D,$FF9B,$FF99,$FF97
+dw $FF96,$FF94,$FF92,$FF91,$FF8F,$FF8E,$FF8C
+dw $FF8B,$FF8A,$FF89,$FF87,$FF86,$FF86,$FF85
+dw $FF84,$FF83,$FF82,$FF82,$FF81,$FF81,$FF81
+dw $FF80,$FF80,$FF80,$FF80,$FF80,$FF80,$FF80
+dw $FF81,$FF81,$FF81,$FF82,$FF82,$FF83,$FF84
+dw $FF85,$FF86,$FF86,$FF87,$FF89,$FF8A,$FF8B
+dw $FF8C,$FF8E,$FF8F,$FF91,$FF92,$FF94,$FF96
+dw $FF97,$FF99,$FF9B,$FF9D,$FF9F,$FFA1,$FFA3
+dw $FFA5,$FFA8,$FFAA,$FFAC,$FFAF,$FFB1,$FFB4
+dw $FFB6,$FFB9,$FFBC,$FFBE,$FFC1,$FFC4,$FFC6
+dw $FFC9,$FFCC,$FFCF,$FFD2,$FFD5,$FFD8,$FFDB
+dw $FFDE,$FFE1,$FFE4,$FFE7,$FFEA,$FFED,$FFF0
+dw $FFF3,$FFF7,$FFFA,$FFFD
